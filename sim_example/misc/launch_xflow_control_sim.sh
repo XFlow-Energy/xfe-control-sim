@@ -1,9 +1,11 @@
 #!/bin/bash
 # set -x
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-XFLOW_CONTROL_SIM_DIR="$(cd "$SCRIPT_DIR/../" && pwd)"
+SIM_EXAMPLE_DIR="$(cd "$SCRIPT_DIR/../" && pwd)"
 
-BUILD_DIR="$XFLOW_CONTROL_SIM_DIR/build"
+XFLOW_CONTROL_SIM_DIR="$(cd "$SIM_EXAMPLE_DIR/../xflow-control-sim" && pwd)"
+
+BUILD_DIR="$SIM_EXAMPLE_DIR/build"
 
 RECOMPILE_OR_NOT=$1
 
@@ -14,7 +16,7 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 	cd "$BUILD_DIR" || exit
 	# PATHVARS+="-DRUN_CPPCHECK=OFF "
 	# PATHVARS+="-DRUN_IWYU=OFF "
-	PATHVARS+="-DRUN_CLANG_TIDY=ON "
+	# PATHVARS+="-DRUN_CLANG_TIDY=ON "
 	# PATHVARS+="-DRUN_SCAN_BUILD=OFF "
 	# PATHVARS+="-DRUN_FLAWFINDER=OFF "
 
@@ -108,7 +110,7 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 	# Configure into build dir
 	cmake $GENERATOR \
 		-B "$BUILD_DIR" \
-		-S "$XFLOW_CONTROL_SIM_DIR" \
+		-S "$SIM_EXAMPLE_DIR" \
 		-DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
 		-DCMAKE_VERBOSE_MAKEFILE="$CMAKE_VERBOSE_FLAG" \
 		-DCMAKE_C_COMPILER="$CC" \
@@ -123,10 +125,67 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 	(cd "$BUILD_DIR" && $BUILD_CMD)
 fi
 
+RUN_CLANG_TIDY=1
+
+if [[ "${GITHUB_ACTIONS:-}" == "true" || -n "${CI:-}" ]]
+then
+	RUN_CLANG_TIDY=1
+fi
+# Post-build: run clang-tidy via your script and log to build/clang-tidy.log
+if [[ "${RUN_CLANG_TIDY:-0}" == "1" ]]; then
+	CLANG_TIDY_SCRIPT="$XFLOW_CONTROL_SIM_DIR/misc/clang_tidy_all.sh"
+	CLANG_TIDY_LOG="$BUILD_DIR/clang-tidy.log"
+
+	# Allow user override of .clang-tidy file location
+	CLANG_TIDY_FILE="${CLANG_TIDY_FILE:-$XFLOW_CONTROL_SIM_DIR/.clang-tidy}"
+
+	# Detect "cloud" (GitHub Actions or generic CI env)
+	IN_CLOUD=0
+	if [[ "${GITHUB_ACTIONS:-}" == "true" || -n "${CI:-}" ]]
+	then
+		IN_CLOUD=1
+	fi
+
+	if [[ -x "$CLANG_TIDY_SCRIPT" ]]; then
+		if command -v run-clang-tidy >/dev/null 2>&1; then
+			export PROJECT_ROOT="$SIM_EXAMPLE_DIR"
+			export BUILD_DIR="$BUILD_DIR"
+			export RUN_CLANG_TIDY_BIN="$(command -v run-clang-tidy)"
+			MODE="${RUN_CLANG_TIDY_MODE:-c}"
+
+			# remove existing log if present
+			if [[ -f "$CLANG_TIDY_LOG" ]]; then
+				rm -f "$CLANG_TIDY_LOG"
+			fi
+
+			echo "[INFO] Running clang-tidy ($MODE)… logging to $CLANG_TIDY_LOG"
+			echo "[INFO] Using config file: $CLANG_TIDY_FILE"
+
+			# send output to both console and file
+			if [[ "$IN_CLOUD" -eq 1 ]]
+			then
+				if ! "$CLANG_TIDY_SCRIPT" "$MODE" "$CLANG_TIDY_FILE" --extraargs -warnings-as-errors='*' 2>&1 | tee "$CLANG_TIDY_LOG"; then
+					echo "[WARN] clang-tidy returned non-zero; see $CLANG_TIDY_LOG"
+				fi
+			else
+				if ! "$CLANG_TIDY_SCRIPT" "$MODE" "$CLANG_TIDY_FILE" 2>&1 | tee "$CLANG_TIDY_LOG"; then
+					echo "[WARN] clang-tidy returned non-zero; see $CLANG_TIDY_LOG"
+				fi
+			fi
+		else
+			echo "[WARN] run-clang-tidy not found in PATH; skipping clang-tidy step."
+		fi
+	else
+		echo "[WARN] clang-tidy script not found at $CLANG_TIDY_SCRIPT; skipping."
+	fi
+else
+	echo "[INFO] RUN_CLANG_TIDY not set; skipping clang-tidy step."
+fi
+
 echo ""
 
 # Ensure log dirs exist before running the binary (CI needs this)
-mkdir -p "$XFLOW_CONTROL_SIM_DIR/log/log_data"
+mkdir -p "$SIM_EXAMPLE_DIR/log/log_data"
 
 cd "$BUILD_DIR/executables-out/" || exit
 
@@ -142,7 +201,7 @@ echo "$OUTPUT"
 echo ""
 
 # Print the contents of the generated log file if it exists
-LOG_FILE="$XFLOW_CONTROL_SIM_DIR/log/log_data/xflow-control-sim-simulation-output.log"
+LOG_FILE="$SIM_EXAMPLE_DIR/log/log_data/xflow-control-sim-simulation-output.log"
 if [[ -f "$LOG_FILE" ]]; then
 	echo "→ Contents of simulation log:"
 	cat "$LOG_FILE"

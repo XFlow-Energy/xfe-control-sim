@@ -12,7 +12,7 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 	mkdir "$BUILD_DIR"
 	cd "$BUILD_DIR" || exit
 	# PATHVARS+="-DRUN_CPPCHECK=OFF "
-	PATHVARS+="-DRUN_IWYU=OFF "
+	# PATHVARS+="-DRUN_IWYU=OFF "
 	# PATHVARS+="-DRUN_CLANG_TIDY=OFF "
 	# PATHVARS+="-DRUN_SCAN_BUILD=OFF "
 	# PATHVARS+="-DRUN_FLAWFINDER=OFF "
@@ -122,15 +122,30 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 	(cd "$BUILD_DIR" && $BUILD_CMD)
 fi
 
-RUN_CLANG_TIDY=0
+RUN_CLANG_TIDY=1
+
+if [[ "${GITHUB_ACTIONS:-}" == "true" || -n "${CI:-}" ]]
+then
+	RUN_CLANG_TIDY=1
+fi
 # Post-build: run clang-tidy via your script and log to build/clang-tidy.log
 if [[ "${RUN_CLANG_TIDY:-0}" == "1" ]]; then
-	CLANG_TIDY_SCRIPT="$XFLOW_CONTROLLER_DIR/src/misc/clang_tidy_all.sh"
+	CLANG_TIDY_SCRIPT="$XFLOW_CONTROL_SIM_DIR/misc/clang_tidy_all.sh"
 	CLANG_TIDY_LOG="$BUILD_DIR/clang-tidy.log"
+
+	# Allow user override of .clang-tidy file location
+	CLANG_TIDY_FILE="${CLANG_TIDY_FILE:-$XFLOW_CONTROL_SIM_DIR/.clang-tidy}"
+
+	# Detect "cloud" (GitHub Actions or generic CI env)
+	IN_CLOUD=0
+	if [[ "${GITHUB_ACTIONS:-}" == "true" || -n "${CI:-}" ]]
+	then
+		IN_CLOUD=1
+	fi
 
 	if [[ -x "$CLANG_TIDY_SCRIPT" ]]; then
 		if command -v run-clang-tidy >/dev/null 2>&1; then
-			export PROJECT_ROOT="$XFLOW_CONTROLLER_DIR"
+			export PROJECT_ROOT="$XFLOW_CONTROL_SIM_DIR"
 			export BUILD_DIR="$BUILD_DIR"
 			export RUN_CLANG_TIDY_BIN="$(command -v run-clang-tidy)"
 			MODE="${RUN_CLANG_TIDY_MODE:-c}"
@@ -141,9 +156,18 @@ if [[ "${RUN_CLANG_TIDY:-0}" == "1" ]]; then
 			fi
 
 			echo "[INFO] Running clang-tidy ($MODE)… logging to $CLANG_TIDY_LOG"
+			echo "[INFO] Using config file: $CLANG_TIDY_FILE"
+
 			# send output to both console and file
-			if ! "$CLANG_TIDY_SCRIPT" "$MODE" 2>&1 | tee "$CLANG_TIDY_LOG"; then
-				echo "[WARN] clang-tidy returned non-zero; see $CLANG_TIDY_LOG"
+			if [[ "$IN_CLOUD" -eq 1 ]]
+			then
+				if ! "$CLANG_TIDY_SCRIPT" "$MODE" "$CLANG_TIDY_FILE" --extraargs -warnings-as-errors='*' 2>&1 | tee "$CLANG_TIDY_LOG"; then
+					echo "[WARN] clang-tidy returned non-zero; see $CLANG_TIDY_LOG"
+				fi
+			else
+				if ! "$CLANG_TIDY_SCRIPT" "$MODE" "$CLANG_TIDY_FILE" 2>&1 | tee "$CLANG_TIDY_LOG"; then
+					echo "[WARN] clang-tidy returned non-zero; see $CLANG_TIDY_LOG"
+				fi
 			fi
 		else
 			echo "[WARN] run-clang-tidy not found in PATH; skipping clang-tidy step."

@@ -5,8 +5,8 @@ param(
 
 # Script & project dirs
 $SCRIPT_DIR = $PSScriptRoot
-$XFLOW_CONTROL_SIM_DIR = (Resolve-Path (Join-Path $SCRIPT_DIR "..")).Path
-$BUILD_DIR = Join-Path $XFLOW_CONTROL_SIM_DIR "build"
+$SIM_EXAMPLE_DIR = (Resolve-Path (Join-Path $SCRIPT_DIR "..")).Path
+$BUILD_DIR = Join-Path $SIM_EXAMPLE_DIR "build"
 
 # Helpers
 function Find-Tool {
@@ -101,7 +101,7 @@ if ($RECOMPILE_OR_NOT -eq 1) {
 	if ($GENERATOR) { $cmakeArgs += $GENERATOR }
 	$cmakeArgs += @(
 		"-B","`"$BUILD_DIR`"",
-		"-S","`"$XFLOW_CONTROL_SIM_DIR`"",
+		"-S","`"$SIM_EXAMPLE_DIR`"",
 		"-DCMAKE_BUILD_TYPE=$BUILD_TYPE",
 		"-DCMAKE_VERBOSE_MAKEFILE=$CMAKE_VERBOSE_FLAG",
 		"-DCMAKE_C_COMPILER=`"$CC`"",
@@ -136,7 +136,7 @@ if ($RECOMPILE_OR_NOT -eq 1) {
 Write-Host ""
 
 # Ensure log dirs exist before running the binary
-$logDir = Join-Path $XFLOW_CONTROL_SIM_DIR "log\log_data"
+$logDir = Join-Path $SIM_EXAMPLE_DIR "log\log_data"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
 # cd "$BUILD_DIR/executables-out/" || exit
