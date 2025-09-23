@@ -7,7 +7,7 @@
 
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
- * XFE-CONTROL-SIM
+ * XFLOW-CONTROL-SIM
  * Copyright (C) 2024-2025 XFlow Energy (https://www.xflowenergy.com/)
  *
  * This program is free software: you can redistribute it and/or modify

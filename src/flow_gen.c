@@ -7,7 +7,7 @@
 
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
- * XFE-CONTROL-SIM
+ * XFLOW-CONTROL-SIM
  * Copyright (C) 2024-2025 XFlow Energy (https://www.xflowenergy.com/)
  *
  * This program is free software: you can redistribute it and/or modify
@@ -25,7 +25,7 @@
  */
 #include "xflow_core.h"
 #include "flow_gen.h"               // for flow
-#include "xfe_control_sim_common.h" // for shutdownFlag, create_shared_interp
+#include "xflow_control_sim_common.h" // for shutdownFlag, create_shared_interp
 #include "xflow_aero_sim.h"
 #include <stddef.h> // for NULL
 

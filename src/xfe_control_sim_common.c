@@ -1,5 +1,5 @@
 /**
- * @file    xfe_control_sim_common.c
+ * @file    xflow_control_sim_common.c
  * @author  XFlow Energy
  * @date    2025
  * @brief   Common functions used for the simulation software specifically
@@ -7,7 +7,7 @@
 
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
- * XFE-CONTROL-SIM
+ * XFLOW-CONTROL-SIM
  * Copyright (C) 2024-2025 XFlow Energy (https://www.xflowenergy.com/)
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,7 +24,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 /**
- * @file xfe_control_sim_common.c
+ * @file xflow_control_sim_common.c
  * @copyright 2024 XFlow Energy Company
  *
  * @brief APIs commonly used by all application modules.
@@ -34,7 +34,7 @@
 #include "xflow_file_socket.h"
 #include "logger.h"       // for safe_fprintf, log_message, safe_snprintf
 #include "maybe_unused.h" // for MAYBE_UNUSED
-#include "xfe_control_sim_common.h"
+#include "xflow_control_sim_common.h"
 #include "xflow_aero_sim.h"  // for param_array_t, (anonymous struct)::(an...
 #include "xflow_core.h"      // for get_monotonic_timestamp, shutdownFlag
 #include "xflow_shmem_sem.h" // for shmem_post_check, shmem_wait_check
@@ -781,9 +781,9 @@ void initialize_control_system(param_array_t **dynamic_data, param_array_t **fix
 		const char *log_file_location_and_or_name = NULL;
 		get_param(*fixed_data, "log_file_location_and_or_name", &log_file_location_and_or_name);
 
-		char output_log_filename_xfe_control_sim[PATH_MAX];
+		char output_log_filename_xflow_control_sim[PATH_MAX];
 
-		create_dynamic_file_path(output_log_filename_xfe_control_sim, sizeof(output_log_filename_xfe_control_sim), "%s", log_file_location_and_or_name);
+		create_dynamic_file_path(output_log_filename_xflow_control_sim, sizeof(output_log_filename_xflow_control_sim), "%s", log_file_location_and_or_name);
 		char logfilename[PATH_MAX];
 		log_file_ammend_remove_t log_ammend_delete = DELETE_OLD_LOG_FILE;
 
@@ -792,7 +792,7 @@ void initialize_control_system(param_array_t **dynamic_data, param_array_t **fix
 #else
 		log_ammend_delete = AMMEND_LOG_FILE;
 #endif
-		initialize_log_file(logfilename, PATH_MAX, OUTPUT_LOG_FILE_PATH, output_log_filename_xfe_control_sim, log_ammend_delete);
+		initialize_log_file(logfilename, PATH_MAX, OUTPUT_LOG_FILE_PATH, output_log_filename_xflow_control_sim, log_ammend_delete);
 #endif
 		// log_message("after initialize_log_file\n");
 

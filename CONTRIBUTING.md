@@ -1,4 +1,4 @@
-# Contributing to XFE-CONTROL-SIM
+# Contributing to XFLOW-CONTROL-SIM
 
 First off, thank you for considering a contribution! We welcome community involvement to make this project better. To ensure a smooth process for everyone, please review these guidelines.
 
@@ -24,6 +24,6 @@ First off, thank you for considering a contribution! We welcome community involv
 ---
 ## 2. License
 
-The XFE-CONTROL-SIM project is licensed under the **GNU General Public License v3 (GPLv3)**.
+The XFLOW-CONTROL-SIM project is licensed under the **GNU General Public License v3 (GPLv3)**.
 
 By contributing, you agree that your contributions will be licensed to the project under these same terms.

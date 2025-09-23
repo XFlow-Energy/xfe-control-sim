@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# XFE-CONTROL-SIM
+# XFLOW-CONTROL-SIM
 # Copyright (C) 2024-2025 XFlow Energy (https://www.xflowenergy.com/)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -25,8 +25,8 @@ option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 option(BUILD_OTHER_PROJECT_INTEGRATION "Allow for main files to be compiled int o ther projects. no build executable or shared lib." OFF)
 
-# Option to build the xfe_control_sim executable
-option(BUILD_XFE_CONTROL_SIM_EXECUTABLE "Build xfe_control_sim executable" ON)
+# Option to build the xflow_control_sim executable
+option(BUILD_XFLOW_CONTROL_SIM_EXECUTABLE "Build xflow_control_sim executable" ON)
 
 option(BUILD_XFE_SCADA_INTERFACE "Build xfe_scada interface" OFF)
 
@@ -35,21 +35,21 @@ option(INTEGRATE_CUSTOMER_MODELS "Build custom customer models" OFF)
 option(RUN_SINGLE_MODEL_ONLY "Run only a single instance of the program, otherwise allows for data processing functions." ON)
 
 set(CUSTOMER_NAME "xflowenergy" CACHE STRING "Name of the customer to use")
-set(GIT_TAG_TO_USE "add_xfe_control_sim" CACHE STRING "git tag to use")
+set(GIT_TAG_TO_USE "add_xflow_control_sim" CACHE STRING "git tag to use")
 
 # Adjust BUILD_SHARED_LIBS
-if(BUILD_SHARED_LIBS AND BUILD_XFE_CONTROL_SIM_EXECUTABLE)
+if(BUILD_SHARED_LIBS AND BUILD_XFLOW_CONTROL_SIM_EXECUTABLE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static libraries on Windows when building the executable" FORCE)
 endif()
 
 if(BUILD_XFE_SCADA_INTERFACE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "Forcing windows shared library off just in case" FORCE)
-    set(BUILD_XFE_CONTROL_SIM_EXECUTABLE ON CACHE BOOL "Forcing on building the xfe-control-sim executable" FORCE)
+    set(BUILD_XFLOW_CONTROL_SIM_EXECUTABLE ON CACHE BOOL "Forcing on building the xflow-control-sim executable" FORCE)
 endif()
 
 if(BUILD_OTHER_PROJECT_INTEGRATION)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "Forcing windows shared library off just in case" FORCE)
-    set(BUILD_XFE_CONTROL_SIM_EXECUTABLE OFF CACHE BOOL "Forcing on building the xfe-control-sim executable" FORCE)
+    set(BUILD_XFLOW_CONTROL_SIM_EXECUTABLE OFF CACHE BOOL "Forcing on building the xflow-control-sim executable" FORCE)
 endif()
 
 # Option to specify the library output directory
@@ -76,14 +76,14 @@ if(WIN32)
 endif()
 
 # Conditionally set options based on the current user
-if("${CURRENT_USER}" STREQUAL "XFlow Sim" AND NOT BUILD_XFE_CONTROL_SIM_EXECUTABLE)
+if("${CURRENT_USER}" STREQUAL "XFlow Sim" AND NOT BUILD_XFLOW_CONTROL_SIM_EXECUTABLE)
     # Default to building shared libraries and not building the executable
     set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries" FORCE)
-    set(BUILD_XFE_CONTROL_SIM_EXECUTABLE OFF CACHE BOOL "Build xfe_control_sim executable" FORCE)
+    set(BUILD_XFLOW_CONTROL_SIM_EXECUTABLE OFF CACHE BOOL "Build xflow_control_sim executable" FORCE)
 else()
     # Default options for other users
     option(BUILD_SHARED_LIBS "Build shared libraries" ON)
-    option(BUILD_XFE_CONTROL_SIM_EXECUTABLE "Build xfe_control_sim executable" ON)
+    option(BUILD_XFLOW_CONTROL_SIM_EXECUTABLE "Build xflow_control_sim executable" ON)
 endif()
 
 set(SYSTEM_CONFIG_FILENAME "simple_ball_config.csv")
@@ -104,13 +104,13 @@ if(NOT DEFINED FLOW_GEN_FILE_DIR)
     )
 endif()
 
-set(XFE_CONTROL_SIM_CONFIG_DIR "${CMAKE_CURRENT_LIST_DIR}")
+set(XFLOW_CONTROL_SIM_CONFIG_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
 # Paths to config files
-if (NOT DEFINED XFE_CONTROL_SIM_CONFIG_DIR)
-    set(XFE_CONTROL_SIM_CONFIG_DIR
-        "${CUSTOM_XFE_CONTROL_SIM_FILES_ROOT}/../../conf/turbineconfigfiles"
-        CACHE  PATH  "Which xfe_control_sim config to load")
+if (NOT DEFINED XFLOW_CONTROL_SIM_CONFIG_DIR)
+    set(XFLOW_CONTROL_SIM_CONFIG_DIR
+        "${CUSTOM_XFLOW_CONTROL_SIM_FILES_ROOT}/../../conf/turbineconfigfiles"
+        CACHE  PATH  "Which xflow_control_sim config to load")
 endif()
 
 set(LOG_DIR "${CMAKE_SOURCE_DIR}/log")
@@ -123,8 +123,8 @@ else()
 endif()
 
 # Compile definitions that are always included
-set(XFE_CONTROL_SIM_LIB_COMPILE_DEFINITIONS
-    SYSTEM_CONFIG_FULL_PATH="${XFE_CONTROL_SIM_CONFIG_DIR}/${SYSTEM_CONFIG_FILENAME}"
+set(XFLOW_CONTROL_SIM_LIB_COMPILE_DEFINITIONS
+    SYSTEM_CONFIG_FULL_PATH="${XFLOW_CONTROL_SIM_CONFIG_DIR}/${SYSTEM_CONFIG_FILENAME}"
     DYNAMIC_DATA_FULL_PATH="${LOG_DIR}/${DYNAMIC_DATA_EXPORT_FILENAME}.csv"
     FIXED_DATA_FULL_PATH="${LOG_DIR}/${FIXED_DATA_EXPORT_FILENAME}.csv"
     DATA_PROCESSING_FULL_PATH="${LOG_DIR}/${DATA_PROCESSING_EXPORT_FILENAME}.csv"
@@ -142,8 +142,8 @@ set(MODBUS_TIMEOUT_US "\"100000\"" CACHE STRING "Modbus timeout in microseconds"
 
 set(MODBUS_SERVER_COMPILE_DEFINITIONS
     MODBUS_SERVER_EXECUTABLE_FULL_PATH=\"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${MODBUS_SERVER_FILENAME}\"
-    MODBUS_NETWORK_FULL_PATH="${XFE_CONTROL_SIM_CONFIG_DIR}/${MODBUS_NETWORK_FILENAME}.csv"
-    MODBUS_DEVICE_FULL_PATH="${XFE_CONTROL_SIM_CONFIG_DIR}"
+    MODBUS_NETWORK_FULL_PATH="${XFLOW_CONTROL_SIM_CONFIG_DIR}/${MODBUS_NETWORK_FILENAME}.csv"
+    MODBUS_DEVICE_FULL_PATH="${XFLOW_CONTROL_SIM_CONFIG_DIR}"
     MODBUS_DEVICE_TYPE=${MODBUS_DEVICE_TYPE}
     MODBUS_DEV_NUM=${MODBUS_DEV_NUM}
     MODBUS_SERVER_IP=${MODBUS_SERVER_IP}
@@ -159,13 +159,13 @@ set(MODBUS_SERVER_PROGRAM_COMPILE_DEFINITIONS
 
 # Conditional inclusion for shared libraries (BUILD_SHARED_LIBS is ON)
 if(NOT BUILD_SHARED_LIBS)
-    list(APPEND XFE_CONTROL_SIM_LIB_COMPILE_DEFINITIONS
+    list(APPEND XFLOW_CONTROL_SIM_LIB_COMPILE_DEFINITIONS
         FLOW_GEN_FILE_DIR="${FLOW_GEN_FILE_DIR}"
     )
 endif()
 
 if(BUILD_OTHER_PROJECT_INTEGRATION)
-    list(APPEND XFE_CONTROL_SIM_LIB_COMPILE_DEFINITIONS
+    list(APPEND XFLOW_CONTROL_SIM_LIB_COMPILE_DEFINITIONS
         FLOW_RUN_AFTER_END="1"
     )
 endif()

@@ -12,7 +12,7 @@
 #		Xflowutils_FOUND (TRUE/FALSE)
 #
 # Behavior mirrors original dependencies.cmake logic:
-#	- Prefer a local zip in: ${XFE_CONTROL_SIM_PROJECT_DIR}/../xflow-utils/build/c/src/dist
+#	- Prefer a local zip in: ${XFLOW_CONTROL_SIM_PROJECT_DIR}/../xflow-utils/build/c/src/dist
 #	- Otherwise download from GitHub releases (requires XFLOW_UTILS_DIST_TOKEN)
 #	- Supports XFLOW_UTILS_VERSION cache var ("" or "latest" = query GitHub)
 #	- Sets RPATH to only relative paths on non-Windows
@@ -29,7 +29,7 @@ option(XFLOW_UTILS_USE_STATIC "Link xflow-utils statically if static archive is 
 
 # Project root context var used to search for local zip (unchanged)
 # Expected to be set by the including project; if not set, the local-zip step is skipped gracefully.
-#	set(XFE_CONTROL_SIM_PROJECT_DIR "/path/to/project")  # from parent project
+#	set(XFLOW_CONTROL_SIM_PROJECT_DIR "/path/to/project")  # from parent project
 
 # --- 0) Look for local zip first (unchanged) ---
 set(_USE_LOCAL_ZIP FALSE)
@@ -418,7 +418,7 @@ if(INTEGRATE_CUSTOMER_MODELS)
         message(FATAL_ERROR "INTEGRATE_CUSTOMER_MODELS is ON, but CUSTOMER_MODEL_DIRECTORY is not set or does not exist.")
     endif()
 
-    message(STATUS "Found local customer xfe-control-sim at ${CUSTOMER_MODEL_DIRECTORY}")
+    message(STATUS "Found local customer xflow-control-sim at ${CUSTOMER_MODEL_DIRECTORY}")
 
     if(NOT TARGET aero-control-lib)
         add_subdirectory(

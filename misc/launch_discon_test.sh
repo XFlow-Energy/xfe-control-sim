@@ -5,9 +5,9 @@ set -euo pipefail
 # usage: ./misc/launch_sim_example_test.sh [rebuild?]
 # if you pass "1" it will rm -rf and reconfigure, otherwise it will reuse.
 
-XFE_CONTROL_SIM_ROOT=$(git rev-parse --show-toplevel)
-SIM_EXAMPLE="${XFE_CONTROL_SIM_ROOT}/sim_example"
-TMP_ROOT="$(dirname "${XFE_CONTROL_SIM_ROOT}")/discon_test"
+XFLOW_CONTROL_SIM_ROOT=$(git rev-parse --show-toplevel)
+SIM_EXAMPLE="${XFLOW_CONTROL_SIM_ROOT}/sim_example"
+TMP_ROOT="$(dirname "${XFLOW_CONTROL_SIM_ROOT}")/discon_test"
 BUILD_DIR="${TMP_ROOT}/build"
 
 REBUILD=${1:-0}
@@ -132,7 +132,7 @@ cmake $GENERATOR \
 	-DCMAKE_CXX_COMPILER="$CXX" \
 	-DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
 	-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-	-DBUILD_XFE_CONTROL_SIM_EXECUTABLE=OFF \
+	-DBUILD_XFLOW_CONTROL_SIM_EXECUTABLE=OFF \
 	-DBUILD_SHARED_LIBS=ON
 
 echo "→ Building discon sim_example…"
@@ -155,7 +155,7 @@ if [[ $EXIT_CODE -ne 0 ]]; then
 	echo "❌ qblade interface test failed (exit $EXIT_CODE)" >&2
 	echo "$OUTPUT"
 	# cleanup
-	cd "$XFE_CONTROL_SIM_ROOT"
+	cd "$XFLOW_CONTROL_SIM_ROOT"
 	rm -rf "$TMP_ROOT"
 	exit $EXIT_CODE
 fi
@@ -165,7 +165,7 @@ echo "✅ qblade interface test passed!"
 echo "$OUTPUT"
 
 # 5) cleanup
-cd "$XFE_CONTROL_SIM_ROOT"
+cd "$XFLOW_CONTROL_SIM_ROOT"
 rm -rf "$TMP_ROOT"
 
 exit 0

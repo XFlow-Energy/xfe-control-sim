@@ -5,9 +5,9 @@ set -euo pipefail
 # usage: ./misc/launch_sim_example_test.sh [rebuild?]
 # if you pass "1" it will rm -rf and reconfigure, otherwise it will reuse.
 
-XFE_CONTROL_SIM_ROOT=$(git rev-parse --show-toplevel)
-SIM_EXAMPLE="${XFE_CONTROL_SIM_ROOT}/sim_example"
-TMP_ROOT="$(dirname "${XFE_CONTROL_SIM_ROOT}")/sim_example_test"
+XFLOW_CONTROL_SIM_ROOT=$(git rev-parse --show-toplevel)
+SIM_EXAMPLE="${XFLOW_CONTROL_SIM_ROOT}/sim_example"
+TMP_ROOT="$(dirname "${XFLOW_CONTROL_SIM_ROOT}")/sim_example_test"
 BUILD_DIR="${TMP_ROOT}/build"
 
 REBUILD=${1:-0}
@@ -126,7 +126,7 @@ cmake $GENERATOR \
 	-DCMAKE_CXX_COMPILER="$CXX" \
 	-DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
 	-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-	-DBUILD_XFE_CONTROL_SIM_EXECUTABLE=ON \
+	-DBUILD_XFLOW_CONTROL_SIM_EXECUTABLE=ON \
 	-DBUILD_SHARED_LIBS=OFF
 
 echo "→ Building sim_example…"
@@ -135,7 +135,7 @@ echo "→ Building sim_example…"
 
 # 3) run it
 cd "$BUILD_DIR/executables-out/" || { echo "❌ Executables directory not found: $BUILD_DIR/executables-out" >&2; exit 1; }
-BIN="xfe_control_sim"
+BIN="xflow_control_sim"
 if [[ -f "${BIN}.exe" ]]; then BIN="${BIN}.exe"; fi
 if [[ ! -x "$BIN" ]]; then
 	echo "❌ Built executable not found: $BUILD_DIR/executables-out/$BIN" >&2
@@ -149,7 +149,7 @@ if [[ $EXIT_CODE -ne 0 ]]; then
 	echo "❌ sim_example failed (exit $EXIT_CODE)" >&2
 	echo "$OUTPUT"
 	# cleanup
-	cd "$XFE_CONTROL_SIM_ROOT"
+	cd "$XFLOW_CONTROL_SIM_ROOT"
 	rm -rf "$TMP_ROOT"
 	exit $EXIT_CODE
 fi
@@ -159,7 +159,7 @@ echo "✅ sim_example test passed!"
 echo "$OUTPUT"
 
 # 5) cleanup
-cd "$XFE_CONTROL_SIM_ROOT"
+cd "$XFLOW_CONTROL_SIM_ROOT"
 rm -rf "$TMP_ROOT"
 
 exit 0

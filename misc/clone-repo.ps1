@@ -15,7 +15,7 @@
 
 .EXAMPLE
   # Clone two repos by name:
-  .\clone-repo.ps1 -Destination "C:\repos" -Repo "XFlow-Energy/XFE-CONTROL-SIM","XFlow-Jason/iobb"
+  .\clone-repo.ps1 -Destination "C:\repos" -Repo "XFlow-Energy/XFLOW-CONTROL-SIM","XFlow-Jason/iobb"
 
   # Or interactively select multiple:
   .\clone-repo.ps1 -Destination "C:\repos" -Select

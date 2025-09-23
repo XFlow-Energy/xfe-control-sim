@@ -8,7 +8,7 @@
 /*
  * SPDX-License-Identifier: CC0-1.0
  *
- * This file is part of the XFE-CONTROL-SIM example suite.
+ * This file is part of the XFLOW-CONTROL-SIM example suite.
  *
  * To the extent possible under law, XFlow Energy has waived all copyright
  * and related or neighboring rights to this example file. This work is

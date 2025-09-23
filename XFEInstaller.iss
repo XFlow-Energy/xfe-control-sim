@@ -228,7 +228,7 @@ end;
 procedure CloneDirPage_OnActivate(Page: TWizardPage);
 begin
 	if CloneDirPage.Values[0] = '' then
-		CloneDirPage.Values[0] := ExpandConstant('{userdocs}\xfe_control_sim_repo');
+		CloneDirPage.Values[0] := ExpandConstant('{userdocs}\xflow_control_sim_repo');
 end;
 
 procedure PythonDirPage_OnActivate(Page: TWizardPage);

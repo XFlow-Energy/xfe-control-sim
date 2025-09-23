@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       XFLOW_UTILS_DIST_TOKEN: ${{ secrets.XFLOW_UTILS_DIST_TOKEN }}
-      XFE_CONTROL_SIM_TOKEN:  ${{ secrets.XFE_CONTROL_SIM_TOKEN }}
+      XFLOW_CONTROL_SIM_TOKEN:  ${{ secrets.XFLOW_CONTROL_SIM_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 7
 
@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       XFLOW_UTILS_DIST_TOKEN: ${{ secrets.XFLOW_UTILS_DIST_TOKEN }}
-      XFE_CONTROL_SIM_TOKEN:  ${{ secrets.XFE_CONTROL_SIM_TOKEN }}
+      XFLOW_CONTROL_SIM_TOKEN:  ${{ secrets.XFLOW_CONTROL_SIM_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 7
     needs:
@@ -120,16 +120,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git pkg-config libgsl-dev libmodbus-dev libjansson-dev cppcheck iwyu clang lld flawfinder
 
-      - name: Run xfe-control-sim example via launch script
+      - name: Run xflow-control-sim example via launch script
         shell: bash
         run: |
-          chmod +x ./misc/launch_xfe_control_sim_example.sh
-          ./misc/launch_xfe_control_sim_example.sh 1
+          chmod +x ./misc/launch_xflow_control_sim_example.sh
+          ./misc/launch_xflow_control_sim_example.sh 1
           RESULT=$?
           if [[ $RESULT -eq 0 ]]; then
-            echo "✅ xfe_control_sim example completed successfully (exit code $RESULT)."
+            echo "✅ xflow_control_sim example completed successfully (exit code $RESULT)."
           else
-            echo "❌ launch_xfe_control_sim_example.sh exited with code $RESULT" >&2
+            echo "❌ launch_xflow_control_sim_example.sh exited with code $RESULT" >&2
             exit $RESULT
           fi
 
@@ -163,7 +163,7 @@ jobs:
     runs-on: macos-latest
     env:
       XFLOW_UTILS_DIST_TOKEN: ${{ secrets.XFLOW_UTILS_DIST_TOKEN }}
-      XFE_CONTROL_SIM_TOKEN:  ${{ secrets.XFE_CONTROL_SIM_TOKEN }}
+      XFLOW_CONTROL_SIM_TOKEN:  ${{ secrets.XFLOW_CONTROL_SIM_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 7
     needs:
@@ -223,16 +223,16 @@ jobs:
           echo "CXX=$(which clang++)"
           cppcheck --version
 
-      - name: Run xfe-control-sim example via launch script
+      - name: Run xflow-control-sim example via launch script
         shell: bash
         run: |
-          chmod +x ./misc/launch_xfe_control_sim_example.sh
-          ./misc/launch_xfe_control_sim_example.sh 1
+          chmod +x ./misc/launch_xflow_control_sim_example.sh
+          ./misc/launch_xflow_control_sim_example.sh 1
           RESULT=$?
           if [[ $RESULT -eq 0 ]]; then
-            echo "✅ xfe_control_sim example completed successfully (exit code $RESULT)."
+            echo "✅ xflow_control_sim example completed successfully (exit code $RESULT)."
           else
-            echo "❌ launch_xfe_control_sim_example.sh exited with code $RESULT" >&2
+            echo "❌ launch_xflow_control_sim_example.sh exited with code $RESULT" >&2
             exit $RESULT
           fi
 
@@ -266,7 +266,7 @@ jobs:
     runs-on: windows-latest
     env:
       XFLOW_UTILS_DIST_TOKEN: ${{ secrets.XFLOW_UTILS_DIST_TOKEN }}
-      XFE_CONTROL_SIM_TOKEN:  ${{ secrets.XFE_CONTROL_SIM_TOKEN }}
+      XFLOW_CONTROL_SIM_TOKEN:  ${{ secrets.XFLOW_CONTROL_SIM_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     timeout-minutes: 10
     needs:
@@ -419,16 +419,16 @@ jobs:
         run: |
           mkdir -p log/log_data
 
-      - name: Run xfe-control-sim simulation via launch script
+      - name: Run xflow-control-sim simulation via launch script
         shell: bash
         run: |
-          chmod +x ./misc/launch_xfe_control_sim_example.sh
-          ./misc/launch_xfe_control_sim_example.sh 1
+          chmod +x ./misc/launch_xflow_control_sim_example.sh
+          ./misc/launch_xflow_control_sim_example.sh 1
           RESULT=$?
           if [[ $RESULT -eq 0 ]]; then
             echo "✅ Simulation completed successfully (exit code $RESULT)."
           else
-            echo "❌ launch_xfe_control_sim_example.sh exited with code $RESULT" >&2
+            echo "❌ launch_xflow_control_sim_example.sh exited with code $RESULT" >&2
             exit $RESULT
           fi
 
@@ -468,7 +468,7 @@ jobs:
       - build-windows
     env:
       XFLOW_UTILS_DIST_TOKEN: ${{ secrets.XFLOW_UTILS_DIST_TOKEN }}
-      XFE_CONTROL_SIM_TOKEN:  ${{ secrets.XFE_CONTROL_SIM_TOKEN }}
+      XFLOW_CONTROL_SIM_TOKEN:  ${{ secrets.XFLOW_CONTROL_SIM_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     outputs:
       TAG: ${{ steps.set_tag.outputs.TAG }}

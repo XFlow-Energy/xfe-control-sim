@@ -1,12 +1,12 @@
 /**
- * @file    xfe_control_sim_main.c
+ * @file    xflow_control_sim_main.c
  * @author  XFlow Energy
  * @brief   Contains the main function for the XFE Control Simulation software.
  */
 
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
- * XFE-CONTROL-SIM
+ * XFLOW-CONTROL-SIM
  * Copyright (C) 2024-2025 XFlow Energy (https://www.xflowenergy.com/)
  *
  * This program is free software: you can redistribute it and/or modify
@@ -30,8 +30,8 @@
 #include "maybe_unused.h"           // for MAYBE_UNUSED
 #include "numerical_integrator.h"   // for numerical_integrator
 #include "turbine_controls.h"       // for turbine_control
-#include "xfe_control_sim_common.h" // for continuous_logging_function
-#include "xfe_control_sim_version.h"
+#include "xflow_control_sim_common.h" // for continuous_logging_function
+#include "xflow_control_sim_version.h"
 #include "xflow_aero_sim.h"             // for get_param, update_csv_value
 #include "xflow_core.h"                 // for get_monotonic_timestamp, clo...
 #include "xflow_modbus_server_client.h" // for childPID
@@ -211,7 +211,7 @@ int main(const int argc, const char *argv[])
 
 	// Pass the address of the pointers (i.e., pointers to pointers)
 	initialize_control_system(&dynamic_Data, &fixed_Data, logging_status != 0);
-	log_message("xfe-control-sim git commit info: %s\n", gitCommitInfoXfeControlSim);
+	log_message("xflow-control-sim git commit info: %s\n", gitCommitInfoXfeControlSim);
 
 	static double **state_Vars = NULL; // Array of pointers to .value.d fields
 	static const char **state_Names = NULL;

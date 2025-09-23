@@ -1,8 +1,8 @@
 #!/bin/bash
 # set -x
-XFE_CONTROL_SIM_DIR=$(git rev-parse --show-toplevel)
+XFLOW_CONTROL_SIM_DIR=$(git rev-parse --show-toplevel)
 
-BUILD_DIR="$XFE_CONTROL_SIM_DIR/build"
+BUILD_DIR="$XFLOW_CONTROL_SIM_DIR/build"
 
 RECOMPILE_OR_NOT=$1
 
@@ -107,14 +107,14 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 	# Configure into build dir
 	cmake $GENERATOR \
 		-B "$BUILD_DIR" \
-		-S "$XFE_CONTROL_SIM_DIR" \
+		-S "$XFLOW_CONTROL_SIM_DIR" \
 		-DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
 		-DCMAKE_VERBOSE_MAKEFILE="$CMAKE_VERBOSE_FLAG" \
 		-DCMAKE_C_COMPILER="$CC" \
 		-DCMAKE_CXX_COMPILER="$CXX" \
 		-DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DBUILD_XFE_CONTROL_SIM_EXECUTABLE=ON \
+		-DBUILD_XFLOW_CONTROL_SIM_EXECUTABLE=ON \
 		-DBUILD_SHARED_LIBS=OFF \
 		${PATHVARS}
 
@@ -123,11 +123,11 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 fi
 
 # 7) Post-build: run clang-tidy via your script and log to build/clang-tidy.log
-CLANG_TIDY_SCRIPT="$XFE_CONTROL_SIM_DIR/misc/clang_tidy_all.sh"
+CLANG_TIDY_SCRIPT="$XFLOW_CONTROL_SIM_DIR/misc/clang_tidy_all.sh"
 CLANG_TIDY_LOG="$BUILD_DIR/clang-tidy.log"
 if [[ -x "$CLANG_TIDY_SCRIPT" ]]; then
   if command -v run-clang-tidy >/dev/null 2>&1; then
-    export PROJECT_ROOT="$XFE_CONTROL_SIM_DIR"
+    export PROJECT_ROOT="$XFLOW_CONTROL_SIM_DIR"
     export BUILD_DIR="$BUILD_DIR"
     export RUN_CLANG_TIDY_BIN="$(command -v run-clang-tidy)"
     MODE="${RUN_CLANG_TIDY_MODE:-both}"
@@ -153,7 +153,7 @@ fi
 cd "$BUILD_DIR/executables-out/" || exit
 
 Determine correct binary name across platforms
-BIN="xfe_control_sim"
+BIN="xflow_control_sim"
 if [[ -f "${BIN}.exe" ]]; then BIN="${BIN}.exe"; fi
 
 # Run it and capture output + exit code

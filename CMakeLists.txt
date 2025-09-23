@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# XFE-CONTROL-SIM
+# XFLOW-CONTROL-SIM
 # Copyright (C) 2024-2025 XFlow Energy (https://www.xflowenergy.com/)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 # -----------------------------------------------------------------------------
 
-# xfe-control-sim/CMakeLists.txt
+# xflow-control-sim/CMakeLists.txt
 cmake_minimum_required(VERSION 3.25)
 
 if(NOT DEFINED PROJECT_IS_TOP_LEVEL)
@@ -29,7 +29,7 @@ endif()
 
 # Only call project() if not already defined (i.e., not being included as a subproject)
 if (MY_PROJECT_REALLY_IS_TOP_LEVEL AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    project(xfe-control-sim VERSION 1.0 LANGUAGES C)
+    project(xflow-control-sim VERSION 1.0 LANGUAGES C)
 
     set(CMAKE_C_STANDARD 23)
     set(CMAKE_CXX_STANDARD 20)
@@ -40,33 +40,33 @@ endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(XFE_CONTROL_SIM_PROJECT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(XFLOW_CONTROL_SIM_PROJECT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # figure out “this” project’s root (the folder containing config/)
-if (NOT DEFINED XFE_CONTROL_SIM_ROOT)
-    get_filename_component(XFE_CONTROL_SIM_ROOT "${CMAKE_CURRENT_LIST_DIR}" ABSOLUTE)
+if (NOT DEFINED XFLOW_CONTROL_SIM_ROOT)
+    get_filename_component(XFLOW_CONTROL_SIM_ROOT "${CMAKE_CURRENT_LIST_DIR}" ABSOLUTE)
 endif()
-message(STATUS "XFE_CONTROL_SIM_ROOT: ${XFE_CONTROL_SIM_ROOT}")
+message(STATUS "XFLOW_CONTROL_SIM_ROOT: ${XFLOW_CONTROL_SIM_ROOT}")
 
-if (NOT DEFINED CUSTOM_XFE_CONTROL_SIM_FILES_ROOT)
-    get_filename_component(CUSTOM_XFE_CONTROL_SIM_FILES_ROOT "${CMAKE_CURRENT_LIST_DIR}/sim_example/" ABSOLUTE)
+if (NOT DEFINED CUSTOM_XFLOW_CONTROL_SIM_FILES_ROOT)
+    get_filename_component(CUSTOM_XFLOW_CONTROL_SIM_FILES_ROOT "${CMAKE_CURRENT_LIST_DIR}/sim_example/" ABSOLUTE)
 endif()
 
-message(STATUS "CUSTOM_XFE_CONTROL_SIM_FILES_ROOT: ${CUSTOM_XFE_CONTROL_SIM_FILES_ROOT}")
+message(STATUS "CUSTOM_XFLOW_CONTROL_SIM_FILES_ROOT: ${CUSTOM_XFLOW_CONTROL_SIM_FILES_ROOT}")
 
 
 if (MY_PROJECT_REALLY_IS_TOP_LEVEL AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 	# Include the configuration (after setting output directories)
 	# pick the config file from a cache variable, defaulting to the “stock” one
-	if (NOT DEFINED XFE_CONTROL_SIM_CONFIG_FILE)
-		set(XFE_CONTROL_SIM_CONFIG_FILE
-			"${CUSTOM_XFE_CONTROL_SIM_FILES_ROOT}/config/simple_ball_config.cmake"
-			CACHE  PATH  "Which xfe_control_sim config to load")
+	if (NOT DEFINED XFLOW_CONTROL_SIM_CONFIG_FILE)
+		set(XFLOW_CONTROL_SIM_CONFIG_FILE
+			"${CUSTOM_XFLOW_CONTROL_SIM_FILES_ROOT}/config/simple_ball_config.cmake"
+			CACHE  PATH  "Which xflow_control_sim config to load")
 	endif()
 
-	message(STATUS "XFE_CONTROL_SIM_CONFIG_FILE: ${XFE_CONTROL_SIM_CONFIG_FILE}")
+	message(STATUS "XFLOW_CONTROL_SIM_CONFIG_FILE: ${XFLOW_CONTROL_SIM_CONFIG_FILE}")
 
-	include(${XFE_CONTROL_SIM_CONFIG_FILE})
+	include(${XFLOW_CONTROL_SIM_CONFIG_FILE})
 endif()
 
 set(XFLOW_UTILS_VERSION "v0.0.32" CACHE STRING "Version of xflow-utils to use (empty = latest)")

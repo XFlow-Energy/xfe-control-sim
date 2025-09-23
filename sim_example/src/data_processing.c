@@ -8,7 +8,7 @@
 /*
  * SPDX-License-Identifier: CC0-1.0
  *
- * This file is part of the XFE-CONTROL-SIM example suite.
+ * This file is part of the XFLOW-CONTROL-SIM example suite.
  *
  * To the extent possible under law, XFlow Energy has waived all copyright
  * and related or neighboring rights to this example file. This work is
@@ -34,7 +34,7 @@
 #include "logger.h"          // for log_message
 #include "make_stage.h"
 #include "maybe_unused.h"
-#include "xfe_control_sim_common.h" // for get_param, param_array_t
+#include "xflow_control_sim_common.h" // for get_param, param_array_t
 #include "xflow_aero_sim.h"
 #include "xflow_core.h" // for usleep_now, shutdownFlag, get_real_time...
 #include "xflow_math.h"

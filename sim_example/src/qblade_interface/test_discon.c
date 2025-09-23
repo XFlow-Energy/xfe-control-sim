@@ -8,7 +8,7 @@
 /*
  * SPDX-License-Identifier: CC0-1.0
  *
- * This file is part of the XFE-CONTROL-SIM example suite.
+ * This file is part of the XFLOW-CONTROL-SIM example suite.
  *
  * To the extent possible under law, XFlow Energy has waived all copyright
  * and related or neighboring rights to this example file. This work is
@@ -20,7 +20,7 @@
 
 #include <stdbool.h>                // IWYU pragma: keep
 #include <stddef.h>                 // for NULL
-#include "xfe_control_sim_common.h" // for get_param, param_array_t
+#include "xflow_control_sim_common.h" // for get_param, param_array_t
 #include "xflow_core.h"
 #include "logger.h" // for log_message
 #include "qblade_interface.h"

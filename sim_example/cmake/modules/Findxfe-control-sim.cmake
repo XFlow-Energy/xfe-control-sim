@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # SPDX-License-Identifier: CC0-1.0
 #
-# This file is part of the XFE-CONTROL-SIM example suite.
+# This file is part of the XFLOW-CONTROL-SIM example suite.
 #
 # To the extent possible under law, XFlow Energy has waived all copyright
 # and related or neighboring rights to this example file. This work is
@@ -11,12 +11,12 @@
 # with this software. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
 # -----------------------------------------------------------------------------
 
-# Findxfe-control-sim.cmake
+# Findxflow-control-sim.cmake
 
 # If we've already imported the sim-include interface, bail out immediately:
-if(TARGET xfe-control-sim-include)
-	message(STATUS "xfe-control-sim already configured; skipping Find module")
-	set(XFE_CONTROL_SIM_FOUND TRUE)
+if(TARGET xflow-control-sim-include)
+	message(STATUS "xflow-control-sim already configured; skipping Find module")
+	set(XFLOW_CONTROL_SIM_FOUND TRUE)
 	return()
 endif()
 
@@ -26,14 +26,14 @@ if(NOT DEFINED XFE_MAX_PARENT_DEPTH)
 endif()
 
 # Prefer branch in GitHub Actions cloud by default (can be disabled)
-if(NOT DEFINED XFE_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD)
-	set(XFE_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD ON)
+if(NOT DEFINED XFLOW_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD)
+	set(XFLOW_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD ON)
 endif()
 
-# Branch knob (can be overridden by -DXFE_CONTROL_SIM_BRANCH=...)
+# Branch knob (can be overridden by -DXFLOW_CONTROL_SIM_BRANCH=...)
 # NOTE: This is used when no tag is selected/resolved.
-if(NOT DEFINED XFE_CONTROL_SIM_BRANCH)
-	set(XFE_CONTROL_SIM_BRANCH "jason_working")
+if(NOT DEFINED XFLOW_CONTROL_SIM_BRANCH)
+	set(XFLOW_CONTROL_SIM_BRANCH "jason_working")
 endif()
 
 # Detect if we're in GitHub Actions and, if so, derive the branch name
@@ -55,7 +55,7 @@ endif()
 
 set(_CLOUD_BRANCH "")
 string(TOLOWER "${_CLOUD_REPO_NAME}" _CLOUD_REPO_NAME_LC)
-if(_IN_CLOUD AND _CLOUD_REPO_NAME_LC STREQUAL "xfe-control-sim" AND XFE_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD)
+if(_IN_CLOUD AND _CLOUD_REPO_NAME_LC STREQUAL "xflow-control-sim" AND XFLOW_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD)
 	# Priority: PR source branch -> direct push branch -> ref name -> fallback
 	if(DEFINED ENV{GITHUB_HEAD_REF} AND NOT "$ENV{GITHUB_HEAD_REF}" STREQUAL "")
 		set(_CLOUD_BRANCH "$ENV{GITHUB_HEAD_REF}")
@@ -67,12 +67,12 @@ if(_IN_CLOUD AND _CLOUD_REPO_NAME_LC STREQUAL "xfe-control-sim" AND XFE_CONTROL_
 		set(_CLOUD_BRANCH "$ENV{GITHUB_REF_NAME}")
 	endif()
 	if(_CLOUD_BRANCH STREQUAL "")
-		set(_CLOUD_BRANCH "${XFE_CONTROL_SIM_BRANCH}")
+		set(_CLOUD_BRANCH "${XFLOW_CONTROL_SIM_BRANCH}")
 	endif()
 endif()
 
-# Discover a local checkout if LOCAL_XFE_CONTROL_SIM_DIR isn't supplied
-if (NOT LOCAL_XFE_CONTROL_SIM_DIR)
+# Discover a local checkout if LOCAL_XFLOW_CONTROL_SIM_DIR isn't supplied
+if (NOT LOCAL_XFLOW_CONTROL_SIM_DIR)
 	# Build ordered roots: current dir first, then project root if different.
 	set(_xfe_roots "${CMAKE_CURRENT_SOURCE_DIR}")
 	if (NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
@@ -89,13 +89,13 @@ if (NOT LOCAL_XFE_CONTROL_SIM_DIR)
 		set(_dir "${_root}")
 		set(_depth 0)
 		while(TRUE)
-			set(_candidate "${_dir}/xfe-control-sim")
+			set(_candidate "${_dir}/xflow-control-sim")
 			# message(STATUS "Checking parent directory: ${_candidate}")
 
 			if (EXISTS "${_candidate}/CMakeLists.txt")
-				set(LOCAL_XFE_CONTROL_SIM_DIR "${_candidate}")
+				set(LOCAL_XFLOW_CONTROL_SIM_DIR "${_candidate}")
 				set(_xfe_found TRUE)
-				message(STATUS "Found local xfe-control-sim at ${LOCAL_XFE_CONTROL_SIM_DIR}")
+				message(STATUS "Found local xflow-control-sim at ${LOCAL_XFLOW_CONTROL_SIM_DIR}")
 				break()
 			endif()
 
@@ -117,16 +117,16 @@ if (NOT LOCAL_XFE_CONTROL_SIM_DIR)
 	# Fallback: if still not found, keep the old advisory message.
 	if (NOT _xfe_found)
 		message(STATUS
-			"Could not find a local xfe-control-sim by walking parents of:\n"
+			"Could not find a local xflow-control-sim by walking parents of:\n"
 			"  ${CMAKE_CURRENT_SOURCE_DIR}\n"
 			"  ${CMAKE_SOURCE_DIR}\n"
-			"Checked each parent with suffix '/xfe-control-sim'.\n"
-			"Set -DLOCAL_XFE_CONTROL_SIM_DIR=… to point at your checkout."
+			"Checked each parent with suffix '/xflow-control-sim'.\n"
+			"Set -DLOCAL_XFLOW_CONTROL_SIM_DIR=… to point at your checkout."
 		)
 	endif()
 endif()
 
-message(STATUS "LOCAL_XFE_CONTROL_SIM_DIR = ${LOCAL_XFE_CONTROL_SIM_DIR}")
+message(STATUS "LOCAL_XFLOW_CONTROL_SIM_DIR = ${LOCAL_XFLOW_CONTROL_SIM_DIR}")
 
 # ---------------- Token resolution policy ----------------
 # Look for .secrets one folder up from the current project folder
@@ -134,25 +134,25 @@ set(_secrets_file "${CMAKE_SOURCE_DIR}/../.secrets")
 if(EXISTS "${_secrets_file}")
     file(STRINGS "${_secrets_file}" _secret_lines)
     foreach(_line IN LISTS _secret_lines)
-        if(_line MATCHES "^[ \t]*XFE_CONTROL_SIM_TOKEN[ \t]*=")
-            string(REGEX REPLACE "^[^=]*=" "" HARDCODED_XFE_CONTROL_SIM_TOKEN "${_line}")
-            string(STRIP "${HARDCODED_XFE_CONTROL_SIM_TOKEN}" HARDCODED_XFE_CONTROL_SIM_TOKEN)
+        if(_line MATCHES "^[ \t]*XFLOW_CONTROL_SIM_TOKEN[ \t]*=")
+            string(REGEX REPLACE "^[^=]*=" "" HARDCODED_XFLOW_CONTROL_SIM_TOKEN "${_line}")
+            string(STRIP "${HARDCODED_XFLOW_CONTROL_SIM_TOKEN}" HARDCODED_XFLOW_CONTROL_SIM_TOKEN)
         endif()
     endforeach()
 endif()
 
-# 1) Prefer explicit env var (custom secret you define): XFE_CONTROL_SIM_TOKEN
+# 1) Prefer explicit env var (custom secret you define): XFLOW_CONTROL_SIM_TOKEN
 # 2) Then GitHub's built-in GITHUB_TOKEN (export it in your workflow step)
-# 3) Then an optional cache var XFE_CONTROL_SIM_DIST_TOKEN (manual override)
+# 3) Then an optional cache var XFLOW_CONTROL_SIM_DIST_TOKEN (manual override)
 # 4) Finally (LOCAL ONLY) the hardcoded token
 set(_token "")
 
-if(DEFINED ENV{XFE_CONTROL_SIM_TOKEN} AND NOT "$ENV{XFE_CONTROL_SIM_TOKEN}" STREQUAL "")
-    set(_token "$ENV{XFE_CONTROL_SIM_TOKEN}")
+if(DEFINED ENV{XFLOW_CONTROL_SIM_TOKEN} AND NOT "$ENV{XFLOW_CONTROL_SIM_TOKEN}" STREQUAL "")
+    set(_token "$ENV{XFLOW_CONTROL_SIM_TOKEN}")
 elseif(DEFINED ENV{GITHUB_TOKEN} AND NOT "$ENV{GITHUB_TOKEN}" STREQUAL "")
     set(_token "$ENV{GITHUB_TOKEN}")
-elseif(DEFINED XFE_CONTROL_SIM_DIST_TOKEN AND NOT "${XFE_CONTROL_SIM_DIST_TOKEN}" STREQUAL "")
-    set(_token "${XFE_CONTROL_SIM_DIST_TOKEN}")
+elseif(DEFINED XFLOW_CONTROL_SIM_DIST_TOKEN AND NOT "${XFLOW_CONTROL_SIM_DIST_TOKEN}" STREQUAL "")
+    set(_token "${XFLOW_CONTROL_SIM_DIST_TOKEN}")
 endif()
 
 # In CI, do NOT fall back to the hardcoded token (avoid leakage/misuse).
@@ -160,28 +160,28 @@ if(_IN_CLOUD)
     if("${_token}" STREQUAL "")
         message(FATAL_ERROR
             "GitHub Actions detected but no token provided. "
-            "Set env XFE_CONTROL_SIM_TOKEN or GITHUB_TOKEN in the workflow.")
+            "Set env XFLOW_CONTROL_SIM_TOKEN or GITHUB_TOKEN in the workflow.")
     endif()
 else()
     # Local build: allow hardcoded as absolute last resort
     if("${_token}" STREQUAL "")
-        set(_token "${HARDCODED_XFE_CONTROL_SIM_TOKEN}")
+        set(_token "${HARDCODED_XFLOW_CONTROL_SIM_TOKEN}")
     endif()
 endif()
 
 # Helper for printing a redacted URL (never echo the token).
 set(_token_redacted "***")
 
-# if (EXISTS "${LOCAL_XFE_CONTROL_SIM_DIR}/.git")
-#     message(STATUS "Found local xfe-control-sim at ${LOCAL_XFE_CONTROL_SIM_DIR}")
+# if (EXISTS "${LOCAL_XFLOW_CONTROL_SIM_DIR}/.git")
+#     message(STATUS "Found local xflow-control-sim at ${LOCAL_XFLOW_CONTROL_SIM_DIR}")
 
 # 	# Per requirement: do NOT change branches; just fetch + fast-forward pull.
-# 	execute_process(COMMAND git -C "${LOCAL_XFE_CONTROL_SIM_DIR}" fetch)
-# 	message(STATUS "Pulling latest changes for xfe-control-sim (no branch changes)")
-# 	execute_process(COMMAND git -C "${LOCAL_XFE_CONTROL_SIM_DIR}" pull --ff-only)
+# 	execute_process(COMMAND git -C "${LOCAL_XFLOW_CONTROL_SIM_DIR}" fetch)
+# 	message(STATUS "Pulling latest changes for xflow-control-sim (no branch changes)")
+# 	execute_process(COMMAND git -C "${LOCAL_XFLOW_CONTROL_SIM_DIR}" pull --ff-only)
 
 # 	# Bring it into this build
-# 	add_subdirectory("${LOCAL_XFE_CONTROL_SIM_DIR}" "xfe-control-sim")
+# 	add_subdirectory("${LOCAL_XFLOW_CONTROL_SIM_DIR}" "xflow-control-sim")
 
 # else()
 	# If the build-script passed FETCHCONTENT_BASE_DIR=/tmp/cmakedeps, ignore it:
@@ -197,42 +197,42 @@ set(_token_redacted "***")
 	set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/_deps")
 	message(STATUS "→ Temporarily using FETCHCONTENT_BASE_DIR='${FETCHCONTENT_BASE_DIR}'")
 
-	message(STATUS "Fetching xfe-control-sim via FetchContent")
+	message(STATUS "Fetching xflow-control-sim via FetchContent")
 	include(FetchContent)
 
 	# --- Version/Tag resolution (optional) ---
-	# If XFE_CONTROL_SIM_VERSION is "" or "latest", resolve to the latest release tag via GitHub API.
+	# If XFLOW_CONTROL_SIM_VERSION is "" or "latest", resolve to the latest release tag via GitHub API.
 	# If set to a non-empty value, verify that tag exists via the releases/tags/<tag> endpoint.
 	# If a tag is resolved/provided, it overrides the branch.
-	# In GitHub Actions (cloud), if XFE_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD=ON, prefer the current branch.
+	# In GitHub Actions (cloud), if XFLOW_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD=ON, prefer the current branch.
 	set(_use_tag FALSE)
 	unset(_resolved_tag)
 
 	# Cloud override: prefer current branch, skip tag resolution
 	set(_cloud_prefer_branch FALSE)
-	if(_IN_CLOUD AND XFE_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD)
+	if(_IN_CLOUD AND XFLOW_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD)
 		set(_cloud_prefer_branch TRUE)
 	endif()
 
 	if(NOT _cloud_prefer_branch)
-		if(DEFINED XFE_CONTROL_SIM_VERSION)
-			if(XFE_CONTROL_SIM_VERSION STREQUAL "" OR XFE_CONTROL_SIM_VERSION STREQUAL "latest")
+		if(DEFINED XFLOW_CONTROL_SIM_VERSION)
+			if(XFLOW_CONTROL_SIM_VERSION STREQUAL "" OR XFLOW_CONTROL_SIM_VERSION STREQUAL "latest")
 				# Need token + curl to query latest release
-				if(NOT DEFINED XFE_CONTROL_SIM_DIST_TOKEN OR XFE_CONTROL_SIM_DIST_TOKEN STREQUAL "")
+				if(NOT DEFINED XFLOW_CONTROL_SIM_DIST_TOKEN OR XFLOW_CONTROL_SIM_DIST_TOKEN STREQUAL "")
 					# fallback to hardcoded if separate DIST token not provided
-					set(XFE_CONTROL_SIM_DIST_TOKEN "${HARDCODED_XFE_CONTROL_SIM_TOKEN}")
+					set(XFLOW_CONTROL_SIM_DIST_TOKEN "${HARDCODED_XFLOW_CONTROL_SIM_TOKEN}")
 				endif()
 				find_program(CURL_EXECUTABLE curl REQUIRED)
 
-				set(_api_json "${CMAKE_BINARY_DIR}/xfe-control-sim-release.json")
+				set(_api_json "${CMAKE_BINARY_DIR}/xflow-control-sim-release.json")
 				execute_process(
 					COMMAND "${CURL_EXECUTABLE}"
 						-sS -L
-						-H "Authorization: Bearer ${XFE_CONTROL_SIM_DIST_TOKEN}"
-						-H "User-Agent: xfe-control-sim-cmake"
+						-H "Authorization: Bearer ${XFLOW_CONTROL_SIM_DIST_TOKEN}"
+						-H "User-Agent: xflow-control-sim-cmake"
 						-H "Accept: application/vnd.github+json"
 						-H "X-GitHub-Api-Version: 2022-11-28"
-						"https://api.github.com/repos/XFlow-Energy/xfe-control-sim/releases/latest"
+						"https://api.github.com/repos/XFlow-Energy/xflow-control-sim/releases/latest"
 						-o "${_api_json}"
 						-w "%{http_code}"
 					RESULT_VARIABLE _curl_rv
@@ -262,24 +262,24 @@ set(_token_redacted "***")
 				endif()
 
 				set(_use_tag TRUE)
-				message(STATUS "Resolved xfe-control-sim latest tag: ${_resolved_tag}")
+				message(STATUS "Resolved xflow-control-sim latest tag: ${_resolved_tag}")
 
 			else()
 				# Specific tag requested: verify it exists
-				if(NOT DEFINED XFE_CONTROL_SIM_DIST_TOKEN OR XFE_CONTROL_SIM_DIST_TOKEN STREQUAL "")
-					set(XFE_CONTROL_SIM_DIST_TOKEN "${HARDCODED_XFE_CONTROL_SIM_TOKEN}")
+				if(NOT DEFINED XFLOW_CONTROL_SIM_DIST_TOKEN OR XFLOW_CONTROL_SIM_DIST_TOKEN STREQUAL "")
+					set(XFLOW_CONTROL_SIM_DIST_TOKEN "${HARDCODED_XFLOW_CONTROL_SIM_TOKEN}")
 				endif()
 				find_program(CURL_EXECUTABLE curl REQUIRED)
 
-				set(_api_json "${CMAKE_BINARY_DIR}/xfe-control-sim-release-${XFE_CONTROL_SIM_VERSION}.json")
+				set(_api_json "${CMAKE_BINARY_DIR}/xflow-control-sim-release-${XFLOW_CONTROL_SIM_VERSION}.json")
 				execute_process(
 					COMMAND "${CURL_EXECUTABLE}"
 						-sS -L
-						-H "Authorization: Bearer ${XFE_CONTROL_SIM_DIST_TOKEN}"
-						-H "User-Agent: xfe-control-sim-cmake"
+						-H "Authorization: Bearer ${XFLOW_CONTROL_SIM_DIST_TOKEN}"
+						-H "User-Agent: xflow-control-sim-cmake"
 						-H "Accept: application/vnd.github+json"
 						-H "X-GitHub-Api-Version: 2022-11-28"
-						"https://api.github.com/repos/XFlow-Energy/xfe-control-sim/releases/tags/${XFE_CONTROL_SIM_VERSION}"
+						"https://api.github.com/repos/XFlow-Energy/xflow-control-sim/releases/tags/${XFLOW_CONTROL_SIM_VERSION}"
 						-o "${_api_json}"
 						-w "%{http_code}"
 					RESULT_VARIABLE _curl_rv_t
@@ -289,13 +289,13 @@ set(_token_redacted "***")
 				string(STRIP "${_http_code_t}" _http_code_t)
 				if(NOT _curl_rv_t EQUAL 0 OR NOT _http_code_t MATCHES "^200$")
 					if(_http_code_t STREQUAL "404")
-						message(FATAL_ERROR "Requested xfe-control-sim tag not found: '${XFE_CONTROL_SIM_VERSION}' (http=404).")
+						message(FATAL_ERROR "Requested xflow-control-sim tag not found: '${XFLOW_CONTROL_SIM_VERSION}' (http=404).")
 					endif()
 					if(EXISTS "${_api_json}")
 						file(READ "${_api_json}" _err_body_t)
-						message(FATAL_ERROR "GitHub API query failed for tag '${XFE_CONTROL_SIM_VERSION}' (rv=${_curl_rv_t}, http=${_http_code_t}). curl error: ${_curl_err_t}\nResponse: ${_err_body_t}")
+						message(FATAL_ERROR "GitHub API query failed for tag '${XFLOW_CONTROL_SIM_VERSION}' (rv=${_curl_rv_t}, http=${_http_code_t}). curl error: ${_curl_err_t}\nResponse: ${_err_body_t}")
 					else()
-						message(FATAL_ERROR "GitHub API query failed for tag '${XFE_CONTROL_SIM_VERSION}' (rv=${_curl_rv_t}, http=${_http_code_t}). curl error: ${_curl_err_t}")
+						message(FATAL_ERROR "GitHub API query failed for tag '${XFLOW_CONTROL_SIM_VERSION}' (rv=${_curl_rv_t}, http=${_http_code_t}). curl error: ${_curl_err_t}")
 					endif()
 				endif()
 
@@ -308,57 +308,57 @@ set(_token_redacted "***")
 				endif()
 
 				if(NOT _parsed_tag)
-					message(FATAL_ERROR "Failed to parse tag_name for requested tag '${XFE_CONTROL_SIM_VERSION}'.")
+					message(FATAL_ERROR "Failed to parse tag_name for requested tag '${XFLOW_CONTROL_SIM_VERSION}'.")
 				endif()
-				if(NOT _parsed_tag STREQUAL "${XFE_CONTROL_SIM_VERSION}")
-					message(FATAL_ERROR "Requested tag '${XFE_CONTROL_SIM_VERSION}' but API returned '${_parsed_tag}'.")
+				if(NOT _parsed_tag STREQUAL "${XFLOW_CONTROL_SIM_VERSION}")
+					message(FATAL_ERROR "Requested tag '${XFLOW_CONTROL_SIM_VERSION}' but API returned '${_parsed_tag}'.")
 				endif()
 
-				set(_resolved_tag "${XFE_CONTROL_SIM_VERSION}")
+				set(_resolved_tag "${XFLOW_CONTROL_SIM_VERSION}")
 				set(_use_tag TRUE)
-				message(STATUS "Using requested xfe-control-sim tag: ${_resolved_tag}")
+				message(STATUS "Using requested xflow-control-sim tag: ${_resolved_tag}")
 			endif()
 		endif()
 	else()
 		# Cloud override path: force branch to the cloud branch and skip tag resolution
 		if(NOT _CLOUD_BRANCH STREQUAL "")
-			set(XFE_CONTROL_SIM_BRANCH "${_CLOUD_BRANCH}")
-			message(STATUS "GitHub Actions detected; preferring branch '${XFE_CONTROL_SIM_BRANCH}' over release tag")
+			set(XFLOW_CONTROL_SIM_BRANCH "${_CLOUD_BRANCH}")
+			message(STATUS "GitHub Actions detected; preferring branch '${XFLOW_CONTROL_SIM_BRANCH}' over release tag")
 		else()
-			message(STATUS "GitHub Actions detected but no branch name resolved; using '${XFE_CONTROL_SIM_BRANCH}'")
+			message(STATUS "GitHub Actions detected but no branch name resolved; using '${XFLOW_CONTROL_SIM_BRANCH}'")
 		endif()
 	endif()
 
 	# Use GitHub token over HTTPS for git fetches
 	# GitHub recommends the "x-access-token" username form
 	if(NOT "${_token}" STREQUAL "")
-		set(XFE_CONTROL_SIM_REPO_URL "https://x-access-token:${_token}@github.com/XFlow-Energy/xfe-control-sim.git")
-		set(_repo_url_print "https://x-access-token:${_token_redacted}@github.com/XFlow-Energy/xfe-control-sim.git")
+		set(XFLOW_CONTROL_SIM_REPO_URL "https://x-access-token:${_token}@github.com/XFlow-Energy/xflow-control-sim.git")
+		set(_repo_url_print "https://x-access-token:${_token_redacted}@github.com/XFlow-Energy/xflow-control-sim.git")
 	else()
 		# Public fallback (no auth). If the repo is private, this will fail loudly — by design.
-		set(XFE_CONTROL_SIM_REPO_URL "https://github.com/XFlow-Energy/xfe-control-sim.git")
-		set(_repo_url_print "${XFE_CONTROL_SIM_REPO_URL}")
+		set(XFLOW_CONTROL_SIM_REPO_URL "https://github.com/XFlow-Energy/xflow-control-sim.git")
+		set(_repo_url_print "${XFLOW_CONTROL_SIM_REPO_URL}")
 	endif()
 
-	message(STATUS "xfe-control-sim repo URL selected (redacted): ${_repo_url_print}")
+	message(STATUS "xflow-control-sim repo URL selected (redacted): ${_repo_url_print}")
 
 	# Choose what to pass to FetchContent: tag (preferred if resolved) or branch
 	if(_use_tag)
 		set(_git_ref "${_resolved_tag}")
 		message(STATUS "FetchContent will checkout tag: ${_git_ref}")
 	else()
-		set(_git_ref "${XFE_CONTROL_SIM_BRANCH}")
+		set(_git_ref "${XFLOW_CONTROL_SIM_BRANCH}")
 		message(STATUS "FetchContent will checkout branch: ${_git_ref}")
 	endif()
 
 	FetchContent_Declare(
-		xfe_control_sim
-		GIT_REPOSITORY ${XFE_CONTROL_SIM_REPO_URL}
+		xflow_control_sim
+		GIT_REPOSITORY ${XFLOW_CONTROL_SIM_REPO_URL}
 		GIT_TAG        ${_git_ref}
 		GIT_SHALLOW    TRUE
 		GIT_PROGRESS   TRUE
 	)
-	FetchContent_MakeAvailable(xfe_control_sim)
+	FetchContent_MakeAvailable(xflow_control_sim)
 
 	# Restore FETCHCONTENT_BASE_DIR if we temporarily overrode a cached value
 	if(_had_old_fetchcontent)
@@ -372,10 +372,10 @@ set(_token_redacted "***")
 # endif()
 
 # If the project defines its usual include interface target, we can mark FOUND.
-if(TARGET xfe-control-sim-include)
-	set(XFE_CONTROL_SIM_FOUND TRUE)
+if(TARGET xflow-control-sim-include)
+	set(XFLOW_CONTROL_SIM_FOUND TRUE)
 else()
 	# Fall back to TRUE if the project added itself differently but didn't provide the expected target.
 	# Adjust to FALSE if you want a strict check.
-	set(XFE_CONTROL_SIM_FOUND TRUE)
+	set(XFLOW_CONTROL_SIM_FOUND TRUE)
 endif()
