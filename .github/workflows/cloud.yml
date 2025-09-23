@@ -1,0 +1,510 @@
+name: Test building all platforms and release
+
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
+on:
+  push:
+    branches:
+      - '**'
+    paths-ignore:
+      - '**/*.md'
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+  release:
+    types: [published]
+
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+    env:
+      XFLOW_UTILS_DIST_TOKEN: ${{ secrets.XFLOW_UTILS_DIST_TOKEN }}
+      XFE_CONTROL_SIM_TOKEN:  ${{ secrets.XFE_CONTROL_SIM_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    timeout-minutes: 7
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # so we can diff against previous commits or base branch
+
+      - name: Detect whether any C/C++ files changed
+        id: changed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Only run on pushes & PRs
+          if [[ "${{ github.event_name }}" != "push" && "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "run_fmt=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Determine diff range
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # On a normal push to a branch (not tag): compare HEAD^ -> HEAD
+            RANGE="HEAD^..HEAD"
+          else
+            # On a pull_request event: compare against the target branch
+            BASE="${{ github.event.pull_request.base.ref }}"
+            git fetch origin "$BASE":"$BASE"
+            RANGE="origin/$BASE..HEAD"
+          fi
+
+          echo "Diff range: $RANGE"
+
+          # See if any C/C++ files show up
+          changed=$(git diff --name-only $RANGE \
+            | grep -E '\.(c|h|cpp|hpp)$' || true)
+
+          if [[ -z "$changed" ]]; then
+            echo "No C/C++ files changed in $RANGE, skipping clang-format."
+            echo "run_fmt=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "C/C++ files changed:"
+            echo "$changed"
+            echo "run_fmt=true"  >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install clang-format
+        if: steps.changed.outputs.run_fmt == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: clang-format check
+        if: steps.changed.outputs.run_fmt == 'true'
+        working-directory: misc
+        run: ./clang_format_all.sh dry-run
+
+      - name: Skip clang-format
+        if: steps.changed.outputs.run_fmt == 'false'
+        run: echo "✅ No C/C++ changes, clang-format check skipped."
+
+  build-linux:
+    runs-on: ubuntu-latest
+    env:
+      XFLOW_UTILS_DIST_TOKEN: ${{ secrets.XFLOW_UTILS_DIST_TOKEN }}
+      XFE_CONTROL_SIM_TOKEN:  ${{ secrets.XFE_CONTROL_SIM_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    timeout-minutes: 7
+    needs:
+      - clang-format
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache APT packages
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: |
+            git
+            pkg-config
+            libgsl-dev
+            libmodbus-dev
+            libjansson-dev
+            cppcheck
+            iwyu
+            clang
+            lld
+            flawfinder
+          version: 1.0
+
+      - name: Install deps & build amd64
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git pkg-config libgsl-dev libmodbus-dev libjansson-dev cppcheck iwyu clang lld flawfinder
+
+      - name: Run xfe-control-sim example via launch script
+        shell: bash
+        run: |
+          chmod +x ./misc/launch_xfe_control_sim_example.sh
+          ./misc/launch_xfe_control_sim_example.sh 1
+          RESULT=$?
+          if [[ $RESULT -eq 0 ]]; then
+            echo "✅ xfe_control_sim example completed successfully (exit code $RESULT)."
+          else
+            echo "❌ launch_xfe_control_sim_example.sh exited with code $RESULT" >&2
+            exit $RESULT
+          fi
+
+      - name: Run discon simulation via launch script
+        shell: bash
+        run: |
+          chmod +x ./misc/launch_discon_test.sh
+          ./misc/launch_discon_test.sh 1
+          RESULT=$?
+          if [[ $RESULT -eq 0 ]]; then
+            echo "✅ discon simulation completed successfully (exit code $RESULT)."
+          else
+            echo "❌ launch_discon_test.sh exited with code $RESULT" >&2
+            exit $RESULT
+          fi
+
+      - name: Run sim_example via launch script
+        shell: bash
+        run: |
+          chmod +x ./misc/launch_sim_example_test.sh
+          ./misc/launch_sim_example_test.sh 1
+          RESULT=$?
+          if [[ $RESULT -eq 0 ]]; then
+            echo "✅ sim_example completed successfully (exit code $RESULT)."
+          else
+            echo "❌ launch_sim_example_test.sh exited with code $RESULT" >&2
+            exit $RESULT
+          fi
+
+  build-macos:
+    runs-on: macos-latest
+    env:
+      XFLOW_UTILS_DIST_TOKEN: ${{ secrets.XFLOW_UTILS_DIST_TOKEN }}
+      XFE_CONTROL_SIM_TOKEN:  ${{ secrets.XFE_CONTROL_SIM_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    timeout-minutes: 7
+    needs:
+      - clang-format
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Homebrew Packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            /opt/homebrew/Cellar/gsl
+            /opt/homebrew/Cellar/jansson
+            /opt/homebrew/Cellar/libmodbus
+            /opt/homebrew/Cellar/cppcheck
+            /opt/homebrew/Cellar/llvm
+            /opt/homebrew/Cellar/z3
+            /opt/homebrew/Cellar/pcre
+            /opt/homebrew/Cellar/tinyxml2
+            /opt/homebrew/Cellar/mpdecimal
+            /opt/homebrew/Cellar/sqlite
+          key: ${{ runner.os }}-brew-deps-v1
+          restore-keys: |
+            ${{ runner.os }}-brew-deps-
+
+      - name: Install & Link Dependencies
+        run: |
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          export HOMEBREW_NO_INSTALL_CLEANUP=1
+          if ! brew list gsl jansson libmodbus cppcheck llvm z3 pcre tinyxml2 mpdecimal sqlite >/dev/null 2>&1; then
+            brew install gsl jansson libmodbus cppcheck llvm z3 pcre tinyxml2 mpdecimal sqlite
+          fi
+          brew link --overwrite gsl || true
+          brew link --overwrite jansson || true
+          brew link --overwrite libmodbus || true
+          brew link --overwrite cppcheck || true
+          brew link --overwrite --force llvm || true
+          brew link --overwrite z3 || true
+          brew link --overwrite pcre || true
+          brew link --overwrite tinyxml2 || true
+          brew link --overwrite --force sqlite || true
+          brew unlink mpdecimal || true
+          brew link --overwrite --force mpdecimal || true
+
+      - name: Add Homebrew LLVM & tools to PATH
+        run: |
+          echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
+          echo "/opt/homebrew/bin"          >> "$GITHUB_PATH"
+
+      - name: Setup Environment for LLVM & Analysis Tools
+        env:
+          CC:  /opt/homebrew/opt/llvm/bin/clang
+          CXX: /opt/homebrew/opt/llvm/bin/clang++
+        run: |
+          echo "PATH = $PATH"
+          echo "CC=$(which clang)"
+          echo "CXX=$(which clang++)"
+          cppcheck --version
+
+      - name: Run xfe-control-sim example via launch script
+        shell: bash
+        run: |
+          chmod +x ./misc/launch_xfe_control_sim_example.sh
+          ./misc/launch_xfe_control_sim_example.sh 1
+          RESULT=$?
+          if [[ $RESULT -eq 0 ]]; then
+            echo "✅ xfe_control_sim example completed successfully (exit code $RESULT)."
+          else
+            echo "❌ launch_xfe_control_sim_example.sh exited with code $RESULT" >&2
+            exit $RESULT
+          fi
+
+      - name: Run discon simulation via launch script
+        shell: bash
+        run: |
+          chmod +x ./misc/launch_discon_test.sh
+          ./misc/launch_discon_test.sh 1
+          RESULT=$?
+          if [[ $RESULT -eq 0 ]]; then
+            echo "✅ discon simulation completed successfully (exit code $RESULT)."
+          else
+            echo "❌ launch_discon_test.sh exited with code $RESULT" >&2
+            exit $RESULT
+          fi
+
+      - name: Run sim_example via launch script
+        shell: bash
+        run: |
+          chmod +x ./misc/launch_sim_example_test.sh
+          ./misc/launch_sim_example_test.sh 1
+          RESULT=$?
+          if [[ $RESULT -eq 0 ]]; then
+            echo "✅ sim_example completed successfully (exit code $RESULT)."
+          else
+            echo "❌ launch_sim_example_test.sh exited with code $RESULT" >&2
+            exit $RESULT
+          fi
+
+  build-windows:
+    runs-on: windows-latest
+    env:
+      XFLOW_UTILS_DIST_TOKEN: ${{ secrets.XFLOW_UTILS_DIST_TOKEN }}
+      XFE_CONTROL_SIM_TOKEN:  ${{ secrets.XFE_CONTROL_SIM_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    timeout-minutes: 10
+    needs:
+      - clang-format
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore dependency cache
+        id: cache-deps-restore
+        uses: actions/cache@v4
+        with:
+          path: C:/deps
+          key: ${{ runner.os }}-deps-windows-v1
+          restore-keys: |
+            ${{ runner.os }}-deps-windows-
+
+      - name: Install Ninja
+        if: steps.cache-deps-restore.outputs.cache-hit != 'true'
+        run: |
+          if (-not (Test-Path "C:\deps")) { mkdir C:\deps }
+          Invoke-WebRequest -Uri https://github.com/ninja-build/ninja/releases/download/v1.12.1/ninja-win.zip -OutFile ninja.zip
+          Expand-Archive -Path ninja.zip -DestinationPath C:\deps\ninja
+          echo "C:\deps\ninja" | Out-File -Append -Encoding ASCII $env:GITHUB_PATH
+
+      - name: Install llvm-mingw (UCRT build)
+        if: steps.cache-deps-restore.outputs.cache-hit != 'true'
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $llvmUrl     = "https://github.com/mstorsjo/llvm-mingw/releases/download/20250514/llvm-mingw-20250514-ucrt-x86_64.zip"
+          $llvmZip     = "$env:TEMP\llvm-mingw.zip"
+          $extractDir  = "C:\deps\llvm-mingw"
+
+          # Download and extract
+          Invoke-WebRequest -Uri $llvmUrl -OutFile $llvmZip
+          Expand-Archive -Path $llvmZip -DestinationPath $extractDir
+
+          # Flatten the single nested folder that Expand-Archive created
+          $sub = Get-ChildItem $extractDir -Directory | Select-Object -First 1
+          if ($sub) {
+            Move-Item -Path "$extractDir\$($sub.Name)\*" -Destination $extractDir -Force
+            Remove-Item -Path "$extractDir\$($sub.Name)" -Recurse -Force
+          }
+
+          # Add the real bin directory to PATH
+          $llvmBin = Join-Path $extractDir "bin"
+          if (Test-Path $llvmBin) {
+            echo $llvmBin | Out-File -Append -Encoding ASCII $env:GITHUB_PATH
+          } else {
+            throw "❌ llvm-mingw bin path missing at $llvmBin"
+          }
+          
+      - name: Add Git and llvm-mingw to PATH
+        run: |
+          $gitBin = "C:\Program Files\Git\usr\bin"
+          $llvmBin = "C:\deps\llvm-mingw\bin"
+
+          if (Test-Path $gitBin) {
+            echo $gitBin | Out-File -Append -Encoding ASCII $env:GITHUB_PATH
+          } else {
+            Write-Host "⚠️ Git bin not found at $gitBin"
+          }
+
+          if (Test-Path $llvmBin) {
+            echo $llvmBin | Out-File -Append -Encoding ASCII $env:GITHUB_PATH
+          } else {
+            Write-Host "⚠️ llvm-mingw bin not found at $llvmBin"
+          }
+
+      - name: Build & Install GSL (static only)
+        if: steps.cache-deps-restore.outputs.cache-hit != 'true'
+        shell: pwsh
+        working-directory: misc
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          # point these at wherever your CI has put deps
+          $tempDir     = "$env:TEMP\gsl_build"
+          $installDir  = "C:\deps\gsl-install"
+          $clangBin    = "C:\deps\llvm-mingw\bin"
+          $cmakePath   = "C:\PROGRA~1\CMake\bin\cmake.exe"
+          $ninjaPath   = "C:\deps\ninja\ninja.exe"
+
+          .\install-gsl.ps1 `
+            -tempDir    $tempDir `
+            -installDir $installDir `
+            -clangBin   $clangBin `
+            -cmakePath  $cmakePath `
+            -ninjaPath  $ninjaPath
+
+      - name: Build & Install Jansson (static)
+        if: steps.cache-deps-restore.outputs.cache-hit != 'true'
+        shell: pwsh
+        working-directory: misc
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          # override defaults for CI
+          $janssonZip  = "https://github.com/akheron/jansson/archive/refs/tags/v2.14.zip"
+          $tempDir     = "$env:TEMP\jansson_build"
+          $installDir  = "C:\deps\jansson-install"
+          $clangBin    = "C:\deps\llvm-mingw\bin"
+          $cmakePath   = "C:\PROGRA~1\CMake\bin\cmake.exe"
+          $ninjaPath   = "C:\deps\ninja\ninja.exe"
+
+          .\install-jansson-ninja.ps1 `
+            -janssonZip   $janssonZip `
+            -tempDir      $tempDir `
+            -installDir   $installDir `
+            -clangBin     $clangBin `
+            -cmakePath    $cmakePath `
+            -ninjaPath    $ninjaPath
+
+          Write-Host "✅ Jansson built & installed (static + shared) successfully!"
+
+      - name: Build & Install libmodbus (static)
+        if: steps.cache-deps-restore.outputs.cache-hit != 'true'
+        shell: pwsh
+        working-directory: misc
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          .\install-libmodbus.ps1 `
+            -installDir   "C:\deps\libmodbus" `
+            -gitRepo     "https://github.com/XFlow-Energy/libmodbus.git" `
+            -gitBranch   "cmake" `
+            -llvmBin     "C:\deps\llvm-mingw\bin" `
+            -cmakePath   "C:\PROGRA~1\CMake\bin\cmake.exe" `
+            -ninjaPath   "C:\deps\ninja\ninja.exe"
+
+          Write-Host "✅ libmodbus installed successfully!"
+
+      - name: Save dependency cache
+        if: steps.cache-deps-restore.outputs.cache-hit != 'true'
+        uses: actions/cache@v4
+        with:
+          path: C:/deps
+          key: ${{ runner.os }}-deps-windows-v1
+
+
+      - name: Add library paths to environment
+        run: |
+          echo "C:\deps\gsl-install\bin" | Out-File -Append -Encoding ASCII $env:GITHUB_PATH
+          echo "C:\deps\jansson-install\bin" | Out-File -Append -Encoding ASCII $env:GITHUB_PATH
+          echo "C:\deps\libmodbus\bin" | Out-File -Append -Encoding ASCII $env:GITHUB_PATH
+          echo "C:\deps\llvm-mingw\bin" | Out-File -Append -Encoding ASCII $env:GITHUB_PATH
+
+      - name: Create log directory
+        shell: bash
+        run: |
+          mkdir -p log/log_data
+
+      - name: Run xfe-control-sim simulation via launch script
+        shell: bash
+        run: |
+          chmod +x ./misc/launch_xfe_control_sim_example.sh
+          ./misc/launch_xfe_control_sim_example.sh 1
+          RESULT=$?
+          if [[ $RESULT -eq 0 ]]; then
+            echo "✅ Simulation completed successfully (exit code $RESULT)."
+          else
+            echo "❌ launch_xfe_control_sim_example.sh exited with code $RESULT" >&2
+            exit $RESULT
+          fi
+
+      - name: Run discon simulation via launch script
+        shell: bash
+        run: |
+          chmod +x ./misc/launch_discon_test.sh
+          ./misc/launch_discon_test.sh 1
+          RESULT=$?
+          if [[ $RESULT -eq 0 ]]; then
+            echo "✅ Simulation completed successfully (exit code $RESULT)."
+          else
+            echo "❌ launch_discon_test.sh exited with code $RESULT" >&2
+            exit $RESULT
+          fi
+
+      - name: Run sim_example via launch script
+        shell: bash
+        run: |
+          chmod +x ./misc/launch_sim_example_test.sh
+          ./misc/launch_sim_example_test.sh 1
+          RESULT=$?
+          if [[ $RESULT -eq 0 ]]; then
+            echo "✅ sim_example completed successfully (exit code $RESULT)."
+          else
+            echo "❌ launch_sim_example_test.sh exited with code $RESULT" >&2
+            exit $RESULT
+          fi
+
+  publish-release:
+    if: github.event.deleted == false && startsWith(github.ref, 'refs/tags/')
+    runs-on: windows-latest
+    needs:
+      - clang-format
+      - build-linux
+      - build-macos
+      - build-windows
+    env:
+      XFLOW_UTILS_DIST_TOKEN: ${{ secrets.XFLOW_UTILS_DIST_TOKEN }}
+      XFE_CONTROL_SIM_TOKEN:  ${{ secrets.XFE_CONTROL_SIM_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    outputs:
+      TAG: ${{ steps.set_tag.outputs.TAG }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Compile Inno Setup Installer (via PowerShell)
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Qp "${{ github.workspace }}\XFEInstaller.iss"
+
+      - name: Compute tag
+        id: set_tag
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "TAG=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "TAG=${TAG}" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release via CLI
+        shell: bash
+        run: |
+          gh release create "${TAG}" \
+            --title "Release ${TAG}" \
+            --notes "Automated Windows installer for XFE-Control-Sim. Source archives are attached automatically."
+
+      - name: Upload installer asset
+        shell: bash
+        run: |
+          gh release upload "${TAG}" \
+            "$(pwd)/Output/XFEControlSimInstaller.exe" \
+            --clobber

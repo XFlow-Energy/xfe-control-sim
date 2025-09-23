@@ -1,0 +1,34 @@
+XFE-CONTROL-SIM
+Copyright 2024–2025 XFlow Energy
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+------------------------------------------------------------------
+
+This product includes the following third-party software:
+
+GNU Scientific Library (GSL)
+Copyright © The GSL Team.
+This software is licensed under the GNU General Public License v3.
+A copy of the license can be found in the file LICENSES/GPL-3.0.txt.
+
+jansson
+Copyright (c) 2009-2025 Petri Lehtinen <petri@digip.org>
+This software is licensed under the MIT License.
+A copy of the license can be found in the file LICENSES/jansson.txt.
+
+libmodbus
+Copyright © 2008-2025 Stéphane Raimbault <stephane.raimbault@gmail.com>
+This software is licensed under the GNU Lesser General Public License v2.1.
+A copy of the license can be found in the file LICENSES/LGPL-2.1.txt.
