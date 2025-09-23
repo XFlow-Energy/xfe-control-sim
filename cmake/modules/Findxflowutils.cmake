@@ -63,10 +63,11 @@ if(NOT _USE_LOCAL_ZIP)
 	endif()
 
 	# Priority:
-	#  1) CMake cache/var XFLOW_UTILS_DIST_TOKEN if already set by caller
-	#  2) ENV:XFLOW_UTILS_DIST_TOKEN (repo/Actions secret)
-	#  3) ENV:GITHUB_TOKEN (default GitHub provided token in Actions)
-	#  4) ../.secrets file (local dev)
+	# 1) cache var XFLOW_UTILS_DIST_TOKEN (if set)
+	# 2) env XFLOW_UTILS_DIST_TOKEN
+	# 3) env GITHUB_TOKEN (only when in CI)
+	# 4) recursively search for ../.secrets upward (local dev)
+	#    -> first .secrets found wins; parse XFLOW_UTILS_DIST_TOKEN=...
 	if(DEFINED XFLOW_UTILS_DIST_TOKEN AND NOT XFLOW_UTILS_DIST_TOKEN STREQUAL "")
 		# keep as-is
 	elseif(DEFINED ENV{XFLOW_UTILS_DIST_TOKEN} AND NOT "$ENV{XFLOW_UTILS_DIST_TOKEN}" STREQUAL "")
@@ -74,16 +75,59 @@ if(NOT _USE_LOCAL_ZIP)
 	elseif(_IN_CLOUD AND DEFINED ENV{GITHUB_TOKEN} AND NOT "$ENV{GITHUB_TOKEN}" STREQUAL "")
 		set(XFLOW_UTILS_DIST_TOKEN "$ENV{GITHUB_TOKEN}")
 	else()
-		# Local dev fallback: read ../.secrets for XFLOW_UTILS_DIST_TOKEN
-		set(_secrets_file "${CMAKE_SOURCE_DIR}/../.secrets")
-		if(EXISTS "${_secrets_file}")
-			file(STRINGS "${_secrets_file}" _secret_lines)
+		# --- Recursive .secrets search (walk parents from both current dir and project root) ---
+		if(NOT DEFINED XFE_MAX_PARENT_DEPTH)
+			set(XFE_MAX_PARENT_DEPTH 8) # -1 means unlimited
+		endif()
+
+		set(_secrets_path "")
+		set(_roots "${CMAKE_CURRENT_SOURCE_DIR}")
+		if(NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+			list(APPEND _roots "${CMAKE_SOURCE_DIR}")
+		endif()
+
+		foreach(_root IN LISTS _roots)
+			if(NOT _secrets_path STREQUAL "")
+				break()
+			endif()
+			set(_dir "${_root}")
+			set(_depth 0)
+			while(TRUE)
+				set(_candidate "${_dir}/.secrets")
+				if(EXISTS "${_candidate}")
+					set(_secrets_path "${_candidate}")
+					break()
+				endif()
+
+				# climb up
+				get_filename_component(_parent "${_dir}" DIRECTORY)
+				if(_parent STREQUAL _dir)
+					break()
+				endif()
+				math(EXPR _depth "${_depth} + 1")
+				if(NOT XFE_MAX_PARENT_DEPTH EQUAL -1 AND _depth GREATER_EQUAL XFE_MAX_PARENT_DEPTH)
+					break()
+				endif()
+				set(_dir "${_parent}")
+			endwhile()
+		endforeach()
+
+		if(NOT _secrets_path STREQUAL "")
+			file(STRINGS "${_secrets_path}" _secret_lines)
 			foreach(_line IN LISTS _secret_lines)
+				# ignore comments and blanks
+				if(_line MATCHES "^[ \t]*#")  # comment
+					continue()
+				endif()
 				if(_line MATCHES "^[ \t]*XFLOW_UTILS_DIST_TOKEN[ \t]*=")
 					string(REGEX REPLACE "^[^=]*=" "" XFLOW_UTILS_DIST_TOKEN "${_line}")
 					string(STRIP "${XFLOW_UTILS_DIST_TOKEN}" XFLOW_UTILS_DIST_TOKEN)
+					break()
 				endif()
 			endforeach()
+			if(NOT XFLOW_UTILS_DIST_TOKEN STREQUAL "")
+				message(STATUS "Loaded XFLOW_UTILS_DIST_TOKEN from ${_secrets_path}")
+			endif()
 		endif()
 	endif()
 

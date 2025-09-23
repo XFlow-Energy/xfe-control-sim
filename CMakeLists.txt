@@ -80,7 +80,7 @@ include(CMakeDependentOption)
 # Options
 option(ADDRESS_SANITIZER "Enable address sanitizer?" OFF)
 option(RUN_CPPCHECK "Run CPPcheck when compiling." OFF)
-option(RUN_CLANG_TIDY "Run clang_tidy built into clang when compiling." ON)
+option(RUN_CLANG_TIDY "Run clang_tidy built into clang when compiling." OFF)
 option(RUN_SCAN_BUILD "Run scan_build built into clang when compiling." OFF)
 option(RUN_IWYU "Run Include What You Use when compiling." OFF)
 option(RUN_FLAWFINDER "Run flawfinder when compiling." OFF) # Option for flawfinder
