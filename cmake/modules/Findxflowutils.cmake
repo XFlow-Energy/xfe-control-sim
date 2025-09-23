@@ -1,7 +1,22 @@
-# FindXflowutils.cmake
 # -----------------------------------------------------------------------------
-# © 2024–2025 XFlow Energy – https://www.xflowenergy.com/
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
+# XFLOW-CONTROL-SIM
+# Copyright (C) 2024-2025 XFlow Energy (https://www.xflowenergy.com/)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY and FITNESS for a particular purpose. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+# -----------------------------------------------------------------------------
 # Finder for prebuilt xflow-utils artifacts.
 # Exposes:
 #	- Targets (created if present in the distribution):
@@ -53,18 +68,62 @@ if(_LOCAL_MATCHES)
 	endif()
 endif()
 
-# --- 1) If not local, resolve version (no tokens, no API) ---
+# --- 1) If not local, resolve version (restore 'latest' resolution) ---
 if(NOT _USE_LOCAL_ZIP)
-    # Treat "" as "latest"
-    if(XFLOW_UTILS_VERSION STREQUAL "" OR XFLOW_UTILS_VERSION STREQUAL "latest")
-        set(_USE_LATEST TRUE)
-        set(_RESOLVED_REF "latest")
-        message(STATUS "xflow-utils: using latest release (no GitHub token needed)")
-    else()
-        set(_USE_LATEST FALSE)
-        set(_RESOLVED_REF "${XFLOW_UTILS_VERSION}")
-        message(STATUS "xflow-utils: using tag '${_RESOLVED_REF}' (no GitHub token needed)")
-    endif()
+	if(XFLOW_UTILS_VERSION STREQUAL "" OR XFLOW_UTILS_VERSION STREQUAL "latest")
+		find_program(CURL_EXECUTABLE curl)
+		if(NOT CURL_EXECUTABLE)
+			message(FATAL_ERROR "curl not found; required to fetch latest xflow-utils release info.")
+		endif()
+
+		# Optional token; if provided, we’ll send it, otherwise rely on unauthenticated (rate-limited) API.
+		#	set(XFLOW_UTILS_DIST_TOKEN "ghp_xxx")  # optional
+
+		set(_api_json "${CMAKE_BINARY_DIR}/xflow-utils-release.json")
+		set(_curl_cmd "${CURL_EXECUTABLE}")
+		set(_curl_args -sS -L
+			-H "User-Agent: xflow-utils-cmake"
+			-H "Accept: application/vnd.github+json"
+			-H "X-GitHub-Api-Version: 2022-11-28"
+		)
+		if(DEFINED XFLOW_UTILS_DIST_TOKEN AND NOT XFLOW_UTILS_DIST_TOKEN STREQUAL "")
+			list(APPEND _curl_args -H "Authorization: Bearer ${XFLOW_UTILS_DIST_TOKEN}")
+		endif()
+		list(APPEND _curl_args "https://api.github.com/repos/XFlow-Energy/xflow-utils-dist/releases/latest" -o "${_api_json}" -w "%{http_code}")
+
+		execute_process(
+			COMMAND "${_curl_cmd}" ${_curl_args}
+			RESULT_VARIABLE _curl_rv
+			OUTPUT_VARIABLE _http_code
+			ERROR_VARIABLE _curl_err
+		)
+		string(STRIP "${_http_code}" _http_code)
+		if(NOT _curl_rv EQUAL 0 OR NOT _http_code MATCHES "^200$")
+			if(EXISTS "${_api_json}")
+				file(READ "${_api_json}" _err_body)
+				message(FATAL_ERROR "GitHub API query failed (rv=${_curl_rv}, http=${_http_code}). curl error: ${_curl_err}\nResponse: ${_err_body}")
+			else()
+				message(FATAL_ERROR "GitHub API query failed (rv=${_curl_rv}, http=${_http_code}). curl error: ${_curl_err}")
+			endif()
+		endif()
+
+		file(READ "${_api_json}" _gh_content)
+		if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.19")
+			string(JSON XFLOW_UTILS_VERSION GET "${_gh_content}" tag_name)
+			if(NOT XFLOW_UTILS_VERSION)
+				message(FATAL_ERROR "Failed to parse tag_name from GitHub API")
+			endif()
+		else()
+			string(REGEX MATCH "\"tag_name\"[ \t]*:[ \t]*\"([^\"]+)\"" _m "${_gh_content}")
+			if(NOT CMAKE_MATCH_1)
+				message(FATAL_ERROR "Failed to parse tag_name from GitHub API")
+			endif()
+			set(XFLOW_UTILS_VERSION "${CMAKE_MATCH_1}")
+		endif()
+		message(STATUS "xflow-utils: resolved latest tag '${XFLOW_UTILS_VERSION}'")
+	else()
+		message(STATUS "xflow-utils: using tag '${XFLOW_UTILS_VERSION}'")
+	endif()
 endif()
 
 # --- 2) Platform / filenames (unchanged) ---
@@ -125,14 +184,8 @@ if(_USE_LOCAL_ZIP)
 	set(_ZIPPATH "${_DEST}/${_REAL_ZIP_NAME}")
 	set(_SKIP_DOWNLOAD TRUE)
 else()
-    if(_USE_LATEST)
-        # Redirects to the asset of the latest release
-        set(_URL "https://github.com/XFlow-Energy/xflow-utils-dist/releases/latest/download/${_ZIP}")
-    else()
-        # Direct asset link for a specific tag
-        set(_URL "https://github.com/XFlow-Energy/xflow-utils-dist/releases/download/${_RESOLVED_REF}/${_ZIP}")
-    endif()
-    set(_ZIPPATH "${_DEST}/${_ZIP}")
+	set(_URL "https://github.com/XFlow-Energy/xflow-utils-dist/releases/download/${XFLOW_UTILS_VERSION}/${_ZIP}")
+	set(_ZIPPATH "${_DEST}/${_ZIP}")
 endif()
 
 # refine to exact build type
@@ -163,7 +216,7 @@ if(NOT _SKIP_DOWNLOAD)
 		file(DOWNLOAD "${_URL}" "${_ZIPPATH}" SHOW_PROGRESS STATUS _dl_status)
 		list(GET _dl_status 0 _dl_code)
 		if(NOT _dl_code EQUAL 0)
-			message(FATAL_ERROR "Failed to download xflow-utils: ${_dl_status}")
+			message(FATAL_ERROR "Failed to download xflow-utils: ${_dl_status}, url: ${_URL}")
 		endif()
 		message(STATUS "Extracting xflow-utils → ${_DEST}")
 		file(ARCHIVE_EXTRACT INPUT "${_ZIPPATH}" DESTINATION "${_DEST}")
