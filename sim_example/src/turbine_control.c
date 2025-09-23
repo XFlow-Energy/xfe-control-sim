@@ -20,7 +20,7 @@
  */
 
 #include "xflow_control_sim_common.h" // for get_param, param_array_t
-#include "logger.h"                 // for log_message
+#include "logger.h"                   // for log_message
 #include "make_stage.h"
 #include "maybe_unused.h"
 #include "turbine_controls.h" // for turbine_control

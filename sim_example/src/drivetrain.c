@@ -19,8 +19,8 @@
  */
 
 #include "xflow_control_sim_common.h" // for param_array_t, read_csv_and_store
-#include "drivetrains.h"            // for drivetrain
-#include "logger.h"                 // for log_message
+#include "drivetrains.h"              // for drivetrain
+#include "logger.h"                   // for log_message
 #include "make_stage.h"
 #include "xflow_core.h"
 

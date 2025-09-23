@@ -19,10 +19,10 @@
  * with this software. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
-#include <stdbool.h>                // IWYU pragma: keep
-#include <stddef.h>                 // for NULL
+#include <stdbool.h>                  // IWYU pragma: keep
+#include <stddef.h>                   // for NULL
 #include "xflow_control_sim_common.h" // for get_param, param_array_t
-#include "logger.h"                 // for log_message
+#include "logger.h"                   // for log_message
 #include "maybe_unused.h"
 #include "control_switch.h"
 #include "make_stage.h"
