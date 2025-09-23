@@ -30,7 +30,7 @@
 #include "maybe_unused.h"             // for MAYBE_UNUSED
 #include "numerical_integrator.h"     // for numerical_integrator
 #include "turbine_controls.h"         // for turbine_control
-#include "xflow_aero_sim.h"             // for get_param, update_csv_value
+#include "xflow_aero_sim.h"           // for get_param, update_csv_value
 #include "xflow_control_sim_common.h" // for continuous_logging_function
 #include "xflow_control_sim_version.h"
 #include "xflow_core.h"                 // for get_monotonic_timestamp, clo...

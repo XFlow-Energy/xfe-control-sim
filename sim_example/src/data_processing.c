@@ -36,7 +36,7 @@
 #include "maybe_unused.h"
 #include "xflow_aero_sim.h"
 #include "xflow_control_sim_common.h" // for get_param, param_array_t
-#include "xflow_core.h" // for usleep_now, shutdownFlag, get_real_time...
+#include "xflow_core.h"               // for usleep_now, shutdownFlag, get_real_time...
 #include "xflow_math.h"
 #include "xflow_shmem_sem.h"
 #include <math.h>    // for pow, fabs
