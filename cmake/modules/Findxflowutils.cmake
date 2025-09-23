@@ -53,166 +53,18 @@ if(_LOCAL_MATCHES)
 	endif()
 endif()
 
-# --- 1) If not local, resolve version (unchanged) ---
+# --- 1) If not local, resolve version (no tokens, no API) ---
 if(NOT _USE_LOCAL_ZIP)
-	# --- Token resolution (CI env → local .secrets fallback) ---
-	# Detect GitHub Actions
-	set(_IN_CLOUD FALSE)
-	if(DEFINED ENV{GITHUB_ACTIONS} AND "$ENV{GITHUB_ACTIONS}" STREQUAL "true")
-		set(_IN_CLOUD TRUE)
-	endif()
-
-	# Priority:
-	# 1) cache var XFLOW_UTILS_DIST_TOKEN (if set)
-	# 2) env XFLOW_UTILS_DIST_TOKEN
-	# 3) env GITHUB_TOKEN (only when in CI)
-	# 4) recursively search for ../.secrets upward (local dev)
-	#    -> first .secrets found wins; parse XFLOW_UTILS_DIST_TOKEN=...
-	if(DEFINED XFLOW_UTILS_DIST_TOKEN AND NOT XFLOW_UTILS_DIST_TOKEN STREQUAL "")
-		# keep as-is
-	elseif(DEFINED ENV{XFLOW_UTILS_DIST_TOKEN} AND NOT "$ENV{XFLOW_UTILS_DIST_TOKEN}" STREQUAL "")
-		set(XFLOW_UTILS_DIST_TOKEN "$ENV{XFLOW_UTILS_DIST_TOKEN}")
-	elseif(_IN_CLOUD AND DEFINED ENV{GITHUB_TOKEN} AND NOT "$ENV{GITHUB_TOKEN}" STREQUAL "")
-		set(XFLOW_UTILS_DIST_TOKEN "$ENV{GITHUB_TOKEN}")
-	else()
-		# --- Recursive .secrets search (walk parents from both current dir and project root) ---
-		if(NOT DEFINED XFE_MAX_PARENT_DEPTH)
-			set(XFE_MAX_PARENT_DEPTH 8) # -1 means unlimited
-		endif()
-
-		set(_secrets_path "")
-		set(_roots "${CMAKE_CURRENT_SOURCE_DIR}")
-		if(NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-			list(APPEND _roots "${CMAKE_SOURCE_DIR}")
-		endif()
-
-		foreach(_root IN LISTS _roots)
-			if(NOT _secrets_path STREQUAL "")
-				break()
-			endif()
-			set(_dir "${_root}")
-			set(_depth 0)
-			while(TRUE)
-				set(_candidate "${_dir}/.secrets")
-				if(EXISTS "${_candidate}")
-					set(_secrets_path "${_candidate}")
-					break()
-				endif()
-
-				# climb up
-				get_filename_component(_parent "${_dir}" DIRECTORY)
-				if(_parent STREQUAL _dir)
-					break()
-				endif()
-				math(EXPR _depth "${_depth} + 1")
-				if(NOT XFE_MAX_PARENT_DEPTH EQUAL -1 AND _depth GREATER_EQUAL XFE_MAX_PARENT_DEPTH)
-					break()
-				endif()
-				set(_dir "${_parent}")
-			endwhile()
-		endforeach()
-
-		if(NOT _secrets_path STREQUAL "")
-			file(STRINGS "${_secrets_path}" _secret_lines)
-			foreach(_line IN LISTS _secret_lines)
-				# ignore comments and blanks
-				if(_line MATCHES "^[ \t]*#")  # comment
-					continue()
-				endif()
-				if(_line MATCHES "^[ \t]*XFLOW_UTILS_DIST_TOKEN[ \t]*=")
-					string(REGEX REPLACE "^[^=]*=" "" XFLOW_UTILS_DIST_TOKEN "${_line}")
-					string(STRIP "${XFLOW_UTILS_DIST_TOKEN}" XFLOW_UTILS_DIST_TOKEN)
-					break()
-				endif()
-			endforeach()
-			if(NOT XFLOW_UTILS_DIST_TOKEN STREQUAL "")
-				message(STATUS "Loaded XFLOW_UTILS_DIST_TOKEN from ${_secrets_path}")
-			endif()
-		endif()
-	endif()
-
-	# --- Consolidated Pre-checks ---
-	# Ensure the GitHub token is available for authentication.
-	if(NOT DEFINED XFLOW_UTILS_DIST_TOKEN OR XFLOW_UTILS_DIST_TOKEN STREQUAL "")
-		message(FATAL_ERROR "XFLOW_UTILS_DIST_TOKEN is not set; cannot authenticate to GitHub API.")
-	endif()
-
-	# Find the curl executable, failing if it's not found.
-	find_program(CURL_EXECUTABLE curl REQUIRED)
-
-	# --- Define API Call Parameters ---
-	# Determine the specific API endpoint and local JSON file based on the requested version.
-	if(XFLOW_UTILS_VERSION STREQUAL "" OR XFLOW_UTILS_VERSION STREQUAL "latest")
-		set(_api_endpoint "latest")
-		set(_api_json "${CMAKE_BINARY_DIR}/xflow-utils-release.json")
-		set(_err_context "for latest release")
-		set(_requested_is_tag FALSE)
-	else()
-		set(_api_endpoint "tags/${XFLOW_UTILS_VERSION}")
-		set(_api_json "${CMAKE_BINARY_DIR}/xflow-utils-release-${XFLOW_UTILS_VERSION}.json")
-		set(_err_context "for tag '${XFLOW_UTILS_VERSION}'")
-		set(_requested_is_tag TRUE)
-	endif()
-
-	# --- Unified GitHub API Call ---
-	# Execute a single curl command using the parameters defined above.
-	execute_process(
-		COMMAND "${CURL_EXECUTABLE}"
-			-sS -L
-			-H "Authorization: Bearer ${XFLOW_UTILS_DIST_TOKEN}"
-			-H "User-Agent: xflow-utils-cmake"
-			-H "Accept: application/vnd.github+json"
-			-H "X-GitHub-Api-Version: 2022-11-28"
-			"https://api.github.com/repos/XFlow-Energy/xflow-utils-dist/releases/${_api_endpoint}"
-			-o "${_api_json}"
-			-w "%{http_code}"
-		RESULT_VARIABLE _curl_rv
-		OUTPUT_VARIABLE _http_code
-		ERROR_VARIABLE _curl_err
-	)
-
-	# --- Unified Error Handling ---
-	# Check for curl errors or non-200 HTTP status codes.
-	string(STRIP "${_http_code}" _http_code)
-	if(NOT _curl_rv EQUAL 0 OR NOT _http_code MATCHES "^200$")
-		if(_requested_is_tag AND _http_code STREQUAL "404")
-			set(_error_message "GitHub API query failed ${_err_context}: tag not found (http=404).")
-		else()
-			set(_error_message "GitHub API query failed ${_err_context} (rv=${_curl_rv}, http=${_http_code}). curl error: ${_curl_err}")
-		endif()
-		if(EXISTS "${_api_json}")
-			file(READ "${_api_json}" _err_body)
-			string(APPEND _error_message "\nResponse: ${_err_body}")
-		endif()
-		message(FATAL_ERROR "${_error_message}")
-	endif()
-
-	# --- Unified JSON Parsing ---
-	# Read the downloaded JSON and extract the tag_name to resolve the final version.
-	file(READ "${_api_json}" _gh_content)
-
-	if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.19")
-		string(JSON resolved_tag GET "${_gh_content}" tag_name)
-	else()
-		string(REGEX MATCH "\"tag_name\"[ \t]*:[ \t]*\"([^\"]+)\"" _m "${_gh_content}")
-		set(resolved_tag "${CMAKE_MATCH_1}")
-	endif()
-
-	if(NOT resolved_tag)
-		message(FATAL_ERROR "Failed to parse tag_name from GitHub API response ${_err_context}.")
-	endif()
-
-	# If a specific tag was requested, verify the API returned the same tag.
-	if(_requested_is_tag)
-		if(NOT resolved_tag STREQUAL "${XFLOW_UTILS_VERSION}")
-			message(FATAL_ERROR "Requested tag '${XFLOW_UTILS_VERSION}' but API returned '${resolved_tag}'.")
-		endif()
-	endif()
-
-	# Set the final, resolved version.
-	set(XFLOW_UTILS_VERSION "${resolved_tag}")
-
-	message(STATUS "Resolved xflow-utils version to: ${XFLOW_UTILS_VERSION}")
+    # Treat "" as "latest"
+    if(XFLOW_UTILS_VERSION STREQUAL "" OR XFLOW_UTILS_VERSION STREQUAL "latest")
+        set(_USE_LATEST TRUE)
+        set(_RESOLVED_REF "latest")
+        message(STATUS "xflow-utils: using latest release (no GitHub token needed)")
+    else()
+        set(_USE_LATEST FALSE)
+        set(_RESOLVED_REF "${XFLOW_UTILS_VERSION}")
+        message(STATUS "xflow-utils: using tag '${_RESOLVED_REF}' (no GitHub token needed)")
+    endif()
 endif()
 
 # --- 2) Platform / filenames (unchanged) ---
@@ -273,8 +125,14 @@ if(_USE_LOCAL_ZIP)
 	set(_ZIPPATH "${_DEST}/${_REAL_ZIP_NAME}")
 	set(_SKIP_DOWNLOAD TRUE)
 else()
-	set(_URL "https://github.com/XFlow-Energy/xflow-utils-dist/releases/download/${XFLOW_UTILS_VERSION}/${_ZIP}")
-	set(_ZIPPATH "${_DEST}/${_ZIP}")
+    if(_USE_LATEST)
+        # Redirects to the asset of the latest release
+        set(_URL "https://github.com/XFlow-Energy/xflow-utils-dist/releases/latest/download/${_ZIP}")
+    else()
+        # Direct asset link for a specific tag
+        set(_URL "https://github.com/XFlow-Energy/xflow-utils-dist/releases/download/${_RESOLVED_REF}/${_ZIP}")
+    endif()
+    set(_ZIPPATH "${_DEST}/${_ZIP}")
 endif()
 
 # refine to exact build type
