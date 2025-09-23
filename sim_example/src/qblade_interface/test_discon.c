@@ -18,16 +18,17 @@
  * with this software. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
-#include <stdbool.h>                  // IWYU pragma: keep
-#include <stddef.h>                   // for NULL
 #include "xflow_control_sim_common.h" // for get_param, param_array_t
-#include "xflow_core.h"
-#include "logger.h" // for log_message
-#include "qblade_interface.h"
 #include "bladed_interface.h"
-#include "drivetrains.h"      // for drivetrain
+#include "discon.h"      // declare void DISCON(...)
+#include "drivetrains.h" // for drivetrain
+#include "logger.h"      // for log_message
+#include "make_stage.h"
+#include "qblade_interface.h"
 #include "turbine_controls.h" // for turbine_control
-#include "discon.h"           // declare void DISCON(...)
+#include "xflow_core.h"
+#include <stdbool.h> // IWYU pragma: keep
+#include <stddef.h>  // for NULL
 
 int main(void)
 {
@@ -38,7 +39,7 @@ int main(void)
 	char avc_msg[1] = {0};
 	double simulation_time = 10.0;
 	double elapsed_time = 0.0;
-	avr_swap[REC_COMMUNICATION_INTERVAL] = 0.1;
+	avr_swap[REC_COMMUNICATION_INTERVAL] = (float)0.1;
 
 	while (elapsed_time < simulation_time)
 	{

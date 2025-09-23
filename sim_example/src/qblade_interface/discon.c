@@ -18,20 +18,20 @@
  * with this software. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
-#include <stdio.h>
-#include "xflow_control_sim_common.h" // for param_array_t, (anonymous struct)
-#include "xflow_core.h"
-#include "xflow_aero_sim.h"
+#include "control_switch.h"
+#include "discon.h" // for turbine_control
 #include "logger.h" // for log_message, ERROR_MESSAGE
 #include "maybe_unused.h"
 #include "qblade_interface.h" // for turbine_control
-#include "control_switch.h"
-#include "discon.h" // for turbine_control
+#include "xflow_aero_sim.h"
+#include "xflow_control_sim_common.h" // for param_array_t, (anonymous struct)
+#include "xflow_core.h"
+#include <stdio.h>
 
 #define NINT(a) ((a) >= 0.0 ? (int)((a) + 0.5) : (int)((a) - 0.5))
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 
-MAKE_STAGE_DEFINE(DISCON, void, (DISCON_PARAM_LIST), (DISCON_DISPATCH_ARGS))
+MAKE_STAGE_DEFINE(DISCON, void, (DISCON_PARAM_LIST), (DISCON_DISPATCH_ARGS)) // NOLINT(readability-non-const-parameter)
 
 // needs to be here for initialization.
 __attribute__((constructor)) static void init_discon_hook(void)
@@ -66,24 +66,24 @@ __attribute__((constructor)) static void init_discon_hook(void)
  */
 void example_discon(DISCON_PARAM_LIST)
 {
-	static bool init_complete = false;
-	static param_array_t *dynamic_data = NULL;
-	static param_array_t *fixed_data = NULL;
+	static bool init_Complete = false;
+	static param_array_t *dynamic_Data = NULL;
+	static param_array_t *fixed_Data = NULL;
 
-	if (!init_complete)
+	if (!init_Complete)
 	{
 		int n_params = 1;
-		dynamic_data = create_input_data(n_params);
-		fixed_data = create_input_data(n_params);
+		dynamic_Data = create_input_data(n_params);
+		fixed_Data = create_input_data(n_params);
 
 		// Pass the address of the pointers (i.e., pointers to pointers)
-		initialize_control_system(&dynamic_data, &fixed_data, 1);
+		initialize_control_system(&dynamic_Data, &fixed_Data, 1);
 
-		control_switch(dynamic_data, fixed_data);
+		control_switch(dynamic_Data, fixed_Data);
 
 		log_message("discon init complete!\n");
 
-		init_complete = true;
+		init_Complete = true;
 	}
 
 	// avr_swap - data swap array
@@ -92,14 +92,14 @@ void example_discon(DISCON_PARAM_LIST)
 	// avc_outname - char array to path to sim results folder, for saving controller data internally
 	// avc_msg - char array, can be used to send message up to caller
 
-	int i_status; //, iFirstLog;
+	int i_status = 0; //, iFirstLog;
 
 	// Load variables from Bladed (See Appendix A)
 	i_status = NINT(avr_swap[0]);
 
 	if (i_status >= 0)
 	{
-		qblade_interface(avr_swap, dynamic_data, fixed_data);
+		qblade_interface(avr_swap, dynamic_Data, fixed_Data);
 	}
 
 	// Indicate successful execution

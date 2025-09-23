@@ -8,6 +8,7 @@ Checks: |
   -cppcoreguidelines-avoid-magic-numbers
   -cppcoreguidelines-avoid-non-const-global-variables
   -hicpp-use-nullptr
+  -llvm-header-guard
   -llvmlibc-restrict-system-libc-headers
   -misc-header-include-cycle
   -misc-include-cleaner

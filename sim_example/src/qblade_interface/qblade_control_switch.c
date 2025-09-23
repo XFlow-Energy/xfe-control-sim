@@ -19,17 +19,17 @@
  * with this software. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
-#include <stdbool.h>                  // IWYU pragma: keep
-#include <stddef.h>                   // for NULL
 #include "xflow_control_sim_common.h" // for get_param, param_array_t
-#include "logger.h"                   // for log_message
-#include "maybe_unused.h"
 #include "control_switch.h"
-#include "make_stage.h"
-#include "turbine_controls.h" // for turbine_control
-#include "drivetrains.h"
-#include "qblade_interface.h"
 #include "discon.h"
+#include "drivetrains.h"
+#include "logger.h" // for log_message
+#include "make_stage.h"
+#include "maybe_unused.h"
+#include "qblade_interface.h"
+#include "turbine_controls.h" // for turbine_control
+#include <stdbool.h>          // IWYU pragma: keep
+#include <stddef.h>           // for NULL
 
 DEFINE_STAGE_DISPATCHER(turbine_control, turbineControlMap)
 DEFINE_STAGE_DISPATCHER(drivetrain, drivetrainMap)

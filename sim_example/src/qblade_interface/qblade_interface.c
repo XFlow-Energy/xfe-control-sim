@@ -18,19 +18,19 @@
  * with this software. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
-#include <stdbool.h>                  // IWYU pragma: keep
-#include <stddef.h>                   // for NULL
 #include "xflow_control_sim_common.h" // for get_param, param_array_t
-#include "xflow_core.h"
-#include "logger.h" // for log_message
-#include "qblade_interface.h"
 #include "bladed_interface.h"
-#include "drivetrains.h"      // for drivetrain
-#include "turbine_controls.h" // for turbine_control
+#include "drivetrains.h" // for drivetrain
+#include "logger.h"      // for log_message
 #include "make_stage.h"
+#include "qblade_interface.h"
+#include "turbine_controls.h" // for turbine_control
+#include "xflow_core.h"
+#include <stdbool.h> // IWYU pragma: keep
+#include <stddef.h>  // for NULL
 
 // expand definitions once, using both the decl‐list and the call‐list
-MAKE_STAGE_DEFINE(qblade_interface, void, (QBLADE_INTERFACE_PARAM_LIST), (QBLADE_INTERFACE_CALL_ARGS))
+MAKE_STAGE_DEFINE(qblade_interface, void, (QBLADE_INTERFACE_PARAM_LIST), (QBLADE_INTERFACE_CALL_ARGS)) // NOLINT(readability-non-const-parameter)
 
 /**
  * @brief Executes the QBlade-based control algorithm for each DISCON call.
@@ -102,7 +102,7 @@ void example_qblade_interface(QBLADE_INTERFACE_PARAM_LIST)
 
 	drivetrain(dynamic_data, fixed_data); // update the low speed torque desired, essentially tau_gen
 
-	avr_swap[REC_DEMANDED_GENERATOR_TORQUE] = *tau_Flow_Extract;
+	avr_swap[REC_DEMANDED_GENERATOR_TORQUE] = (float)(*tau_Flow_Extract);
 
 	continuous_logging_function(dynamic_data, fixed_data);
 }
