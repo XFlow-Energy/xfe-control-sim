@@ -5,12 +5,32 @@ PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
 BUILD_DIR="${BUILD_DIR:-${PROJECT_ROOT}/build}"
 RUN_CLANG_TIDY_BIN="${RUN_CLANG_TIDY_BIN:-run-clang-tidy}"
 MODE="${1:-all}"
+shift || true
+
+CLANG_TIDY_FILE="$PROJECT_ROOT/.clang-tidy"
+EXTRAARGS=()
+
+if [[ "${1:-}" == "--extraargs" ]]
+then
+	shift
+	EXTRAARGS=("$@")
+else
+	if [[ "${1:-}" != "" && "${1:-}" != "--extraargs" ]]
+	then
+		CLANG_TIDY_FILE="$1"
+		shift || true
+	fi
+	if [[ "${1:-}" == "--extraargs" ]]
+	then
+		shift
+		EXTRAARGS=("$@")
+	fi
+fi
 
 cd "${PROJECT_ROOT}"
 
 if [[ "$(uname)" == "Darwin" ]]; then NPROC=$(sysctl -n hw.ncpu); else NPROC=$(nproc); fi
 
-# macOS-only SDK arg
 EXTRA_ARGS=("-j $NPROC" "-p=${BUILD_DIR}")
 if [ "$(uname -s)" = "Darwin" ]
 then
@@ -21,7 +41,13 @@ then
 	fi
 fi
 
-# Build file list by mode
+if [ -f "$CLANG_TIDY_FILE" ]
+then
+	EXTRA_ARGS+=("-config-file=$CLANG_TIDY_FILE")
+else
+	echo "[WARN] Config file not found: $CLANG_TIDY_FILE"
+fi
+
 FILES=()
 if [ "${MODE}" = "c" ]
 then
@@ -43,8 +69,8 @@ then
 		FILES+=("$f")
 	done < <(find . -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' \) -print0)
 else
-	echo "usage: $(basename "$0") [c|cpp|both|all]"; exit 2
+	echo "usage: $(basename "$0") [c|cpp|both|all] [optional-path-to-.clang-tidy] [--extraargs ...]"; exit 2
 fi
 
-echo "[clang-tidy] ${RUN_CLANG_TIDY_BIN} ${EXTRA_ARGS[*]} ${#FILES[@]} files"
-exec "${RUN_CLANG_TIDY_BIN}" "${EXTRA_ARGS[@]}" "${FILES[@]}"
+echo "[clang-tidy] ${RUN_CLANG_TIDY_BIN} ${EXTRA_ARGS[*]} ${EXTRAARGS[*]:-} ${#FILES[@]} files"
+exec "${RUN_CLANG_TIDY_BIN}" "${EXTRA_ARGS[@]}" "${EXTRAARGS[@]+"${EXTRAARGS[@]}"}" "${FILES[@]}"
