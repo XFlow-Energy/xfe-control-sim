@@ -8,7 +8,6 @@ set -euo pipefail
 XFLOW_CONTROL_SIM_ROOT=$(git rev-parse --show-toplevel)
 SIM_EXAMPLE="${XFLOW_CONTROL_SIM_ROOT}/sim_example"
 TMP_ROOT="$(dirname "${XFLOW_CONTROL_SIM_ROOT}")/sim_example_test"
-BUILD_DIR="${TMP_ROOT}/build"
 
 REBUILD=${1:-0}
 
@@ -16,7 +15,7 @@ echo "→ Testing sim_example in temporary dir: ${TMP_ROOT}"
 
 # 1) recreate or skip
 if [[ "$REBUILD" == "1" ]]; then
-    rm -rf "$TMP_ROOT"
+	rm -rf "$TMP_ROOT"
 fi
 
 if [[ ! -d "$TMP_ROOT" ]]; then
@@ -24,142 +23,60 @@ if [[ ! -d "$TMP_ROOT" ]]; then
 	cp -R "$SIM_EXAMPLE" "$TMP_ROOT"
 fi
 
-# 2) configure & build
-mkdir -p "$BUILD_DIR"
+# 2) Build + run via the new launcher (run from repo so git works)
+echo "→ Building + running via sim_example/misc/launch_xflow_control_sim.sh (RECOMPILE_OR_NOT=${REBUILD})"
+(
+	cd "${XFLOW_CONTROL_SIM_ROOT}/sim_example/misc"
+	./launch_xflow_control_sim.sh "${REBUILD}"
+)
+LAUNCH_EXIT=$?
 
-VERBOSE=1
-
-# set number of procs based on OS
-if [[ "$(uname)" == "Darwin" ]]; then
-	NPROC=$(sysctl -n hw.ncpu)
+# 3) outcome
+if [[ $LAUNCH_EXIT -ne 0 ]]; then
+	echo "❌ sim_example run failed (exit $LAUNCH_EXIT)" >&2
 else
-	NPROC=$(nproc)
+	echo "✅ sim_example run succeeded"
 fi
 
-# detect ninja vs. make
-# detect ninja vs make
-if command -v ninja >/dev/null 2>&1; then
-	GENERATOR="-G Ninja"
-	if [[ $VERBOSE -eq 1 ]]; then
-		BUILD_CMD="ninja -v -j $NPROC"
-	else
-		BUILD_CMD="ninja -j $NPROC"
+# 4) validate log file contents before cleanup
+LOG_FILE="${XFLOW_CONTROL_SIM_ROOT}/log/log_data/xflow-control-sim-simulation-output.log"
+echo "→ Validating log file: ${LOG_FILE}"
+
+LOG_OK=1
+if [[ ! -f "$LOG_FILE" ]]; then
+	echo "❌ Log file not found." >&2
+	LOG_OK=0
+else
+	if ! grep -Fq "Program Duration:" "$LOG_FILE"; then
+		echo "❌ Missing 'Program Duration:' line." >&2
+		LOG_OK=0
 	fi
-else
-	GENERATOR=""
-	if [[ $VERBOSE -eq 1 ]]; then
-		BUILD_CMD="make -j$NPROC VERBOSE=1"
-	else
-		BUILD_CMD="make -j$NPROC"
+	if ! grep -Fq "write Duration:" "$LOG_FILE"; then
+		echo "❌ Missing 'write Duration:' line." >&2
+		LOG_OK=0
+	fi
+	LAST_NONEMPTY_LINE="$(awk 'NF{last=$0} END{print last}' "$LOG_FILE")"
+	if [[ "$LAST_NONEMPTY_LINE" != *"Closing Program"* ]]; then
+		echo "❌ Last non-empty line is not 'Closing Program'." >&2
+		echo "   Last line was: ${LAST_NONEMPTY_LINE}" >&2
+		LOG_OK=0
 	fi
 fi
 
-
-if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
-	OS="${RUNNER_OS}"
-else
-	OS="$(uname -s)"
-fi
-
-# pick compilers (same logic as your main script + CI overrides)
-if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
-# on GH-Actions, use RUNNER_OS or uname to decide
-case "$OS" in
-	Windows)
-		CC="C:/deps/llvm-mingw/bin/clang.exe"
-		CXX="C:/deps/llvm-mingw/bin/clang++.exe"
-		;;
-	macOS|Darwin)
-		CC="/opt/homebrew/opt/llvm/bin/clang"
-		CXX="/opt/homebrew/opt/llvm/bin/clang++"
-		;;
-	Linux)
-		CC="/usr/bin/clang"
-		CXX="/usr/bin/clang++"
-		;;
-	*)
-		echo "❌ Unsupported OS: $OS" >&2
-		exit 1
-		;;
-esac
-else
-# local/non-CI build
-case "$(uname -s)" in
-	Darwin)
-	CC="/opt/homebrew/opt/llvm/bin/clang"
-	CXX="/opt/homebrew/opt/llvm/bin/clang++"
-	;;
-	*)
-	CC="clang"
-	CXX="clang++"
-	;;
-esac
-fi
-
-# turn CMake’s verbose-makefile on/off
-if [[ "${VERBOSE:-0}" -eq 1 ]]; then
-	CMAKE_VERBOSE_FLAG=ON
-else
-	CMAKE_VERBOSE_FLAG=OFF
-fi
-
-# CI‐only prefix path for Windows dependencies
-CMAKE_PREFIX_PATH=""
-if [[ "${GITHUB_ACTIONS:-}" == "true" && "$OS" == "Windows" ]]; then
-	CMAKE_PREFIX_PATH="C:/deps/gsl-install;C:/deps/jansson-install;C:/deps/libmodbus"
-fi
-
-if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
-	BUILD_TYPE="Release"
-else
-	BUILD_TYPE="Debug"
-fi
-
-export CC CXX CMAKE_VERBOSE_FLAG CMAKE_PREFIX_PATH BUILD_TYPE
-
-cmake $GENERATOR \
-	-B "$BUILD_DIR" \
-	-S "$TMP_ROOT" \
-	-DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-	-DCMAKE_VERBOSE_MAKEFILE="$CMAKE_VERBOSE_FLAG" \
-	-DCMAKE_C_COMPILER="$CC" \
-	-DCMAKE_CXX_COMPILER="$CXX" \
-	-DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
-	-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-	-DBUILD_XFLOW_CONTROL_SIM_EXECUTABLE=ON \
-	-DBUILD_SHARED_LIBS=OFF
-
-echo "→ Building sim_example…"
-# Actually build
-(cd "$BUILD_DIR" && $BUILD_CMD)
-
-# 3) run it
-cd "$BUILD_DIR/executables-out/" || { echo "❌ Executables directory not found: $BUILD_DIR/executables-out" >&2; exit 1; }
-BIN="xflow_control_sim"
-if [[ -f "${BIN}.exe" ]]; then BIN="${BIN}.exe"; fi
-if [[ ! -x "$BIN" ]]; then
-	echo "❌ Built executable not found: $BUILD_DIR/executables-out/$BIN" >&2
-	exit 1
-fi
-
-echo "→ Running sim_example test…"
-OUTPUT="$(./"$BIN" 2>&1)"
-EXIT_CODE=$?
-if [[ $EXIT_CODE -ne 0 ]]; then
-	echo "❌ sim_example failed (exit $EXIT_CODE)" >&2
-	echo "$OUTPUT"
-	# cleanup
-	cd "$XFLOW_CONTROL_SIM_ROOT"
-	rm -rf "$TMP_ROOT"
-	exit $EXIT_CODE
-fi
-
-# 4) success
-echo "✅ sim_example test passed!"
-echo "$OUTPUT"
-
-# 5) cleanup
+# 5) cleanup behavior depends on validation
 cd "$XFLOW_CONTROL_SIM_ROOT"
-rm -rf "$TMP_ROOT"
 
-exit 0
+if [[ $LOG_OK -eq 1 ]]; then
+	echo "✅ Log validation passed. Cleaning up temp folder: ${TMP_ROOT}"
+	rm -rf "$TMP_ROOT"
+	exit $LAUNCH_EXIT
+else
+	echo "⚠️  Log validation failed. Preserving temp folder for inspection: ${TMP_ROOT}" >&2
+	echo "   You can inspect the log with: less '${LOG_FILE}'" >&2
+	# If the run itself failed, propagate its code; otherwise signal validation failure.
+	if [[ $LAUNCH_EXIT -ne 0 ]]; then
+		exit $LAUNCH_EXIT
+	else
+		exit 1
+	fi
+fi

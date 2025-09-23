@@ -12,8 +12,8 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 	mkdir "$BUILD_DIR"
 	cd "$BUILD_DIR" || exit
 	# PATHVARS+="-DRUN_CPPCHECK=OFF "
-	PATHVARS+="-DRUN_IWYU=OFF "
-	# PATHVARS+="-DRUN_CLANG_TIDY=OFF "
+	# PATHVARS+="-DRUN_IWYU=OFF "
+	PATHVARS+="-DRUN_CLANG_TIDY=ON "
 	# PATHVARS+="-DRUN_SCAN_BUILD=OFF "
 	# PATHVARS+="-DRUN_FLAWFINDER=OFF "
 
@@ -102,7 +102,7 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 	else
 		BUILD_TYPE="Debug"
 	fi
-
+	BUILD_TYPE="Release"
 	export CC CXX CMAKE_VERBOSE_FLAG CMAKE_PREFIX_PATH BUILD_TYPE
 	# Configure into build dir
 	cmake $GENERATOR \
@@ -120,39 +120,6 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 
 	# Actually build
 	(cd "$BUILD_DIR" && $BUILD_CMD)
-fi
-
-RUN_CLANG_TIDY=0
-Post-build: run clang-tidy via your script and log to build/clang-tidy.log
-if [[ "${RUN_CLANG_TIDY:-0}" == "1" ]]; then
-	CLANG_TIDY_SCRIPT="$XFLOW_CONTROLLER_DIR/src/misc/clang_tidy_all.sh"
-	CLANG_TIDY_LOG="$BUILD_DIR/clang-tidy.log"
-
-	if [[ -x "$CLANG_TIDY_SCRIPT" ]]; then
-		if command -v run-clang-tidy >/dev/null 2>&1; then
-			export PROJECT_ROOT="$XFLOW_CONTROLLER_DIR"
-			export BUILD_DIR="$BUILD_DIR"
-			export RUN_CLANG_TIDY_BIN="$(command -v run-clang-tidy)"
-			MODE="${RUN_CLANG_TIDY_MODE:-c}"
-
-			# remove existing log if present
-			if [[ -f "$CLANG_TIDY_LOG" ]]; then
-				rm -f "$CLANG_TIDY_LOG"
-			fi
-
-			echo "[INFO] Running clang-tidy ($MODE)… logging to $CLANG_TIDY_LOG"
-			# send output to both console and file
-			if ! "$CLANG_TIDY_SCRIPT" "$MODE" 2>&1 | tee "$CLANG_TIDY_LOG"; then
-				echo "[WARN] clang-tidy returned non-zero; see $CLANG_TIDY_LOG"
-			fi
-		else
-			echo "[WARN] run-clang-tidy not found in PATH; skipping clang-tidy step."
-		fi
-	else
-		echo "[WARN] clang-tidy script not found at $CLANG_TIDY_SCRIPT; skipping."
-	fi
-else
-	echo "[INFO] RUN_CLANG_TIDY not set; skipping clang-tidy step."
 fi
 
 echo ""
@@ -180,36 +147,4 @@ else
 	echo "⚠️ Log file not found: $LOG_FILE"
 fi
 
-# Validate log contents (must include Program Duration:, write Duration:, and end with Closing Program)
-FINAL_EXIT=$EXIT_CODE
-if [[ -f "$LOG_FILE" ]]; then
-	LOG_OK=1
-	if ! grep -Fq "Program Duration:" "$LOG_FILE"; then
-		echo "❌ Missing 'Program Duration:' line in log."
-		LOG_OK=0
-	fi
-	if ! grep -Fq "write Duration:" "$LOG_FILE"; then
-		echo "❌ Missing 'write Duration:' line in log."
-		LOG_OK=0
-	fi
-	LAST_NONEMPTY_LINE="$(awk 'NF{last=$0} END{print last}' "$LOG_FILE")"
-	if [[ "$LAST_NONEMPTY_LINE" != *"Closing Program"* ]]; then
-		echo "❌ Last non-empty line is not 'Closing Program'."
-		echo "   Last line was: ${LAST_NONEMPTY_LINE}"
-		LOG_OK=0
-	fi
-	if [[ $LOG_OK -eq 0 && $FINAL_EXIT -eq 0 ]]; then
-		FINAL_EXIT=1
-	fi
-else
-	echo "❌ Cannot validate: log file missing."
-	if [[ $FINAL_EXIT -eq 0 ]]; then
-		FINAL_EXIT=1
-	fi
-fi
-
-if [[ $LOG_OK -eq 1 ]]; then
-	echo "✅ Log validation passed"
-fi
-
-exit $FINAL_EXIT
+exit $EXIT_CODE
