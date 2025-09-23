@@ -23,6 +23,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#ifdef _WIN32
+// NOLINTBEGIN(llvm-include-order)
+#include <winsock2.h>
+#include <windows.h>
+// NOLINTEND(llvm-include-order)
+#else
+#include <signal.h>   // For kill, SIGTERM, SIGKILL
+#include <sys/wait.h> // For waitpid, WIFEXITED, WEXITSTATUS, etc.
+#endif
+
 #include "control_switch.h"           // for control_switch
 #include "data_processing.h"          // for data_processing, BEGINNING
 #include "flow_gen.h"                 // for flow_gen
@@ -43,16 +53,6 @@
 #ifdef __APPLE__
 #include <sys/types.h> // for pid_t
 #include <time.h>      // for timespec
-#endif
-
-#ifdef _WIN32
-// NOLINTBEGIN(llvm-include-order)
-#include <winsock2.h>
-#include <windows.h>
-// NOLINTEND(llvm-include-order)
-#else
-#include <signal.h>   // For kill, SIGTERM, SIGKILL
-#include <sys/wait.h> // For waitpid, WIFEXITED, WEXITSTATUS, etc.
 #endif
 
 void end_modbus_server(void)
