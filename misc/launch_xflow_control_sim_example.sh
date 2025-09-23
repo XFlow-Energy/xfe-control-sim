@@ -123,7 +123,7 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 fi
 
 RUN_CLANG_TIDY=0
-Post-build: run clang-tidy via your script and log to build/clang-tidy.log
+# Post-build: run clang-tidy via your script and log to build/clang-tidy.log
 if [[ "${RUN_CLANG_TIDY:-0}" == "1" ]]; then
 	CLANG_TIDY_SCRIPT="$XFLOW_CONTROLLER_DIR/src/misc/clang_tidy_all.sh"
 	CLANG_TIDY_LOG="$BUILD_DIR/clang-tidy.log"
@@ -156,6 +156,9 @@ else
 fi
 
 echo ""
+
+# Ensure log dirs exist before running the binary (CI needs this)
+mkdir -p "$XFLOW_CONTROL_SIM_DIR/log/log_data"
 
 cd "$BUILD_DIR/executables-out/" || exit
 

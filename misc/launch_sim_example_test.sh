@@ -26,7 +26,7 @@ fi
 # 2) Build + run via the new launcher (run from repo so git works)
 echo "→ Building + running via sim_example/misc/launch_xflow_control_sim.sh (RECOMPILE_OR_NOT=${REBUILD})"
 (
-	cd "${XFLOW_CONTROL_SIM_ROOT}/sim_example/misc"
+	cd "${TMP_ROOT}/misc"
 	./launch_xflow_control_sim.sh "${REBUILD}"
 )
 LAUNCH_EXIT=$?
@@ -39,7 +39,7 @@ else
 fi
 
 # 4) validate log file contents before cleanup
-LOG_FILE="${XFLOW_CONTROL_SIM_ROOT}/log/log_data/xflow-control-sim-simulation-output.log"
+LOG_FILE="${TMP_ROOT}/log/log_data/xflow-control-sim-simulation-output.log"
 echo "→ Validating log file: ${LOG_FILE}"
 
 LOG_OK=1
@@ -59,6 +59,11 @@ else
 	if [[ "$LAST_NONEMPTY_LINE" != *"Closing Program"* ]]; then
 		echo "❌ Last non-empty line is not 'Closing Program'." >&2
 		echo "   Last line was: ${LAST_NONEMPTY_LINE}" >&2
+		LOG_OK=0
+	fi
+	if grep -Fq "ERROR" "$LOG_FILE"; then
+		echo "❌ Found error lines in log:" >&2
+		grep -F "ERROR" "$LOG_FILE" >&2
 		LOG_OK=0
 	fi
 fi

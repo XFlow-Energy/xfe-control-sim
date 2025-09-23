@@ -9,12 +9,12 @@ RECOMPILE_OR_NOT=$1
 
 if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 	rm -rf "$BUILD_DIR"
-	rm -rf ~/.cache/cppcheck 
+	rm -rf ~/.cache/cppcheck
 	mkdir "$BUILD_DIR"
 	cd "$BUILD_DIR" || exit
 	# PATHVARS+="-DRUN_CPPCHECK=OFF "
 	# PATHVARS+="-DRUN_IWYU=OFF "
-	PATHVARS+="-DRUN_CLANG_TIDY=ON "
+	# PATHVARS+="-DRUN_CLANG_TIDY=OFF "
 	# PATHVARS+="-DRUN_SCAN_BUILD=OFF "
 	# PATHVARS+="-DRUN_FLAWFINDER=OFF "
 
@@ -50,7 +50,7 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 		OS="$(uname -s)"
 	fi
 
-	# pick compilers (same logic as your main script + CI overrides)
+	# pick compilers (same logic as your other script + CI overrides)
 	if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
 	# on GH-Actions, use RUNNER_OS or uname to decide
 	case "$OS" in
@@ -98,14 +98,16 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 		CMAKE_PREFIX_PATH="C:/deps/gsl-install;C:/deps/jansson-install;C:/deps/libmodbus"
 	fi
 
+	# build type
 	if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
 		BUILD_TYPE="Release"
 	else
 		BUILD_TYPE="Debug"
 	fi
 	BUILD_TYPE="Release"
+
 	export CC CXX CMAKE_VERBOSE_FLAG CMAKE_PREFIX_PATH BUILD_TYPE
-	# Configure into build dir
+	# Configure into build dir for DISCON test (no main sim executable; shared libs ON)
 	cmake $GENERATOR \
 		-B "$BUILD_DIR" \
 		-S "$XFLOW_CONTROL_SIM_DIR" \
@@ -115,9 +117,8 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 		-DCMAKE_CXX_COMPILER="$CXX" \
 		-DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DBUILD_XFLOW_CONTROL_SIM_EXECUTABLE=ON \
-		-DBUILD_SHARED_LIBS=OFF \
-		${PATHVARS}
+		-DBUILD_XFLOW_CONTROL_SIM_EXECUTABLE=OFF \
+		-DBUILD_SHARED_LIBS=ON
 
 	# Actually build
 	(cd "$BUILD_DIR" && $BUILD_CMD)
@@ -128,17 +129,28 @@ echo ""
 # Ensure log dirs exist before running the binary (CI needs this)
 mkdir -p "$XFLOW_CONTROL_SIM_DIR/log/log_data"
 
-cd "$BUILD_DIR/executables-out/" || exit
+cd "$BUILD_DIR/executables-out/" || { echo "❌ Executables directory not found: $BUILD_DIR/executables-out" >&2; exit 1; }
 
-#Determine correct binary name across platforms
-BIN="xflow_control_sim"
+BIN="qblade_interface_test"
 if [[ -f "${BIN}.exe" ]]; then BIN="${BIN}.exe"; fi
+if [[ ! -x "$BIN" ]]; then
+	echo "❌ Built executable not found: $BUILD_DIR/executables-out/$BIN" >&2
+	exit 1
+fi
 
-# Run it and capture output + exit code
+echo "→ Running qblade interface test…"
 OUTPUT="$(./"$BIN" 2>&1)"
 EXIT_CODE=$?
-# Echo stdout/stderr and propagate exit code
+
+if [[ $EXIT_CODE -ne 0 ]]; then
+	echo "❌ qblade interface test failed (exit $EXIT_CODE)" >&2
+	echo "$OUTPUT"
+	exit $EXIT_CODE
+fi
+
+echo "✅ qblade interface test passed!"
 echo "$OUTPUT"
+
 echo ""
 
 # Print the contents of the generated log file if it exists
@@ -151,4 +163,4 @@ else
 	echo "⚠️ Log file not found: $LOG_FILE"
 fi
 
-exit $EXIT_CODE
+exit 0
