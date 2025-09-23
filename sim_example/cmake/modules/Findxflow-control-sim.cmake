@@ -22,7 +22,7 @@ endif()
 
 # Optional: cap how far we walk up (0 = only current dir). Default: unlimited.
 if(NOT DEFINED XFE_MAX_PARENT_DEPTH)
-	set(XFE_MAX_PARENT_DEPTH 0) # -1 means "no limit"
+	set(XFE_MAX_PARENT_DEPTH 8) # -1 means "no limit"
 endif()
 
 # Prefer branch in GitHub Actions cloud by default (can be disabled)
@@ -172,18 +172,18 @@ endif()
 # Helper for printing a redacted URL (never echo the token).
 set(_token_redacted "***")
 
-# if (EXISTS "${LOCAL_XFLOW_CONTROL_SIM_DIR}/.git")
-#     message(STATUS "Found local xflow-control-sim at ${LOCAL_XFLOW_CONTROL_SIM_DIR}")
+if (EXISTS "${LOCAL_XFLOW_CONTROL_SIM_DIR}/.git")
+    message(STATUS "Found local xflow-control-sim at ${LOCAL_XFLOW_CONTROL_SIM_DIR}")
 
-# 	# Per requirement: do NOT change branches; just fetch + fast-forward pull.
-# 	execute_process(COMMAND git -C "${LOCAL_XFLOW_CONTROL_SIM_DIR}" fetch)
-# 	message(STATUS "Pulling latest changes for xflow-control-sim (no branch changes)")
-# 	execute_process(COMMAND git -C "${LOCAL_XFLOW_CONTROL_SIM_DIR}" pull --ff-only)
+	# Per requirement: do NOT change branches; just fetch + fast-forward pull.
+	execute_process(COMMAND git -C "${LOCAL_XFLOW_CONTROL_SIM_DIR}" fetch)
+	message(STATUS "Pulling latest changes for xflow-control-sim (no branch changes)")
+	execute_process(COMMAND git -C "${LOCAL_XFLOW_CONTROL_SIM_DIR}" pull --ff-only)
 
-# 	# Bring it into this build
-# 	add_subdirectory("${LOCAL_XFLOW_CONTROL_SIM_DIR}" "xflow-control-sim")
+	# Bring it into this build
+	add_subdirectory("${LOCAL_XFLOW_CONTROL_SIM_DIR}" "xflow-control-sim")
 
-# else()
+else()
 	# If the build-script passed FETCHCONTENT_BASE_DIR=/tmp/cmakedeps, ignore it:
 	if(DEFINED FETCHCONTENT_BASE_DIR AND FETCHCONTENT_BASE_DIR STREQUAL "/tmp/cmakedeps")
 		set(_old_FETCHCONTENT_BASE_DIR "${FETCHCONTENT_BASE_DIR}")
@@ -369,7 +369,7 @@ set(_token_redacted "***")
 		unset(_old_FETCHCONTENT_BASE_DIR)
 		unset(_had_old_fetchcontent)
 	endif()
-# endif()
+endif()
 
 # If the project defines its usual include interface target, we can mark FOUND.
 if(TARGET xflow-control-sim-include)
