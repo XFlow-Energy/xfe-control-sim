@@ -1,0 +1,77 @@
+Checks: |
+  *
+  -altera-id-dependent-backward-branch
+  -altera-struct-pack-align
+  -altera-unroll-loops
+  -bugprone-easily-swappable-parameters
+  -concurrency-mt-unsafe
+  -cppcoreguidelines-avoid-magic-numbers
+  -cppcoreguidelines-avoid-non-const-global-variables
+  -hicpp-use-nullptr
+  -llvm-header-guard
+  -llvmlibc-restrict-system-libc-headers
+  -misc-header-include-cycle
+  -misc-include-cleaner
+  -modernize-use-nullptr
+  -readability-avoid-const-params-in-decls
+  -readability-function-cognitive-complexity
+  -readability-identifier-length
+  -readability-implicit-bool-conversion
+  -readability-magic-numbers
+
+# Checks: '-*,cppcoreguidelines-macro-to-enum,modernize-macro-to-enum'
+
+HeaderFilterRegex: '(.*/)?(src|src/include|c/src|c/src/include)/'
+
+CheckOptions:
+  # Global variables
+  - key: readability-identifier-naming.GlobalVariableCase
+    value: camelBack
+
+  # treat all 'static' variables as camel_Snake_Back
+  - key: readability-identifier-naming.StaticVariableCase
+    value: camel_Snake_Back
+
+  # Local variables
+  - key: readability-identifier-naming.LocalVariableCase
+    value: lower_case
+
+  # Function names
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+
+  # Macro names
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+
+  # Parameters
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+
+  # Structs
+  - key: readability-identifier-naming.StructCase
+    value: lower_case
+
+  # Typedefs
+  - key: readability-identifier-naming.TypedefCase
+    value: lower_case
+
+  # Unions (if used)
+  - key: readability-identifier-naming.UnionCase
+    value: lower_case
+
+  # Classes (mostly unused in C, included for completeness)
+  - key: readability-identifier-naming.ClassCase
+    value: camelBack
+
+  # Enums
+  - key: readability-identifier-naming.EnumCase
+    value: lower_case
+
+  # Enum constants
+  - key: readability-identifier-naming.EnumConstantCase
+    value: UPPER_CASE
+
+  # ... EXCEPT for any function matching this regex.
+  - key: readability-identifier-naming.FunctionIgnoredRegexp
+    value: '^_.*'
