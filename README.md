@@ -20,6 +20,11 @@ To start modifying your own project, copy `sim_example` to the same folder locat
 ```bash
 ./misc/launch_xflow_control_sim.sh
 ```
+or on windows power shell:
+```bash
+./misc/run_xflow_control_sim.ps1
+```
+
 Or compile using the Visual Studio Code CMake integration.
 
 ## Table of Contents
