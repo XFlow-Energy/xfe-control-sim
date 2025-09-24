@@ -1,8 +1,8 @@
 variable_name,data_type,dynamic_or_fixed,value
-log_file_location_and_or_name,char,fixed,xflow-control-sim-simulation-output.log
+log_file_location_and_or_name,char,fixed,xfe-control-sim-simulation-output.log
 verbose,int,fixed,1
 dynamic_val_logging,int,fixed,1
-program_name,char,fixed,./xflow_control_sim
+program_name,char,fixed,./xfe_control_sim
 program_argc,int,fixed,1
 parent_pid,int,dynamic,0
 flow_function_call,char,fixed,csv_fixed_interp_flow_gen

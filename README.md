@@ -2,7 +2,7 @@
 
 # Aero-Control Project Documentation
 
-This project is structured around xflow-control-sim systems, utilizing various modules for aerodynamic models, control systems, and integrations with the XFlow wind turbine simulation. The build system is managed using CMake, and the project integrates QBlade for testing and validation.
+This project is structured around xfe-control-sim systems, utilizing various modules for aerodynamic models, control systems, and integrations with the XFlow wind turbine simulation. The build system is managed using CMake, and the project integrates QBlade for testing and validation.
 
 ## Getting Started
 
@@ -10,19 +10,19 @@ This project is structured around xflow-control-sim systems, utilizing various m
 To install dependencies, read the [README.md](misc/README.md) file located in `misc`.
 
 ### Running Example Program to Test Installation on Unix systems
-Run the `launch_xflow_control_sim_example.sh` script located in `misc`:
+Run the `launch_xfe_control_sim_example.sh` script located in `misc`:
 ```bash
-./misc/launch_xflow_control_sim_example.sh
+./misc/launch_xfe_control_sim_example.sh
 ```
 
 ### Configuring Your Own Project
-To start modifying your own project, copy `sim_example` to the same folder location as `xflow-control-sim` and use that as your main project location. To compile within that project, run:
+To start modifying your own project, copy `sim_example` to the same folder location as `xfe-control-sim` and use that as your main project location. To compile within that project, run:
 ```bash
-./misc/launch_xflow_control_sim.sh
+./misc/launch_xfe_control_sim.sh
 ```
 or on windows power shell:
 ```bash
-./misc/run_xflow_control_sim.ps1
+./misc/run_xfe_control_sim.ps1
 ```
 
 Or compile using the Visual Studio Code CMake integration.
@@ -92,7 +92,7 @@ Or compile using the Visual Studio Code CMake integration.
 
 ## Project Overview
 
-The xflow-control-sim project is designed to simulate and control aerodynamic models for wind turbines. It is built using CMake and integrates various modules such as drivetrain models, aerodynamic models, and control systems. The project also uses QBlade for testing aerodynamic performance under different configurations.
+The xfe-control-sim project is designed to simulate and control aerodynamic models for wind turbines. It is built using CMake and integrates various modules such as drivetrain models, aerodynamic models, and control systems. The project also uses QBlade for testing aerodynamic performance under different configurations.
 
 ## Directory Structure
 
@@ -109,8 +109,8 @@ The xflow-control-sim project is designed to simulate and control aerodynamic mo
 
 Contains header files defining interfaces and shared functionality across the project:  
 
-- **include/xflow_control_sim_common.h**: Common definitions and utility functions for aerodynamic components.  
-- **include/xflow_control_sim_version.in.h**: Template for versioning information used by CMake.  
+- **include/xfe_control_sim_common.h**: Common definitions and utility functions for aerodynamic components.  
+- **include/xfe_control_sim_version.in.h**: Template for versioning information used by CMake.  
 - **include/bladed_interface.h**: Interface definitions for communicating with Bladed/QBlade.  
 - **include/control_switch.h**: Definitions for control switch mechanisms.  
 - **include/flow_gen.h**: Interfaces for wind data generation and interpolation.  
@@ -122,7 +122,7 @@ Contains header files defining interfaces and shared functionality across the pr
 Stores log and output data generated during development and simulations:  
 
 - **log/*.csv**: Various CSV log files (e.g., `data_processing_data_export*.csv`, `bts_velocity_*.csv`).  
-- **log/log_data/xflow-control-sim-simulation-output.log**: Core simulation output log.  
+- **log/log_data/xfe-control-sim-simulation-output.log**: Core simulation output log.  
 - **log/README.md**: Instructions and descriptions for log files.  
 
 ### matlab_processing
@@ -141,7 +141,7 @@ Miscellaneous scripts and utilities for building, installation, and launching ex
 - **misc/clang_format_all.sh**: Formats code using clang-format.  
 - **misc/gui.py**, **misc/plot_viewer.py**: Python scripts for launching GUI tools.  
 - **misc/*.ps1**: PowerShell scripts to install dependencies (e.g., Clang, CMake, GSL, Jansson, libmodbus, LLVM Mingw, Ninja).  
-- **misc/*.sh**: Bash scripts to launch simulations and GUIs (e.g., `launch_xflow_control_sim_example.sh`, `launch_sim_example_test.sh`).  
+- **misc/*.sh**: Bash scripts to launch simulations and GUIs (e.g., `launch_xfe_control_sim_example.sh`, `launch_sim_example_test.sh`).  
 - **misc/install_unix_dependencies.sh**: Bash script to install dependencies for unix machines.  
 - **misc/launch_install_plot_gui.sh**: Bash script to install and run the gui interface
 
@@ -176,11 +176,11 @@ A self-contained example demonstrating how to build and run a simulation:
 
 ### src
 
-Contains the primary source code for the xflow-control-sim library and applications:  
+Contains the primary source code for the xfe-control-sim library and applications:  
 
 - **src/CMakeLists.txt**: Build configuration for the main project.  
-- **src/xflow_control_sim_common.c**: Implements shared functions used by multiple modules.  
-- **src/xflow_control_sim_main.c**: Entry point (`main()`) and top-level control logic.  
+- **src/xfe_control_sim_common.c**: Implements shared functions used by multiple modules.  
+- **src/xfe_control_sim_main.c**: Entry point (`main()`) and top-level control logic.  
 - **src/control_switch.c**: Implements control switch logic referenced in simulations.  
 - **src/flow_gen.c**: Implements wind data input and interpolation routines.  
 - **src/modbus_server.c**: Modbus TCP server implementation for remote control.  
@@ -210,7 +210,7 @@ This README file providing an overview and instructions for the project.
 
 ## Data Management
 
-In the xflow-control-sim system, dynamic and fixed data are managed using a pointer-based structure, where both types of data are stored in `param_array_t` structures. These structures are passed by reference to functions, allowing for flexible memory allocation and efficient data manipulation.
+In the xfe-control-sim system, dynamic and fixed data are managed using a pointer-based structure, where both types of data are stored in `param_array_t` structures. These structures are passed by reference to functions, allowing for flexible memory allocation and efficient data manipulation.
 
 The dynamic and fixed data are initialized by functions that populate them with parameters read from configuration files. Parameters are added dynamically to these structures, with each parameter stored as an entry containing its name, type, and value.
 
@@ -690,12 +690,12 @@ This mechanism allows clean separation of interface, implementations, and select
 
 ## Functions Specified at Build (using Configuration CSV)
 
-In this xflow-control-sim system, a single configuration CSV file (`system_config.csv`) lists which function to call for each stage. This design decouples CMake configuration from the actual function selection and allows changing behavior by editing the CSV—without a recompilation.
+In this xfe-control-sim system, a single configuration CSV file (`system_config.csv`) lists which function to call for each stage. This design decouples CMake configuration from the actual function selection and allows changing behavior by editing the CSV—without a recompilation.
 
 ### How the Configuration CSV Drives Function Selection
 
 - At build time, CMake still defines compile‑time constants such as:
-  - Paths to directories containing each function’s source (`XFLOW_CONTROL_SIM_CONFIG_DIR`, `FLOW_GEN_FILE_DIR`, etc.).
+  - Paths to directories containing each function’s source (`XFE_CONTROL_SIM_CONFIG_DIR`, `FLOW_GEN_FILE_DIR`, etc.).
   - The filename of the system configuration CSV (`SYSTEM_CONFIG_FULL_PATH`).
   - Logging flags and output paths.
 
@@ -781,7 +781,7 @@ The central logic tying the CSV to actual function calls lives in `control_switc
 Even though the CSV handles which functions to call, CMake still:
 
 1. **Defines Paths** to directories where CSV files and source code live:  
-   - `set(XFLOW_CONTROL_SIM_CONFIG_DIR ...)`  
+   - `set(XFE_CONTROL_SIM_CONFIG_DIR ...)`  
    - `set(FLOW_GEN_FILE_DIR ...)`
 2. **Injects Compile‑Time Definitions** for:  
    - `SYSTEM_CONFIG_FULL_PATH` → path to `system_config.csv`  
@@ -835,9 +835,9 @@ Below is a concise example of how CSV entries, control_switch, and dispatch macr
 
 - **`BUILD_SHARED_LIBS`**: Controls whether to build shared libraries or static libraries.  
   - Default: `ON`  
-  - If `BUILD_XFLOW_CONTROL_SIM_EXECUTABLE` is also `ON`, shared libraries are disabled (for Windows builds).  
+  - If `BUILD_XFE_CONTROL_SIM_EXECUTABLE` is also `ON`, shared libraries are disabled (for Windows builds).  
 
-- **`BUILD_XFLOW_CONTROL_SIM_EXECUTABLE`**: Enables building the `xflow_control_sim` executable.  
+- **`BUILD_XFE_CONTROL_SIM_EXECUTABLE`**: Enables building the `xfe_control_sim` executable.  
   - Default: `ON`  
 
 ---
@@ -848,7 +848,7 @@ Run the `launch_test_program.sh` script located in `src/misc/`. This script will
 
 1. Invoke CMake to configure the build.  
 2. Build the code using the chosen generator (e.g., Ninja or Make).  
-3. Launch the resulting executable (typically `xflow_control_sim`).
+3. Launch the resulting executable (typically `xfe_control_sim`).
 
 If you do not have IWYU or CPPCHECK installed, you can comment out or remove those checks in the script. The basic dependencies are:
 
@@ -949,7 +949,7 @@ Most compile-time flags (e.g., logging behavior, “run only one model” mode, 
 If you add any entirely new logging requirements (for your new device), you would:  
 
 1. Add a new flag name in `config.cmake` (e.g., `LOG_NEW_DEVICE_OUTPUT`).  
-2. Pass it into `XFLOW_CONTROL_SIM_LIB_COMPILE_DEFINITIONS`.  
+2. Pass it into `XFE_CONTROL_SIM_LIB_COMPILE_DEFINITIONS`.  
 3. In code, wrap any logging calls with `#ifdef LOG_NEW_DEVICE_OUTPUT`.  
 
 Generally, adding a new function variant does not require touching feature flags unless it needs its own compile-time toggle.
@@ -966,7 +966,7 @@ Generally, adding a new function variant does not require touching feature flags
    ```
 4. **Run the launch script**:
    ```bash
-   cd /path/to/xflow-control-sim
+   cd /path/to/xfe-control-sim
    ./src/misc/launch_test_program.sh
    ```
 5. **Observe the log output**: In the beginning, `control_switch()` will print which function was selected. You can enable verbose logging to confirm that *your* function is registered and invoked.
@@ -994,7 +994,7 @@ Here is an example of how entries in your configuration CSV might look:
 
 ```csv
 variable_name,data_type,dynamic_or_fixed,value
-log_file_location_and_or_name,char,fixed,xflow-control-sim-simulation-output.log
+log_file_location_and_or_name,char,fixed,xfe-control-sim-simulation-output.log
 flow_function_call,char,fixed,csv_fixed_interp_flow_gen
 numerical_integrator_function_call,char,fixed,rk4_numerical_integrator
 ... (other parameters) ...
@@ -1012,60 +1012,60 @@ You can add as many lines as needed to configure your new device or stage. When 
 
 ## Using and Adapting `sim_example` for Customer Simulations
 
-The `sim_example` folder serves as a standalone CMake-based demo project that illustrates how to integrate and run a simple simulation using the `xflow-control-sim` codebase. To adapt this example for a customer-specific simulation:
+The `sim_example` folder serves as a standalone CMake-based demo project that illustrates how to integrate and run a simple simulation using the `xfe-control-sim` codebase. To adapt this example for a customer-specific simulation:
 
 ### 1. Directory Placement
 
-- Place (or copy) a new `sim_example` folder at the same level as your `xflow-control-sim` repository. For example:
+- Place (or copy) a new `sim_example` folder at the same level as your `xfe-control-sim` repository. For example:
   ```
   /path/to/workspace/
-  ├── xflow-control-sim/         (this repo)
+  ├── xfe-control-sim/         (this repo)
   ├── sim_example/          (example project; copy & customize)
   └── customer_sim/         (your new, customized simulation)
   ```
-- By default, `sim_example` expects to find `xflow-control-sim` in the sibling directory `../xflow-control-sim`. If `xflow-control-sim` is not present locally, `sim_example` will fetch it from GitHub during its CMake configuration.
+- By default, `sim_example` expects to find `xfe-control-sim` in the sibling directory `../xfe-control-sim`. If `xfe-control-sim` is not present locally, `sim_example` will fetch it from GitHub during its CMake configuration.
 
 ### 2. Cloning or Copying `sim_example`
 
 - If you already have the repository cloned, simply copy the existing `sim_example` folder to your workspace:
   ```bash
-  cp -r /existing/path/xflow-control-sim/sim_example /path/to/workspace/
+  cp -r /existing/path/xfe-control-sim/sim_example /path/to/workspace/
   ```
-- Otherwise, clone `xflow-control-sim` (which contains `sim_example`) and then move or rename the example folder:
+- Otherwise, clone `xfe-control-sim` (which contains `sim_example`) and then move or rename the example folder:
   ```bash
-  git clone https://github.com/YourOrg/xflow-control-sim.git
-  mv xflow-control-sim/sim_example /path/to/workspace/sim_example
+  git clone https://github.com/YourOrg/xfe-control-sim.git
+  mv xfe-control-sim/sim_example /path/to/workspace/sim_example
   ```
 
 ### 3. Customizing the CMake Logic
 
-- Open `sim_example/CMakeLists.txt`. Near the top, you will see logic that tries to locate `xflow-control-sim`:
+- Open `sim_example/CMakeLists.txt`. Near the top, you will see logic that tries to locate `xfe-control-sim`:
   ```cmake
-  if(NOT DEFINED XFLOW_CONTROL_SIM_ROOT)
+  if(NOT DEFINED XFE_CONTROL_SIM_ROOT)
     # Lookup sibling directory
-    if(EXISTS "${CMAKE_SOURCE_DIR}/../xflow-control-sim/CMakeLists.txt")
-      set(XFLOW_CONTROL_SIM_ROOT "${CMAKE_SOURCE_DIR}/../xflow-control-sim")
+    if(EXISTS "${CMAKE_SOURCE_DIR}/../xfe-control-sim/CMakeLists.txt")
+      set(XFE_CONTROL_SIM_ROOT "${CMAKE_SOURCE_DIR}/../xfe-control-sim")
     else()
       # Fallback: clone from GitHub
       include(FetchContent)
       FetchContent_Declare(
-        xflow_control_sim
-        GIT_REPOSITORY https://github.com/YourOrg/xflow-control-sim.git
+        xfe_control_sim
+        GIT_REPOSITORY https://github.com/YourOrg/xfe-control-sim.git
         GIT_TAG        main
       )
-      FetchContent_MakeAvailable(xflow_control_sim)
-      set(XFLOW_CONTROL_SIM_ROOT "${XFLOW_CONTROL_SIM_SOURCE_DIR}")
+      FetchContent_MakeAvailable(xfe_control_sim)
+      set(XFE_CONTROL_SIM_ROOT "${XFE_CONTROL_SIM_SOURCE_DIR}")
     endif()
   endif()
 
-  # Now add_subdirectory(../xflow-control-sim) or the fetched content
-  add_subdirectory(${XFLOW_CONTROL_SIM_ROOT} ${CMAKE_BINARY_DIR}/xflow-control-sim)
+  # Now add_subdirectory(../xfe-control-sim) or the fetched content
+  add_subdirectory(${XFE_CONTROL_SIM_ROOT} ${CMAKE_BINARY_DIR}/xfe-control-sim)
   ```
-- If you rename or relocate the `xflow-control-sim` folder, update the relative path above. Alternatively, you can set the `XFLOW_CONTROL_SIM_ROOT` variable on the command line when configuring:
+- If you rename or relocate the `xfe-control-sim` folder, update the relative path above. Alternatively, you can set the `XFE_CONTROL_SIM_ROOT` variable on the command line when configuring:
   ```bash
   cd sim_example
   mkdir build && cd build
-  cmake -DXFLOW_CONTROL_SIM_ROOT=/path/to/xflow-control-sim ..
+  cmake -DXFE_CONTROL_SIM_ROOT=/path/to/xfe-control-sim ..
   ```
   This forces CMake to use the local copy rather than fetching from GitHub.
 
@@ -1075,14 +1075,14 @@ The `sim_example` folder serves as a standalone CMake-based demo project that il
   1. **Duplicate the `sim_example` directory**. Rename it to something like `customer_sim`.
   2. **Replace or extend source files** in `customer_sim/src/` with your own implementations, following the same CMake and directory conventions. For example, if the customer needs a special turbine control, replace `turbine_control.c` with `customer_turbine_control.c` and adjust the `MakeStage` maps accordingly.
   3. **Adjust `config/` CSV files** under `customer_sim/config/` to contain the dynamic/fixed parameters for the customer’s machine (e.g., rotor properties, drivetrain ratios, wind data paths, etc.). Ensure the `*_function_call` entries match the stage identifiers in your source.
-- Keep the same CMake targets and directory structure so that `customer_sim` remains a self-contained CMake project. The top-level `CMakeLists.txt` in `customer_sim` will include `add_subdirectory(${XFLOW_CONTROL_SIM_ROOT})` to pull in the core code.
+- Keep the same CMake targets and directory structure so that `customer_sim` remains a self-contained CMake project. The top-level `CMakeLists.txt` in `customer_sim` will include `add_subdirectory(${XFE_CONTROL_SIM_ROOT})` to pull in the core code.
 
 ### 5. Running the Example or Customer Simulation
 
 - From within `sim_example` (or your `customer_sim`):
   ```bash
   mkdir -p build && cd build
-  cmake ..              # Uses local xflow-control-sim or fetches if absent
+  cmake ..              # Uses local xfe-control-sim or fetches if absent
   ninja                 # or `make` if Ninja is not installed
   ./executable_name     # Typically named after the directory (e.g., sim_example or customer_sim)
   ```
@@ -1091,15 +1091,15 @@ The `sim_example` folder serves as a standalone CMake-based demo project that il
 ### 6. Version Control Strategy for Customers
 
 - If you deliver `customer_sim` to a customer, you can either:
-  1. Include a `.gitmodules` file pointing to the `xflow-control-sim` repo as a submodule, so that cloning `customer_sim` pulls in the correct commit of `xflow-control-sim`.
-  2. Rely on the FetchContent logic to grab the right `xflow-control-sim` tag (e.g., `v1.2.3`) from GitHub.
-- In both cases, document in your README which branch or tag of `xflow-control-sim` is required. If a customer modifies `customer_sim`, they can keep that as a separate Git repo without changing the core code in `xflow-control-sim`.
+  1. Include a `.gitmodules` file pointing to the `xfe-control-sim` repo as a submodule, so that cloning `customer_sim` pulls in the correct commit of `xfe-control-sim`.
+  2. Rely on the FetchContent logic to grab the right `xfe-control-sim` tag (e.g., `v1.2.3`) from GitHub.
+- In both cases, document in your README which branch or tag of `xfe-control-sim` is required. If a customer modifies `customer_sim`, they can keep that as a separate Git repo without changing the core code in `xfe-control-sim`.
 
 ---
 
 ## Summary
 
-- **`sim_example` is a standalone CMake project** that expects `xflow-control-sim` as a sibling. If missing, it fetches the code from GitHub automatically.  
+- **`sim_example` is a standalone CMake project** that expects `xfe-control-sim` as a sibling. If missing, it fetches the code from GitHub automatically.  
 - **Copy or rename `sim_example` to create a customer-specific simulation** (e.g., `customer_sim`).  
 - **Edit source files** in `customer_sim/src` following the stage macro patterns (e.g., `MAKE_STAGE`, `Map[]`, `DISPATCH_STAGE_OR_ERROR`).  
 - **Update the `config/*.csv` files** to reflect the customer’s machine parameters and to select which variant of each stage to run.  

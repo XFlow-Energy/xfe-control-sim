@@ -1,4 +1,4 @@
-# sim_example\misc\launch_xflow_control_sim.ps1
+# sim_example\misc\launch_xfe_control_sim.ps1
 param(
 	[int]$RECOMPILE_OR_NOT = 0
 )
@@ -108,7 +108,7 @@ if ($RECOMPILE_OR_NOT -eq 1) {
 		"-DCMAKE_CXX_COMPILER=`"$CXX`"",
 		"-DCMAKE_PREFIX_PATH=`"$CMAKE_PREFIX_PATH`"",
 		"-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-		"-DBUILD_XFLOW_CONTROL_SIM_EXECUTABLE=ON",
+		"-DBUILD_XFE_CONTROL_SIM_EXECUTABLE=ON",
 		"-DBUILD_SHARED_LIBS=OFF"
 	)
 	$cmakeArgs += $PATHVARS
@@ -145,9 +145,9 @@ if (-not (Test-Path $EXEC_OUT_DIR)) { Write-Error "Executables directory not fou
 Set-Location $EXEC_OUT_DIR
 
 # Determine binary
-$BIN = "xflow_control_sim.exe"
-if (-not (Test-Path $BIN)) { $BIN = "xflow_control_sim" }
-if (-not (Test-Path $BIN)) { Write-Error "Built executable not found: $(Join-Path $EXEC_OUT_DIR 'xflow_control_sim[.exe]')"; exit 6 }
+$BIN = "xfe_control_sim.exe"
+if (-not (Test-Path $BIN)) { $BIN = "xfe_control_sim" }
+if (-not (Test-Path $BIN)) { Write-Error "Built executable not found: $(Join-Path $EXEC_OUT_DIR 'xfe_control_sim[.exe]')"; exit 6 }
 
 # Run & capture output + exit
 # Run it and capture output + exit code (avoid NativeCommandError from stderr)
@@ -171,7 +171,7 @@ $output | Write-Output
 Write-Host ""
 
 # Dump log if present
-$LOG_FILE = Join-Path $logDir "xflow-control-sim-simulation-output.log"
+$LOG_FILE = Join-Path $logDir "xfe-control-sim-simulation-output.log"
 if (Test-Path $LOG_FILE) {
 	Write-Host "→ Contents of simulation log:"
 	Get-Content -LiteralPath $LOG_FILE

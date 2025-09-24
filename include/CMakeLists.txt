@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# XFLOW-CONTROL-SIM
+# xfe-control-sim
 # Copyright (C) 2024-2025 XFlow Energy (https://www.xflowenergy.com/)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -21,11 +21,11 @@
 # include/CMakeLists.txt
 
 # Create an interface library for headers
-if(NOT TARGET xflow-control-sim-include)
-	add_library(xflow-control-sim-include INTERFACE)
+if(NOT TARGET xfe-control-sim-include)
+	add_library(xfe-control-sim-include INTERFACE)
 endif()
 
-target_sources(xflow-control-sim-include INTERFACE
+target_sources(xfe-control-sim-include INTERFACE
 	FILE_SET HEADERS
 		BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
 		FILES
@@ -33,19 +33,19 @@ target_sources(xflow-control-sim-include INTERFACE
 			numerical_integrator.h
 			control_switch.h
 			make_stage.h
-			xflow_control_sim_version.h
+			xfe_control_sim_version.h
 )
 
 # Add include directories
-target_include_directories(xflow-control-sim-include INTERFACE
+target_include_directories(xfe-control-sim-include INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR} # For generated xflow_control_sim_version.h
+    ${CMAKE_CURRENT_BINARY_DIR} # For generated xfe_control_sim_version.h
 )
 
 # # Conditionally add the customer models directory
 # if(INTEGRATE_CUSTOMER_MODELS)
-#     target_include_directories(xflow-control-sim-include INTERFACE ${xflow_control_sim_customer_dir})
+#     target_include_directories(xfe-control-sim-include INTERFACE ${xfe_control_sim_customer_dir})
 # endif()
 
 # pull in the modbus include-dirs:
-target_link_libraries(xflow-control-sim-include INTERFACE xflow-utils-include)
+target_link_libraries(xfe-control-sim-include INTERFACE xflow-utils-include)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # SPDX-License-Identifier: CC0-1.0
 #
-# This file is part of the XFLOW-CONTROL-SIM example suite.
+# This file is part of the XFE-CONTROL-SIM example suite.
 #
 # To the extent possible under law, XFlow Energy has waived all copyright
 # and related or neighboring rights to this example file. This work is
@@ -11,12 +11,12 @@
 # with this software. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
 # -----------------------------------------------------------------------------
 
-# Findxflow-control-sim.cmake
+# Findxfe-control-sim.cmake
 
 # If we've already imported the sim-include interface, bail out immediately:
-if(TARGET xflow-control-sim-include)
-	message(STATUS "xflow-control-sim already configured; skipping Find module")
-	set(XFLOW_CONTROL_SIM_FOUND TRUE)
+if(TARGET xfe-control-sim-include)
+	message(STATUS "xfe-control-sim already configured; skipping Find module")
+	set(XFE_CONTROL_SIM_FOUND TRUE)
 	return()
 endif()
 
@@ -26,14 +26,14 @@ if(NOT DEFINED XFE_MAX_PARENT_DEPTH)
 endif()
 
 # Prefer branch in GitHub Actions cloud by default (can be disabled)
-if(NOT DEFINED XFLOW_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD)
-	set(XFLOW_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD ON)
+if(NOT DEFINED XFE_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD)
+	set(XFE_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD ON)
 endif()
 
-# Branch knob (can be overridden by -DXFLOW_CONTROL_SIM_BRANCH=...)
+# Branch knob (can be overridden by -DXFE_CONTROL_SIM_BRANCH=...)
 # NOTE: This is used when no tag is selected/resolved.
-if(NOT DEFINED XFLOW_CONTROL_SIM_BRANCH)
-	set(XFLOW_CONTROL_SIM_BRANCH "jason_working")
+if(NOT DEFINED XFE_CONTROL_SIM_BRANCH)
+	set(XFE_CONTROL_SIM_BRANCH "jason_working")
 endif()
 
 # Detect if we're in GitHub Actions and, if so, derive the branch name
@@ -55,7 +55,7 @@ endif()
 
 set(_CLOUD_BRANCH "")
 string(TOLOWER "${_CLOUD_REPO_NAME}" _CLOUD_REPO_NAME_LC)
-if(_IN_CLOUD AND _CLOUD_REPO_NAME_LC STREQUAL "xflow-control-sim" AND XFLOW_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD)
+if(_IN_CLOUD AND _CLOUD_REPO_NAME_LC STREQUAL "xfe-control-sim" AND XFE_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD)
 	# Priority: PR source branch -> direct push branch -> ref name -> fallback
 	if(DEFINED ENV{GITHUB_HEAD_REF} AND NOT "$ENV{GITHUB_HEAD_REF}" STREQUAL "")
 		set(_CLOUD_BRANCH "$ENV{GITHUB_HEAD_REF}")
@@ -67,12 +67,12 @@ if(_IN_CLOUD AND _CLOUD_REPO_NAME_LC STREQUAL "xflow-control-sim" AND XFLOW_CONT
 		set(_CLOUD_BRANCH "$ENV{GITHUB_REF_NAME}")
 	endif()
 	if(_CLOUD_BRANCH STREQUAL "")
-		set(_CLOUD_BRANCH "${XFLOW_CONTROL_SIM_BRANCH}")
+		set(_CLOUD_BRANCH "${XFE_CONTROL_SIM_BRANCH}")
 	endif()
 endif()
 
-# Discover a local checkout if LOCAL_XFLOW_CONTROL_SIM_DIR isn't supplied
-if (NOT LOCAL_XFLOW_CONTROL_SIM_DIR)
+# Discover a local checkout if LOCAL_XFE_CONTROL_SIM_DIR isn't supplied
+if (NOT LOCAL_XFE_CONTROL_SIM_DIR)
 	# Build ordered roots: current dir first, then project root if different.
 	set(_xfe_roots "${CMAKE_CURRENT_SOURCE_DIR}")
 	if (NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
@@ -89,13 +89,13 @@ if (NOT LOCAL_XFLOW_CONTROL_SIM_DIR)
 		set(_dir "${_root}")
 		set(_depth 0)
 		while(TRUE)
-			set(_candidate "${_dir}/xflow-control-sim")
+			set(_candidate "${_dir}/xfe-control-sim")
 			# message(STATUS "Checking parent directory: ${_candidate}")
 
 			if (EXISTS "${_candidate}/CMakeLists.txt")
-				set(LOCAL_XFLOW_CONTROL_SIM_DIR "${_candidate}")
+				set(LOCAL_XFE_CONTROL_SIM_DIR "${_candidate}")
 				set(_xfe_found TRUE)
-				message(STATUS "Found local xflow-control-sim at ${LOCAL_XFLOW_CONTROL_SIM_DIR}")
+				message(STATUS "Found local xfe-control-sim at ${LOCAL_XFE_CONTROL_SIM_DIR}")
 				break()
 			endif()
 
@@ -117,32 +117,32 @@ if (NOT LOCAL_XFLOW_CONTROL_SIM_DIR)
 	# Fallback: if still not found, keep the old advisory message.
 	if (NOT _xfe_found)
 		message(STATUS
-			"Could not find a local xflow-control-sim by walking parents of:\n"
+			"Could not find a local xfe-control-sim by walking parents of:\n"
 			"  ${CMAKE_CURRENT_SOURCE_DIR}\n"
 			"  ${CMAKE_SOURCE_DIR}\n"
-			"Checked each parent with suffix '/xflow-control-sim'.\n"
-			"Set -DLOCAL_XFLOW_CONTROL_SIM_DIR=… to point at your checkout."
+			"Checked each parent with suffix '/xfe-control-sim'.\n"
+			"Set -DLOCAL_XFE_CONTROL_SIM_DIR=… to point at your checkout."
 		)
 	endif()
 endif()
 
-message(STATUS "LOCAL_XFLOW_CONTROL_SIM_DIR = ${LOCAL_XFLOW_CONTROL_SIM_DIR}")
+message(STATUS "LOCAL_XFE_CONTROL_SIM_DIR = ${LOCAL_XFE_CONTROL_SIM_DIR}")
 
 # If a local checkout exists, use it directly
-if (EXISTS "${LOCAL_XFLOW_CONTROL_SIM_DIR}/CMakeLists.txt")
-    message(STATUS "Using local xflow-control-sim at ${LOCAL_XFLOW_CONTROL_SIM_DIR}")
+if (EXISTS "${LOCAL_XFE_CONTROL_SIM_DIR}/CMakeLists.txt")
+    message(STATUS "Using local xfe-control-sim at ${LOCAL_XFE_CONTROL_SIM_DIR}")
 
     # Optional: fast-forward only (safe) pull if the directory is a git repo.
-    if (EXISTS "${LOCAL_XFLOW_CONTROL_SIM_DIR}/.git")
-        execute_process(COMMAND git -C "${LOCAL_XFLOW_CONTROL_SIM_DIR}" fetch
+    if (EXISTS "${LOCAL_XFE_CONTROL_SIM_DIR}/.git")
+        execute_process(COMMAND git -C "${LOCAL_XFE_CONTROL_SIM_DIR}" fetch
                         RESULT_VARIABLE _ff_fetch_rv)
         if(_ff_fetch_rv EQUAL 0)
-            message(STATUS "Pulling latest changes for xflow-control-sim (no branch changes)")
-            execute_process(COMMAND git -C "${LOCAL_XFLOW_CONTROL_SIM_DIR}" pull --ff-only)
+            message(STATUS "Pulling latest changes for xfe-control-sim (no branch changes)")
+            execute_process(COMMAND git -C "${LOCAL_XFE_CONTROL_SIM_DIR}" pull --ff-only)
         endif()
     endif()
 
-    add_subdirectory("${LOCAL_XFLOW_CONTROL_SIM_DIR}" "xflow-control-sim")
+    add_subdirectory("${LOCAL_XFE_CONTROL_SIM_DIR}" "xfe-control-sim")
 
 else()
     # If the build-script passed FETCHCONTENT_BASE_DIR=/tmp/cmakedeps, ignore it:
@@ -158,41 +158,41 @@ else()
     set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/_deps")
     message(STATUS "→ Temporarily using FETCHCONTENT_BASE_DIR='${FETCHCONTENT_BASE_DIR}'")
 
-    message(STATUS "Fetching xflow-control-sim via FetchContent (public)")
+    message(STATUS "Fetching xfe-control-sim via FetchContent (public)")
 
     include(FetchContent)
 
     # --- Public repo: no tokens, no API calls ---
     # Decide which ref to use:
-    #   - If XFLOW_CONTROL_SIM_VERSION is a non-empty, non-"latest" string → use that tag/branch
+    #   - If XFE_CONTROL_SIM_VERSION is a non-empty, non-"latest" string → use that tag/branch
     #   - Else if we're in CI and we resolved a branch from the workflow → use that branch
     #   - Else fall back to the configured default branch
-    if(DEFINED XFLOW_CONTROL_SIM_VERSION
-       AND NOT XFLOW_CONTROL_SIM_VERSION STREQUAL ""
-       AND NOT XFLOW_CONTROL_SIM_VERSION STREQUAL "latest")
-        set(_git_ref "${XFLOW_CONTROL_SIM_VERSION}")
-        message(STATUS "xflow-control-sim: using ref '${_git_ref}' (public)")
-    elseif(_IN_CLOUD AND XFLOW_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD AND NOT _CLOUD_BRANCH STREQUAL "")
+    if(DEFINED XFE_CONTROL_SIM_VERSION
+       AND NOT XFE_CONTROL_SIM_VERSION STREQUAL ""
+       AND NOT XFE_CONTROL_SIM_VERSION STREQUAL "latest")
+        set(_git_ref "${XFE_CONTROL_SIM_VERSION}")
+        message(STATUS "xfe-control-sim: using ref '${_git_ref}' (public)")
+    elseif(_IN_CLOUD AND XFE_CONTROL_SIM_PREFER_BRANCH_IN_CLOUD AND NOT _CLOUD_BRANCH STREQUAL "")
         set(_git_ref "${_CLOUD_BRANCH}")
-        message(STATUS "xflow-control-sim: CI detected; using branch '${_git_ref}' (public)")
+        message(STATUS "xfe-control-sim: CI detected; using branch '${_git_ref}' (public)")
     else()
-        set(_git_ref "${XFLOW_CONTROL_SIM_BRANCH}")
-        message(STATUS "xflow-control-sim: using default branch '${_git_ref}' (public)")
+        set(_git_ref "${XFE_CONTROL_SIM_BRANCH}")
+        message(STATUS "xfe-control-sim: using default branch '${_git_ref}' (public)")
     endif()
 
     # Public HTTPS repo URL (no auth needed)
-    set(XFLOW_CONTROL_SIM_REPO_URL "https://github.com/XFlow-Energy/xflow-control-sim.git")
-    message(STATUS "xflow-control-sim repo URL: ${XFLOW_CONTROL_SIM_REPO_URL}")
+    set(XFE_CONTROL_SIM_REPO_URL "https://github.com/XFlow-Energy/xfe-control-sim.git")
+    message(STATUS "xfe-control-sim repo URL: ${XFE_CONTROL_SIM_REPO_URL}")
 
     # Fetch
     FetchContent_Declare(
-        xflow_control_sim
-        GIT_REPOSITORY ${XFLOW_CONTROL_SIM_REPO_URL}
+        xfe_control_sim
+        GIT_REPOSITORY ${XFE_CONTROL_SIM_REPO_URL}
         GIT_TAG        ${_git_ref}
         GIT_SHALLOW    TRUE
         GIT_PROGRESS   TRUE
     )
-    FetchContent_MakeAvailable(xflow_control_sim)
+    FetchContent_MakeAvailable(xfe_control_sim)
 
     # Restore FETCHCONTENT_BASE_DIR if we temporarily overrode a cached value
     if(_had_old_fetchcontent)
@@ -206,10 +206,10 @@ else()
 endif()
 
 # If the project defines its usual include interface target, we can mark FOUND.
-if(TARGET xflow-control-sim-include)
-    set(XFLOW_CONTROL_SIM_FOUND TRUE)
+if(TARGET xfe-control-sim-include)
+    set(XFE_CONTROL_SIM_FOUND TRUE)
 else()
     # Fall back to TRUE if the project added itself differently but didn't provide the expected target.
     # Adjust to FALSE if you want a strict check.
-    set(XFLOW_CONTROL_SIM_FOUND TRUE)
+    set(XFE_CONTROL_SIM_FOUND TRUE)
 endif()

@@ -5,9 +5,9 @@ set -euo pipefail
 # usage: ./misc/launch_sim_example_test.sh [rebuild?]
 # if you pass "1" it will rm -rf and reconfigure, otherwise it will reuse.
 
-XFLOW_CONTROL_SIM_ROOT=$(git rev-parse --show-toplevel)
-SIM_EXAMPLE="${XFLOW_CONTROL_SIM_ROOT}/sim_example"
-TMP_ROOT="$(dirname "${XFLOW_CONTROL_SIM_ROOT}")/sim_example_test"
+XFE_CONTROL_SIM_ROOT=$(git rev-parse --show-toplevel)
+SIM_EXAMPLE="${XFE_CONTROL_SIM_ROOT}/sim_example"
+TMP_ROOT="$(dirname "${XFE_CONTROL_SIM_ROOT}")/sim_example_test"
 
 REBUILD=${1:-0}
 
@@ -24,10 +24,10 @@ if [[ ! -d "$TMP_ROOT" ]]; then
 fi
 
 # 2) Build + run via the new launcher (run from repo so git works)
-echo "→ Building + running via sim_example/misc/launch_xflow_control_sim.sh (RECOMPILE_OR_NOT=${REBUILD})"
+echo "→ Building + running via sim_example/misc/launch_xfe_control_sim.sh (RECOMPILE_OR_NOT=${REBUILD})"
 (
 	cd "${TMP_ROOT}/misc"
-	./launch_xflow_control_sim.sh "${REBUILD}"
+	./launch_xfe_control_sim.sh "${REBUILD}"
 )
 LAUNCH_EXIT=$?
 
@@ -39,7 +39,7 @@ else
 fi
 
 # 4) validate log file contents before cleanup
-LOG_FILE="${TMP_ROOT}/log/log_data/xflow-control-sim-simulation-output.log"
+LOG_FILE="${TMP_ROOT}/log/log_data/xfe-control-sim-simulation-output.log"
 echo "→ Validating log file: ${LOG_FILE}"
 
 LOG_OK=1
@@ -69,7 +69,7 @@ else
 fi
 
 # 5) cleanup behavior depends on validation
-cd "$XFLOW_CONTROL_SIM_ROOT"
+cd "$XFE_CONTROL_SIM_ROOT"
 
 if [[ $LOG_OK -eq 1 ]]; then
 	echo "✅ Log validation passed. Cleaning up temp folder: ${TMP_ROOT}"

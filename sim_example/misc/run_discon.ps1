@@ -111,7 +111,7 @@ if ($RECOMPILE_OR_NOT -eq 1) {
 		"-DCMAKE_CXX_COMPILER=$CXX",
 		"-DCMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH",
 		"-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-		"-DBUILD_XFLOW_CONTROL_SIM_EXECUTABLE=OFF",
+		"-DBUILD_XFE_CONTROL_SIM_EXECUTABLE=OFF",
 		"-DBUILD_SHARED_LIBS=ON"
 	)
 	$cmakeArgs += $PATHVARS
@@ -173,7 +173,7 @@ Write-Host "✅ qblade interface test passed!"
 
 Write-Host ""
 # Dump log if present
-$LOG_FILE = Join-Path $logDir "xflow-control-sim-simulation-output.log"
+$LOG_FILE = Join-Path $logDir "xfe-control-sim-simulation-output.log"
 if (Test-Path $LOG_FILE) {
 	Write-Host "→ Contents of simulation log:"
 	Get-Content -LiteralPath $LOG_FILE

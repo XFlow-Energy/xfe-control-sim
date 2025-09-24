@@ -8,7 +8,7 @@
 /*
  * SPDX-License-Identifier: CC0-1.0
  *
- * This file is part of the XFLOW-CONTROL-SIM example suite.
+ * This file is part of the XFE-CONTROL-SIM example suite.
  *
  * To the extent possible under law, XFlow Energy has waived all copyright
  * and related or neighboring rights to this example file. This work is
@@ -22,9 +22,9 @@
 #include "discon.h" // for turbine_control
 #include "logger.h" // for log_message, ERROR_MESSAGE
 #include "maybe_unused.h"
-#include "qblade_interface.h" // for turbine_control
+#include "qblade_interface.h"       // for turbine_control
+#include "xfe_control_sim_common.h" // for param_array_t, (anonymous struct)
 #include "xflow_aero_sim.h"
-#include "xflow_control_sim_common.h" // for param_array_t, (anonymous struct)
 #include "xflow_core.h"
 #include <stdio.h>
 

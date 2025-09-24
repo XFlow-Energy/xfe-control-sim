@@ -7,7 +7,7 @@
 
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
- * XFLOW-CONTROL-SIM
+ * XFE-CONTROL-SIM
  * Copyright (C) 2024-2025 XFlow Energy (https://www.xflowenergy.com/)
  *
  * This program is free software: you can redistribute it and/or modify
@@ -34,9 +34,9 @@
 typedef int sig_atomic_t;
 #endif
 
-#include "xflow_control_sim_common.h"
+#include "xfe_control_sim_common.h"
 #include "xflow_core.h"
-#include "xflow_control_sim_version.h"
+#include "xfe_control_sim_version.h"
 #include <time.h>
 #include <stdint.h>
 #include <signal.h>

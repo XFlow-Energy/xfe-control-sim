@@ -1,7 +1,7 @@
 # Security Policy
 
 ## Supported Versions
-We maintain the latest release of `XFLOW-CONTROL-SIM`.
+We maintain the latest release of `XFE-CONTROL-SIM`.
 
 ## Reporting a Vulnerability
 Please report security issues responsibly:

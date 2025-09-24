@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # SPDX-License-Identifier: CC0-1.0
 #
-# This file is part of the XFLOW-CONTROL-SIM example suite.
+# This file is part of the XFE-CONTROL-SIM example suite.
 #
 # To the extent possible under law, XFlow Energy has waived all copyright
 # and related or neighboring rights to this example file. This work is
@@ -13,15 +13,15 @@
 
 # sim_example/src/qblade_interface/CMakeLists.txt
 
-#–– 1) collect your wrapper sources (they depend on xflow-control-sim-lib, which already
-#     includes control_switch.c, xflow_control_sim_common.c, etc.)
+#–– 1) collect your wrapper sources (they depend on xfe-control-sim-lib, which already
+#     includes control_switch.c, xfe_control_sim_common.c, etc.)
 set(QBLADE_INTERFACE_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/discon.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/qblade_interface.c"
 	"${CMAKE_CURRENT_SOURCE_DIR}/qblade_control_switch.c"
 )
 
-target_sources(xflow-control-sim-lib PRIVATE ${QBLADE_INTERFACE_SOURCES})
+target_sources(xfe-control-sim-lib PRIVATE ${QBLADE_INTERFACE_SOURCES})
 
 #–– 2) build one executable that calls DISCON (test_discon.c has your main())
 add_executable(qblade_interface_test
@@ -39,16 +39,16 @@ if(WIN32)
 	)
 endif()
 
-#–– 3) make sure the headers for both xflow-control-sim-lib and QBlade live where CMake can find them
+#–– 3) make sure the headers for both xfe-control-sim-lib and QBlade live where CMake can find them
 target_include_directories(qblade_interface_test PRIVATE
-    ${XFLOW_CONTROL_SIM_PROJECT_DIR}/include
+    ${XFE_CONTROL_SIM_PROJECT_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-#–– 4) link against xflow-control-sim-lib (shared or static per BUILD_SHARED_LIBS) and xflow-utils
+#–– 4) link against xfe-control-sim-lib (shared or static per BUILD_SHARED_LIBS) and xflow-utils
 #     on UNIX also pull in libm for any math() calls
 target_link_libraries(qblade_interface_test PRIVATE
-    xflow-control-sim-lib
+    xfe-control-sim-lib
     xflow-utils
     $<IF:$<PLATFORM_ID:Windows>,,m>
 )

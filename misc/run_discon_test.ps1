@@ -6,14 +6,14 @@ param(
 $ErrorActionPreference = "Stop"
 
 # Resolve repo root via git
-$XFLOW_CONTROL_SIM_ROOT = (& git rev-parse --show-toplevel).Trim()
-if (-not $XFLOW_CONTROL_SIM_ROOT) {
+$XFE_CONTROL_SIM_ROOT = (& git rev-parse --show-toplevel).Trim()
+if (-not $XFE_CONTROL_SIM_ROOT) {
 	Write-Error "Failed to determine repo root. Is Git installed and are you inside the repo?"
 	exit 2
 }
 
-$SIM_EXAMPLE = Join-Path $XFLOW_CONTROL_SIM_ROOT "sim_example"
-$TMP_ROOT = Join-Path (Split-Path -Parent $XFLOW_CONTROL_SIM_ROOT) "sim_example_test"
+$SIM_EXAMPLE = Join-Path $XFE_CONTROL_SIM_ROOT "sim_example"
+$TMP_ROOT = Join-Path (Split-Path -Parent $XFE_CONTROL_SIM_ROOT) "sim_example_test"
 
 Write-Host "→ Testing DISCON in temporary dir: $TMP_ROOT"
 
@@ -45,7 +45,7 @@ else
 }
 
 # 4) validate log file contents before cleanup
-$LOG_FILE = Join-Path $TMP_ROOT "log\log_data\xflow-control-sim-simulation-output.log"
+$LOG_FILE = Join-Path $TMP_ROOT "log\log_data\xfe-control-sim-simulation-output.log"
 Write-Host "→ Validating log file: $LOG_FILE"
 
 $LOG_OK = $true
@@ -72,7 +72,7 @@ else
 }
 
 # 5) cleanup behavior depends on validation
-Push-Location $XFLOW_CONTROL_SIM_ROOT
+Push-Location $XFE_CONTROL_SIM_ROOT
 if ($LOG_OK)
 {
 	Write-Host "✅ Log validation passed. Cleaning up temp folder: $TMP_ROOT"

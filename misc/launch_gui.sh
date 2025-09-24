@@ -1,12 +1,12 @@
 #!/bin/bash
 set -x
-XFLOW_CONTROL_SIM_DIR=$(git rev-parse --show-toplevel)
+XFE_CONTROL_SIM_DIR=$(git rev-parse --show-toplevel)
 
-BUILD_DIR="$XFLOW_CONTROL_SIM_DIR/build"
+BUILD_DIR="$XFE_CONTROL_SIM_DIR/build"
 
 RECOMPILE_OR_NOT=$1
 
-killall -9 -v xflow_control_sim
+killall -9 -v xfe_control_sim
 
 if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 	rm -r "$BUILD_DIR"
@@ -30,4 +30,4 @@ fi
 cd "$BUILD_DIR/executables-out/" || exit
 
 # Run the executable
-# ./xflow_control_sim
+# ./xfe_control_sim

@@ -3,7 +3,7 @@ set -x
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SIM_EXAMPLE_DIR="$(cd "$SCRIPT_DIR/../" && pwd)"
 
-XFLOW_CONTROL_SIM_DIR="$(cd "$SIM_EXAMPLE_DIR/../xflow-control-sim" && pwd)"
+XFE_CONTROL_SIM_DIR="$(cd "$SIM_EXAMPLE_DIR/../xfe-control-sim" && pwd)"
 
 BUILD_DIR="$SIM_EXAMPLE_DIR/build"
 
@@ -119,7 +119,7 @@ if [ "$RECOMPILE_OR_NOT" == 1 ]; then
 		-DCMAKE_CXX_COMPILER="$CXX" \
 		-DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		-DBUILD_XFLOW_CONTROL_SIM_EXECUTABLE=OFF \
+		-DBUILD_XFE_CONTROL_SIM_EXECUTABLE=OFF \
 		-DBUILD_SHARED_LIBS=ON
 
 	# Actually build
@@ -134,11 +134,11 @@ then
 fi
 # Post-build: run clang-tidy via your script and log to build/clang-tidy.log
 if [[ "${RUN_CLANG_TIDY:-0}" == "1" ]]; then
-	CLANG_TIDY_SCRIPT="$XFLOW_CONTROL_SIM_DIR/misc/clang_tidy_all.sh"
+	CLANG_TIDY_SCRIPT="$XFE_CONTROL_SIM_DIR/misc/clang_tidy_all.sh"
 	CLANG_TIDY_LOG="$BUILD_DIR/clang-tidy.log"
 
 	# Allow user override of .clang-tidy file location
-	CLANG_TIDY_FILE="${CLANG_TIDY_FILE:-$XFLOW_CONTROL_SIM_DIR/.clang-tidy}"
+	CLANG_TIDY_FILE="${CLANG_TIDY_FILE:-$XFE_CONTROL_SIM_DIR/.clang-tidy}"
 
 	# Detect "cloud" (GitHub Actions or generic CI env)
 	IN_CLOUD=0
@@ -213,7 +213,7 @@ echo "$OUTPUT"
 echo ""
 
 # Print the contents of the generated log file if it exists
-LOG_FILE="$SIM_EXAMPLE_DIR/log/log_data/xflow-control-sim-simulation-output.log"
+LOG_FILE="$SIM_EXAMPLE_DIR/log/log_data/xfe-control-sim-simulation-output.log"
 if [[ -f "$LOG_FILE" ]]; then
 	echo "→ Contents of simulation log:"
 	cat "$LOG_FILE"

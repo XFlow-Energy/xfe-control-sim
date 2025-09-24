@@ -1,5 +1,5 @@
 /**
- * @file    xflow_control_sim_common.h
+ * @file    xfe_control_sim_common.h
  * @author  XFlow Energy
  * @date    2025
  * @brief   API for common simulation functions
@@ -7,7 +7,7 @@
 
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /*
- * XFLOW-CONTROL-SIM
+ * XFE-CONTROL-SIM
  * Copyright (C) 2024-2025 XFlow Energy (https://www.xflowenergy.com/)
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,8 +23,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef XFLOW_CONTROL_SIM_COMMON_H
-#define XFLOW_CONTROL_SIM_COMMON_H
+#ifndef XFE_CONTROL_SIM_COMMON_H
+#define XFE_CONTROL_SIM_COMMON_H
 
 #include "maybe_unused.h"    // for MAYBE_UNUSED
 #include "xflow_aero_sim.h"  // for param_array_t, bts_data_t, input_param_...
@@ -32,13 +32,13 @@
 #include <stdbool.h>         // IWYU pragma: keep
 
 #ifdef _WIN32
-#ifdef XFLOW_CONTROL_SIM_LIB_EXPORTS
-#define XFLOW_CONTROL_SIM_API __declspec(dllexport)
+#ifdef XFE_CONTROL_SIM_LIB_EXPORTS
+#define XFE_CONTROL_SIM_API __declspec(dllexport)
 #else
-#define XFLOW_CONTROL_SIM_API __declspec(dllimport)
+#define XFE_CONTROL_SIM_API __declspec(dllimport)
 #endif
 #else
-#define XFLOW_CONTROL_SIM_API
+#define XFE_CONTROL_SIM_API
 #endif
 
 #define STRINGIFY(x) #x
