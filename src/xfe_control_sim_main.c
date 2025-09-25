@@ -287,8 +287,7 @@ int main(const int argc, const char *argv[])
 	// Populate the program_args struct.
 	data_processing_program_args_t dp_options = {
 		.argc = argc,
-		.argv = argv
-	};
+		.argv = argv};
 
 	// have new function here that checks here where we see if its the first run or not.
 	// if it is then we need to open csv file where the new data will be stored
@@ -343,9 +342,8 @@ int main(const int argc, const char *argv[])
 	{
 		// log_message("Shutdown signal received. Cleaning up...\n");
 		save_dynamic_fixed_data_at_shutdown(dynamic_Data, fixed_Data, logging_status != 0);
-
-		close_log_file();
 		cleanup_program(0);
+		close_log_file();
 
 		// Step 5: Free the input data memory
 		free_input_data(dynamic_Data);
@@ -353,6 +351,7 @@ int main(const int argc, const char *argv[])
 	}
 
 	cleanup_program(0);
+	close_log_file();
 	log_message("Closing Program\n");
 
 	return 0;
