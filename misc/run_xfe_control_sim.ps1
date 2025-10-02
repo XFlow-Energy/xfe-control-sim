@@ -157,44 +157,49 @@ New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 # cd "$BUILD_DIR/executables-out/" || exit
 $EXEC_OUT_DIR = Join-Path $BUILD_DIR "executables-out"
 if (-not (Test-Path $EXEC_OUT_DIR)) { Write-Error "Executables directory not found: $EXEC_OUT_DIR"; exit 5 }
-Set-Location $EXEC_OUT_DIR
 
-# Determine binary
-$BIN = "xfe_control_sim.exe"
-if (-not (Test-Path $BIN)) { $BIN = "xfe_control_sim" }
-if (-not (Test-Path $BIN)) { Write-Error "Built executable not found: $(Join-Path $EXEC_OUT_DIR 'xfe_control_sim[.exe]')"; exit 6 }
+Push-Location $EXEC_OUT_DIR
+try
+{
+	# Determine binary
+	$BIN = "xfe_control_sim.exe"
+	if (-not (Test-Path $BIN)) { $BIN = "xfe_control_sim" }
+	if (-not (Test-Path $BIN)) { Write-Error "Built executable not found: $(Join-Path $EXEC_OUT_DIR 'xfe_control_sim[.exe]')"; exit 6 }
 
-# Run & capture output + exit
-# Run it and capture output + exit code (avoid NativeCommandError from stderr)
-$stdoutPath = Join-Path $env:TEMP ("xflow_stdout_{0}.log" -f ([guid]::NewGuid().ToString("N")))
-$stderrPath = Join-Path $env:TEMP ("xflow_stderr_{0}.log" -f ([guid]::NewGuid().ToString("N")))
+	# Run & capture output + exit
+	# Run it and capture output + exit code (avoid NativeCommandError from stderr)
+	$stdoutPath = Join-Path $env:TEMP ("xflow_stdout_{0}.log" -f ([guid]::NewGuid().ToString("N")))
+	$stderrPath = Join-Path $env:TEMP ("xflow_stderr_{0}.log" -f ([guid]::NewGuid().ToString("N")))
 
-$proc = Start-Process -FilePath ".\${BIN}" -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
-$exitCode = $proc.ExitCode
+	$proc = Start-Process -FilePath ".\${BIN}" -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+	$exitCode = $proc.ExitCode
 
-# Echo stdout/stderr back to console in original order (stdout first, then stderr)
-if (Test-Path $stdoutPath) { Get-Content -LiteralPath $stdoutPath | Write-Output }
-if (Test-Path $stderrPath) { Get-Content -LiteralPath $stderrPath | Write-Output }
-Write-Host ""
-
-# Clean up temp files
-Remove-Item $stdoutPath,$stderrPath -ErrorAction SilentlyContinue
-$exitCode = $LASTEXITCODE
-
-# Echo stdout/stderr
-$output | Write-Output
-Write-Host ""
-
-# Dump log if present
-$LOG_FILE = Join-Path $logDir "xfe-control-sim-simulation-output.log"
-if (Test-Path $LOG_FILE) {
-	Write-Host "→ Contents of simulation log:"
-	Get-Content -LiteralPath $LOG_FILE
+	# Echo stdout/stderr back to console in original order (stdout first, then stderr)
+	if (Test-Path $stdoutPath) { Get-Content -LiteralPath $stdoutPath | Write-Output }
+	if (Test-Path $stderrPath) { Get-Content -LiteralPath $stderrPath | Write-Output }
 	Write-Host ""
-} else {
-	Write-Warning "Log file not found: $LOG_FILE"
-}
 
-cd ../
+	# Clean up temp files
+	Remove-Item $stdoutPath,$stderrPath -ErrorAction SilentlyContinue
+	$exitCode = $LASTEXITCODE
+
+	# Echo stdout/stderr
+	$output | Write-Output
+	Write-Host ""
+
+	# Dump log if present
+	# $LOG_FILE = Join-Path $logDir "xfe-control-sim-simulation-output.log"
+	# if (Test-Path $LOG_FILE) {
+	# 	Write-Host "→ Contents of simulation log:"
+	# 	Get-Content -LiteralPath $LOG_FILE
+	# 	Write-Host ""
+	# } else {
+	# 	Write-Warning "Log file not found: $LOG_FILE"
+	# }
+}
+finally
+{
+	Pop-Location
+}
 
 exit $exitCode
