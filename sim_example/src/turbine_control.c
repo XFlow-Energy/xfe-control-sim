@@ -19,13 +19,15 @@
  * with this software. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
+// NOLINTBEGIN(llvm-include-order)
+#include "make_stage.h"
 #include "xfe_control_sim_common.h" // for get_param, param_array_t
 #include "logger.h"                 // for log_message
-#include "make_stage.h"
 #include "maybe_unused.h"
 #include "turbine_controls.h" // for turbine_control
 #include <stdbool.h>          // IWYU pragma: keep
 #include <stddef.h>           // for NULL
+							  // NOLINTEND(llvm-include-order)
 
 // expand definitions once, using both the decl‐list and the call‐list
 MAKE_STAGE_DEFINE(turbine_control, void, (TURBINE_CONTROL_PARAM_LIST), (TURBINE_CONTROL_CALL_ARGS))

@@ -5,8 +5,8 @@ param(
 
 # Script & project dirs
 $SCRIPT_DIR = $PSScriptRoot
-$SIM_EXAMPLE_DIR = (Resolve-Path (Join-Path $SCRIPT_DIR "..")).Path
-$BUILD_DIR = Join-Path $SIM_EXAMPLE_DIR "build"
+$SIM_DIR = (Resolve-Path (Join-Path $SCRIPT_DIR "..")).Path
+$BUILD_DIR = Join-Path $SIM_DIR "build"
 
 # Helpers
 function Find-Tool {
@@ -15,6 +15,21 @@ function Find-Tool {
 	$cmd = Get-Command $Name -ErrorAction SilentlyContinue
 	if ($cmd) { return $cmd.Path }
 	return $null
+}
+
+# --- Pre-Build Formatting ---
+Write-Host "[INFO] Running clang-format on the codebase..."
+$CLANG_FORMAT_SCRIPT = Join-Path $SIM_DIR "misc\clang_format_all.ps1"
+
+if (Test-Path -LiteralPath $CLANG_FORMAT_SCRIPT) {
+    & $CLANG_FORMAT_SCRIPT
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "clang-format script failed. Please fix formatting issues before building."
+        exit $LASTEXITCODE
+    }
+    Write-Host "[INFO] Clang-format check passed."
+} else {
+    Write-Warning "clang_format_all.ps1 not found at '$CLANG_FORMAT_SCRIPT', skipping formatting step."
 }
 
 # Optional PATHVARS (match your Bash toggles)
@@ -94,19 +109,19 @@ if ($RECOMPILE_OR_NOT -eq 1) {
 	}
 
 	# Build type (forced Release)
-	$BUILD_TYPE = "Release"
+	$BUILD_TYPE = "Debug"
 
 	# Configure
 	$cmakeArgs = @()
 	if ($GENERATOR) { $cmakeArgs += $GENERATOR }
 	$cmakeArgs += @(
-		"-B","`"$BUILD_DIR`"",
-		"-S","`"$SIM_EXAMPLE_DIR`"",
+		"-B",$BUILD_DIR,
+		"-S",$SIM_DIR,
 		"-DCMAKE_BUILD_TYPE=$BUILD_TYPE",
 		"-DCMAKE_VERBOSE_MAKEFILE=$CMAKE_VERBOSE_FLAG",
-		"-DCMAKE_C_COMPILER=`"$CC`"",
-		"-DCMAKE_CXX_COMPILER=`"$CXX`"",
-		"-DCMAKE_PREFIX_PATH=`"$CMAKE_PREFIX_PATH`"",
+		"-DCMAKE_C_COMPILER=$CC",
+		"-DCMAKE_CXX_COMPILER=$CXX",
+		"-DCMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH",
 		"-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
 		"-DBUILD_XFE_CONTROL_SIM_EXECUTABLE=ON",
 		"-DBUILD_SHARED_LIBS=OFF"
@@ -128,7 +143,7 @@ if ($RECOMPILE_OR_NOT -eq 1) {
 		Pop-Location
 		if ($buildExit -ne 0) { exit $buildExit }
 	} else {
-		& cmake "--build" "`"$BUILD_DIR`"" "--config" "$BUILD_TYPE" "--parallel" "$NPROC"
+		& cmake "--build" $BUILD_DIR "--config" "$BUILD_TYPE" "--parallel" "$NPROC"
 		if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 	}
 }
@@ -136,7 +151,7 @@ if ($RECOMPILE_OR_NOT -eq 1) {
 Write-Host ""
 
 # Ensure log dirs exist before running the binary
-$logDir = Join-Path $SIM_EXAMPLE_DIR "log\log_data"
+$logDir = Join-Path $SIM_DIR "log\log_data"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
 # cd "$BUILD_DIR/executables-out/" || exit
@@ -179,7 +194,6 @@ if (Test-Path $LOG_FILE) {
 } else {
 	Write-Warning "Log file not found: $LOG_FILE"
 }
-
 
 cd ../
 
