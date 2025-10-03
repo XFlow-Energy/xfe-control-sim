@@ -68,7 +68,6 @@ void example_qblade_interface(QBLADE_INTERFACE_PARAM_LIST)
 	static double accumulated_Time = 0.0;
 
 	static bool first_Run = false;
-	static long long simulation_Increment_Count = 0;
 
 	if (!first_Run)
 	{
@@ -94,7 +93,7 @@ void example_qblade_interface(QBLADE_INTERFACE_PARAM_LIST)
 	// Add the elapsed time since the last update
 	accumulated_Time += *dt_Sec;
 
-	perform_history_updates(simulation_Increment_Count, history_tasks);
+	perform_history_updates(*time_Sec, history_tasks);
 
 	// Check if the accumulated time has reached or exceeded control_dt_sec
 	if (accumulated_Time >= *control_Dt_Sec)

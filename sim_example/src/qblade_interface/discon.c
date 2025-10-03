@@ -100,7 +100,7 @@ void example_discon(DISCON_PARAM_LIST)
 
 	if (i_status >= 0)
 	{
-		qblade_interface(avr_swap, dynamic_Data, fixed_Data);
+		qblade_interface(avr_swap, dynamic_Data, fixed_Data, history_Tasks);
 	}
 
 	// Indicate successful execution
