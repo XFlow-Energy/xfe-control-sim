@@ -228,6 +228,8 @@ int main(const int argc, const char *argv[])
 	static double *control_Dt_Sec = NULL;
 	static int *enable_Brake_Signal = NULL;
 	static double *omega = NULL;
+	static int *total_Loop_Count = NULL;
+	static char *all_Combined = NULL;
 
 	// below used only for data processing or optimization.
 	static int *data_Processing_Status = NULL;
@@ -241,6 +243,8 @@ int main(const int argc, const char *argv[])
 	get_param(fixed_Data, "control_dt_sec", &control_Dt_Sec);
 	get_param(dynamic_Data, "enable_brake_signal", &enable_Brake_Signal);
 	get_param(dynamic_Data, "omega", &omega);
+	get_param(dynamic_Data, "total_loop_count", &total_Loop_Count);
+	get_param(dynamic_Data, "all_combined", &all_Combined);
 
 	get_param(dynamic_Data, "data_processing_status", &data_Processing_Status);
 	get_param(fixed_Data, "data_processing_first_run", &data_Processing_First_Run);
@@ -300,7 +304,6 @@ int main(const int argc, const char *argv[])
 	*data_Processing_Status = LOOPING;
 
 	static double accumulated_Time = 0.0;
-	static long long simulation_Increment_Count = 0; // just keeps count of how many timesteps we've done
 	// log_message("running normal simulation, *time_Sec: %f, *dur_Sec: %f\n", *time_Sec, *dur_Sec);
 	while (*time_Sec < *dur_Sec && !shutdownFlag && (!*data_Processing_First_Run || run_single_mode_only))
 	{
@@ -316,8 +319,8 @@ int main(const int argc, const char *argv[])
 		accumulated_Time += *dt_Sec;
 
 		// Update the history buffers, if needed
-		perform_history_updates(simulation_Increment_Count, history_Tasks);
-		log_message("This is called right after perform_history_updates");
+		perform_history_updates(*time_Sec, history_Tasks);
+
 		// Check if the accumulated time has reached or exceeded control_dt_sec
 		if (accumulated_Time >= *control_Dt_Sec)
 		{
@@ -329,7 +332,8 @@ int main(const int argc, const char *argv[])
 		continuous_logging_function(dynamic_Data, fixed_Data);
 
 		data_processing(dynamic_Data, fixed_Data, &dp_options); // If applicable track the requested data for processing at end of run.
-		simulation_Increment_Count++;
+		(*total_Loop_Count)++;
+		safe_snprintf(all_Combined, MAX_LINE_LENGTH, "char, omega: %f, count: %d", *omega, *total_Loop_Count);
 	}
 
 	*data_Processing_Status = ENDING;

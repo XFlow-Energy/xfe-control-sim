@@ -22,7 +22,7 @@ control_dt_sec,double,fixed,0.25
 dur_sec,double,fixed,500
 time_sec,double,dynamic,0
 gravity_acc_g,double,fixed,9.81
-omega,double,state,10.0,3,5
+omega,double,state,10.0,0.15,5
 num_eom_variables,double,dynamic,2
 theta,double,state,10
 flow_speed,double,dynamic,0

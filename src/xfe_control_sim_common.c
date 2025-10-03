@@ -707,7 +707,7 @@ void save_dynamic_fixed_data_at_shutdown(MAYBE_UNUSED const param_array_t *dynam
  * - Relies on compile-time macros: `OUTPUT_LOG_FILE_PATH`, `DYNAMIC_DATA_FULL_PATH`,
  * `FIXING_DATA_FULL_PATH`, and `LOGGING_DYNAMIC_DATA_CONTINUOUS`.
  */
-void initialize_control_system(param_array_t **dynamic_data, param_array_t **fixed_data, history_task_list_t **out_task_list, bool logging_status)
+void initialize_control_system(param_array_t **dynamic_data, param_array_t **fixed_data, history_task_list_t **out_task_list, const bool logging_status)
 {
 	// --- Part 1: Create the main data arrays ---
 	int n_params = 1;
@@ -722,7 +722,7 @@ void initialize_control_system(param_array_t **dynamic_data, param_array_t **fix
 
 	// --- Part 3: Create the history task list ---
 	// The create function is called, and the result is assigned to the output parameter.
-	*out_task_list = create_history_update_list(*dynamic_data);
+	*out_task_list = create_history_update_list(*dynamic_data, *fixed_data);
 	// log_message("after initialize_data\n");
 
 	if (logging_status)

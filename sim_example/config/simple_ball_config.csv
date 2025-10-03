@@ -1,13 +1,13 @@
-variable_name,data_type,dynamic_or_fixed,value,history_update_freq(opt),history_buffer_length(opt)
+variable_name,data_type,dynamic_or_fixed,value,history_update_time_sec(opt),history_buffer_length(opt)
 log_file_location_and_or_name,char,fixed,xfe-control-sim-simulation-output.log
 verbose,int,fixed,1
 dynamic_val_logging,int,fixed,1
-program_name,char,fixed,C:\Users\Ben\Documents\GitHub\xfe-control-sim\build\executables-out\xfe_control_sim.exe
+program_name,char,fixed,./xfe_control_sim
 program_argc,int,fixed,1
 parent_pid,int,dynamic,0
 flow_function_call,char,fixed,csv_fixed_interp_flow_gen
 numerical_integrator_function_call,char,fixed,rk4_numerical_integrator
-turbine_control_function_call,char,fixed,kw2_turbine_control
+turbine_control_function_call,char,fixed,example_turbine_control
 eom_function_call,char,fixed,eom_simple_ball_thrown_in_air
 drivetrain_function_call,char,fixed,example_drivetrain
 flow_sim_model_function_call,char,fixed,example_flow_sim_model
@@ -20,9 +20,9 @@ flow_total_time,double,dynamic,63000.100000
 dt_sec,double,fixed,0.05
 control_dt_sec,double,fixed,0.25
 dur_sec,double,fixed,10
-time_sec,double,dynamic,0
+time_sec,double,dynamic,0,0.15,4
 gravity_acc_g,double,fixed,9.81
-omega,double,state,10.0,3,4
+omega,double,state,10.0,0.15,4
 num_eom_variables,double,dynamic,2
 theta,double,state,10
 flow_speed,double,dynamic,0
@@ -40,3 +40,5 @@ A,double,fixed,15.2053
 slowCQ,double,fixed,0.006
 rho,double,fixed,1.225
 k,double,dynamic,0
+total_loop_count,int,dynamic,0,0.15,4
+all_combined,char,dynamic,0,0.15,4
