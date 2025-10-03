@@ -18,8 +18,8 @@
  * with this software. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
-#include "xfe_control_sim_common.h" // for get_param, param_array_t
 #include "bladed_interface.h"
+#include "xfe_control_sim_common.h" // for get_param, param_array_t
 #include "discon.h"      // declare void DISCON(...)
 #include "drivetrains.h" // for drivetrain
 #include "logger.h"      // for log_message
@@ -37,18 +37,44 @@ int main(void)
 	char acc_in_file[1] = {0};
 	char avc_outname[1] = {0};
 	char avc_msg[1] = {0};
-	double simulation_time = 10.0;
-	double elapsed_time = 0.0;
-	avr_swap[REC_COMMUNICATION_INTERVAL] = (float)0.1;
 
-	while (elapsed_time < simulation_time)
+	/* Simple plant + sim settings */
+	double simulation_time = 10.0;
+	double t = 0.0;
+	double omega = 0.0;
+	float dt = 0.1f;
+
+	/* Controller I/O seeds */
+	avr_swap[REC_COMMUNICATION_INTERVAL] = dt;
+	avr_swap[REC_CURRENT_TIME] = (float)t;
+	avr_swap[REC_MEASURED_ROTOR_SPEED] = (float)omega;
+
+	/* Provide target speed and inertia to controller (read in your interface on first call) */
+	avr_swap[REC_USER_VARIABLE_1] = 2.0f;   /* omega_target [rad/s], example */
+	avr_swap[REC_USER_VARIABLE_2] = 50.0f;  /* moment_of_inertia J [kg·m^2], example */
+
+	while (t < simulation_time)
 	{
+		/* Present current measurements BEFORE calling the controller */
+		avr_swap[REC_CURRENT_TIME] = (float)t;
+		avr_swap[REC_MEASURED_ROTOR_SPEED] = (float)omega;
+
 		DISCON(DISCON_CALL_ARGS);
 		if (avi_fail != 0)
 		{
 			return avi_fail;
 		}
-		elapsed_time += avr_swap[REC_COMMUNICATION_INTERVAL];
+
+		/* Plant integration: ω_{k+1} = ω_k + (τ_cmd/J)*dt */
+		double tau_cmd = (double)avr_swap[REC_DEMANDED_GENERATOR_TORQUE];
+		double J = (double)avr_swap[REC_USER_VARIABLE_2];
+		if (J <= 0.0)
+		{
+			J = 1.0;
+		}
+		omega += (tau_cmd / J) * (double)dt;
+
+		t += (double)dt;
 	}
 
 	return EXIT_SUCCESS;

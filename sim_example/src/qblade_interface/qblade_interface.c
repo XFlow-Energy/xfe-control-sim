@@ -18,8 +18,8 @@
  * with this software. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
+ #include "bladed_interface.h"
 #include "xfe_control_sim_common.h" // for get_param, param_array_t
-#include "bladed_interface.h"
 #include "drivetrains.h" // for drivetrain
 #include "logger.h"      // for log_message
 #include "make_stage.h"

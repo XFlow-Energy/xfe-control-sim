@@ -21,8 +21,8 @@
 #ifndef DISCON_H
 #define DISCON_H
 
-#include "xfe_control_sim_common.h"
 #include "xflow_core.h"
+#include "xfe_control_sim_common.h"
 #include "xfe_control_sim_version.h"
 #include "xfe_control_sim_lib_export.h"
 

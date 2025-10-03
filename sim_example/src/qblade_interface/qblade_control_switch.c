@@ -19,9 +19,9 @@
  * with this software. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
+#include "discon.h"
 #include "xfe_control_sim_common.h" // for get_param, param_array_t
 #include "control_switch.h"
-#include "discon.h"
 #include "drivetrains.h"
 #include "logger.h" // for log_message
 #include "make_stage.h"
