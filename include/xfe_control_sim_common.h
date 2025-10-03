@@ -81,7 +81,7 @@ void dynamic_data_csv_logger(const csv_logger_action_t action, const char *filen
 int get_param_value(const param_array_t *data, const char *name, input_param_type_t *type, void *value);
 void initialize_data(param_array_t *dynamic_data, param_array_t *fixed_data);
 void save_dynamic_fixed_data_at_shutdown(const param_array_t *dynamic_data, const param_array_t *fixed_data, const bool logging_status);
-void initialize_control_system(param_array_t **dynamic_data, param_array_t **fixed_data, const bool logging_status);
+void initialize_control_system(param_array_t **dynamic_data, param_array_t **fixed_data, history_task_list_t **out_task_list, bool logging_status);
 void continuous_logging_function(const param_array_t *dynamic_data, const param_array_t *fixed_data);
 void load_double_struct_param(const param_array_t *data, const char *param_name, double *param);
 void create_shared_interp(const double *precomputed_wind_interp, int num_sim_steps);

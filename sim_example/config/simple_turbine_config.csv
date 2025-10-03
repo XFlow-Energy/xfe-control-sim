@@ -1,4 +1,4 @@
-variable_name,data_type,dynamic_or_fixed,value
+variable_name,data_type,dynamic_or_fixed,value,history_update_freq(opt),history_buffer_length(opt)
 log_file_location_and_or_name,char,fixed,xfe-control-sim-simulation-output.log
 verbose,int,fixed,1
 dynamic_val_logging,int,fixed,1
@@ -22,7 +22,7 @@ control_dt_sec,double,fixed,0.25
 dur_sec,double,fixed,500
 time_sec,double,dynamic,0
 gravity_acc_g,double,fixed,9.81
-omega,double,state,10.0
+omega,double,state,10.0,3,5
 num_eom_variables,double,dynamic,2
 theta,double,state,10
 flow_speed,double,dynamic,0

@@ -70,8 +70,8 @@ if(WIN32)
         set(LIBRARY_OUTPUT_DIR "C:/Users/XFlow Sim/Documents/QBlade Repo/QBladeEE_2.0.7.7/ControllerFiles" CACHE PATH "Directory to copy the built library to" FORCE)
     elseif("${CURRENT_USER}" STREQUAL "Field")
         set(LIBRARY_OUTPUT_DIR "C:/Users/Field/Downloads/QBladeCE_2.0.7.7_win/QBladeCE_2.0.7.7/ControllerFiles" CACHE PATH "Directory to copy the built library to" FORCE)
-        elseif("${CURRENT_USER}" STREQUAL "xflow")
-            set(LIBRARY_OUTPUT_DIR "C:/Users/xflow/Downloads/QBladeCE_2.0.7.7_win/QBladeCE_2.0.7.7/ControllerFiles" CACHE PATH "Directory to copy the built library to" FORCE)
+    elseif("${CURRENT_USER}" STREQUAL "xflow")
+        set(LIBRARY_OUTPUT_DIR "C:/Users/xflow/Downloads/QBladeCE_2.0.7.7_win/QBladeCE_2.0.7.7/ControllerFiles" CACHE PATH "Directory to copy the built library to" FORCE)
     endif()
 endif()
 
@@ -107,19 +107,19 @@ endif()
 set(XFE_CONTROL_SIM_CONFIG_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
 # Paths to config files
-if (NOT DEFINED XFE_CONTROL_SIM_CONFIG_DIR)
+if(NOT DEFINED XFE_CONTROL_SIM_CONFIG_DIR)
     set(XFE_CONTROL_SIM_CONFIG_DIR
         "${CUSTOM_XFE_CONTROL_SIM_FILES_ROOT}/../../conf/turbineconfigfiles"
-        CACHE  PATH  "Which xfe_control_sim config to load")
+        CACHE PATH "Which xfe_control_sim config to load")
 endif()
 
 set(LOG_DIR "${CMAKE_SOURCE_DIR}/log")
 set(OUTPUT_LOG_FILE_PATH "${LOG_DIR}")
 
 if(RUN_SINGLE_MODEL_ONLY)
-	set(LOGGING_DYNAMIC_DATA_CONTINUOUS_VALUE 1)
+    set(LOGGING_DYNAMIC_DATA_CONTINUOUS_VALUE 1)
 else()
-	set(LOGGING_DYNAMIC_DATA_CONTINUOUS_VALUE 0)
+    set(LOGGING_DYNAMIC_DATA_CONTINUOUS_VALUE 0)
 endif()
 
 # Compile definitions that are always included
@@ -130,7 +130,7 @@ set(XFE_CONTROL_SIM_LIB_COMPILE_DEFINITIONS
     DATA_PROCESSING_FULL_PATH="${LOG_DIR}/${DATA_PROCESSING_EXPORT_FILENAME}.csv"
     LOGGING_DYNAMIC_DATA_CONTINUOUS=${LOGGING_DYNAMIC_DATA_CONTINUOUS_VALUE}
     RUN_SINGLE_MODEL_ONLY=${RUN_SINGLE_MODEL_ONLY}
-	OUTPUT_LOG_FILE_PATH="${OUTPUT_LOG_FILE_PATH}"
+    OUTPUT_LOG_FILE_PATH="${OUTPUT_LOG_FILE_PATH}"
     DELETE_LOG_FILE_NEW_RUN=1 # set to 0 to keep history
 )
 
@@ -150,7 +150,7 @@ set(MODBUS_SERVER_COMPILE_DEFINITIONS
     MODBUS_TCP_PORT=${MODBUS_TCP_PORT}
     MODBUS_TIMEOUT_US=${MODBUS_TIMEOUT_US}
     EXECUTABLES_DIR=\"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}\"
-	OUTPUT_LOG_FILE_PATH="${OUTPUT_LOG_FILE_PATH}"
+    OUTPUT_LOG_FILE_PATH="${OUTPUT_LOG_FILE_PATH}"
 )
 
 set(MODBUS_SERVER_PROGRAM_COMPILE_DEFINITIONS

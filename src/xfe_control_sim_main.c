@@ -175,6 +175,7 @@ int main(const int argc, const char *argv[])
 	const struct timespec time_beg = get_monotonic_timestamp();
 	static param_array_t *dynamic_Data = NULL;
 	static param_array_t *fixed_Data = NULL;
+	static history_task_list_t *history_Tasks = NULL;
 
 	int logging_status = 1;
 	long parent_pid_initial = 0;
@@ -210,7 +211,7 @@ int main(const int argc, const char *argv[])
 #endif
 
 	// Pass the address of the pointers (i.e., pointers to pointers)
-	initialize_control_system(&dynamic_Data, &fixed_Data, logging_status != 0);
+	initialize_control_system(&dynamic_Data, &fixed_Data, &history_Tasks, logging_status != 0);
 	log_message("xfe-control-sim git commit info: %s\n", gitCommitInfoXfeControlSim);
 
 	static double **state_Vars = NULL; // Array of pointers to .value.d fields
@@ -289,7 +290,7 @@ int main(const int argc, const char *argv[])
 		.argc = argc,
 		.argv = argv
 	};
-
+	log_message("Test_log");
 	// have new function here that checks here where we see if its the first run or not.
 	// if it is then we need to open csv file where the new data will be stored
 	// and the semephore for opening up the csv file.
@@ -299,6 +300,7 @@ int main(const int argc, const char *argv[])
 	*data_Processing_Status = LOOPING;
 
 	static double accumulated_Time = 0.0;
+	static long long simulation_Increment_Count = 0; // just keeps count of how many timesteps we've done
 	// log_message("running normal simulation, *time_Sec: %f, *dur_Sec: %f\n", *time_Sec, *dur_Sec);
 	while (*time_Sec < *dur_Sec && !shutdownFlag && (!*data_Processing_First_Run || run_single_mode_only))
 	{
@@ -313,6 +315,9 @@ int main(const int argc, const char *argv[])
 		// Add the elapsed time since the last update
 		accumulated_Time += *dt_Sec;
 
+		// Update the history buffers, if needed
+		perform_history_updates(simulation_Increment_Count, history_Tasks);
+		log_message("This is called right after perform_history_updates");
 		// Check if the accumulated time has reached or exceeded control_dt_sec
 		if (accumulated_Time >= *control_Dt_Sec)
 		{
@@ -324,6 +329,7 @@ int main(const int argc, const char *argv[])
 		continuous_logging_function(dynamic_Data, fixed_Data);
 
 		data_processing(dynamic_Data, fixed_Data, &dp_options); // If applicable track the requested data for processing at end of run.
+		simulation_Increment_Count++;
 	}
 
 	*data_Processing_Status = ENDING;
@@ -347,7 +353,12 @@ int main(const int argc, const char *argv[])
 		close_log_file();
 		cleanup_program(0);
 
-		// Step 5: Free the input data memory
+		// Step 5: Free the input data and history task memory
+		if (history_Tasks)
+		{
+			free(history_Tasks->tasks);
+			free(history_Tasks);
+		}
 		free_input_data(dynamic_Data);
 		free_input_data(fixed_Data);
 	}

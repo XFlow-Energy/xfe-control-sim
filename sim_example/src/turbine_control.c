@@ -38,6 +38,8 @@ void example_turbine_control(TURBINE_CONTROL_PARAM_LIST)
 	static double *tau_Flow_Extract = NULL;
 	static double *k = NULL;
 
+	static param_history_accessor_t omega_history_accessor;
+
 	static bool first_Run = false;
 	if (!first_Run)
 	{
@@ -45,11 +47,15 @@ void example_turbine_control(TURBINE_CONTROL_PARAM_LIST)
 		get_param(dynamic_data, "omega", &omega);
 		get_param(dynamic_data, "tau_flow_extract", &tau_Flow_Extract);
 		get_param(dynamic_data, "k", &k);
+		get_param_history(dynamic_data, "omega", &omega_history_accessor);
 
 		// log_message("omega before: %f\n", *omega);
 
 		first_Run = true;
 	}
+
+	double omega_history[3];
+	get_history_vector_double(&omega_history_accessor, omega_history, 3);
 
 	*tau_Flow_Extract = (*k) * (*omega) * (*omega);
 }

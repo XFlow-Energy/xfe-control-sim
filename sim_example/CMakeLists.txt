@@ -33,7 +33,7 @@ if (MY_PROJECT_REALLY_IS_TOP_LEVEL AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_S
 		get_filename_component(CUSTOM_XFE_CONTROL_SIM_FILES_ROOT "${CMAKE_SOURCE_DIR}" ABSOLUTE)
 	endif()
 
-	set(XFE_CONTROL_SIM_CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config/simple_ball_config.cmake" CACHE  PATH  "Which xfe_control_sim config to load" FORCE)
+	set(XFE_CONTROL_SIM_CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config/simple_turbine_config.cmake" CACHE  PATH  "Which xfe_control_sim config to load" FORCE)
 
 	include(${XFE_CONTROL_SIM_CONFIG_FILE})
 
