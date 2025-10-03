@@ -41,3 +41,4 @@ slowCQ,double,fixed,0.006
 rho,double,fixed,1.225
 k,double,dynamic,0.17
 total_loop_count,int,dynamic,0,0.15,4
+all_combined,char,dynamic,0,0.15,4
