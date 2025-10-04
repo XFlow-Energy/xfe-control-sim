@@ -1,0 +1,24 @@
+[style]
+# Based on Google's style guide, which is a common starting point.
+based_on_style = google
+
+# --- Indentation ---
+indent_width = 4
+continuation_indent_width = 4
+use_tabs = True
+
+# --- Line Breaking and Wrapping ---
+# A value of 0 in YAPF is often treated as the default. A very high number is better for "no limit".
+column_limit = 120
+# Tries to emulate some of the BraceWrapping and BinPackParameters logic
+# by allowing more flexible splitting around arguments and operators.
+split_before_logical_operator = true
+split_before_first_argument = true
+# If a list, dict, or tuple has a trailing comma, split each element onto its own line.
+# This is the recommended way to control vertical formatting.
+split_arguments_when_comma_terminated = true
+
+# --- Alignment ---
+align_closing_bracket_with_visual_indent = true
+blank_lines_around_top_level_definition = 1
+

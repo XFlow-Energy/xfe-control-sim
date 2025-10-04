@@ -81,7 +81,7 @@ jobs:
       - name: clang-format check
         if: steps.changed.outputs.run_fmt == 'true'
         working-directory: misc
-        run: ./clang_format_all.sh dry-run
+        run: python3 clang_format_all.py dry-run
 
       - name: Skip clang-format
         if: steps.changed.outputs.run_fmt == 'false'
@@ -123,39 +123,36 @@ jobs:
       - name: Run xfe-control-sim example via launch script
         shell: bash
         run: |
-          chmod +x ./misc/launch_xfe_control_sim_example.sh
-          ./misc/launch_xfe_control_sim_example.sh 1
+          python3 ./misc/launch_tests.py local_xfe_control_sim 1 -v
           RESULT=$?
           if [[ $RESULT -eq 0 ]]; then
             echo "✅ xfe_control_sim example completed successfully (exit code $RESULT)."
           else
-            echo "❌ launch_xfe_control_sim_example.sh exited with code $RESULT" >&2
+            echo "❌ launch_tests.py local_xfe_control_sim exited with code $RESULT" >&2
             exit $RESULT
           fi
 
       - name: Run discon simulation via launch script
         shell: bash
         run: |
-          chmod +x ./misc/launch_discon_test.sh
-          ./misc/launch_discon_test.sh 1
+          python3 ./misc/launch_tests.py sim_example_copy_test_discon 1
           RESULT=$?
           if [[ $RESULT -eq 0 ]]; then
             echo "✅ discon simulation completed successfully (exit code $RESULT)."
           else
-            echo "❌ launch_discon_test.sh exited with code $RESULT" >&2
+            echo "❌ launch_tests.py sim_example_copy_test_discon exited with code $RESULT" >&2
             exit $RESULT
           fi
 
       - name: Run sim_example via launch script
         shell: bash
         run: |
-          chmod +x ./misc/launch_sim_example_test.sh
-          ./misc/launch_sim_example_test.sh 1
+          python3 ./misc/launch_tests.py sim_example_copy_test 1
           RESULT=$?
           if [[ $RESULT -eq 0 ]]; then
             echo "✅ sim_example completed successfully (exit code $RESULT)."
           else
-            echo "❌ launch_sim_example_test.sh exited with code $RESULT" >&2
+            echo "❌ launch_tests.py sim_example_copy_test exited with code $RESULT" >&2
             exit $RESULT
           fi
 
@@ -226,39 +223,36 @@ jobs:
       - name: Run xfe-control-sim example via launch script
         shell: bash
         run: |
-          chmod +x ./misc/launch_xfe_control_sim_example.sh
-          ./misc/launch_xfe_control_sim_example.sh 1
+          python3 ./misc/launch_tests.py local_xfe_control_sim 1 -v
           RESULT=$?
           if [[ $RESULT -eq 0 ]]; then
             echo "✅ xfe_control_sim example completed successfully (exit code $RESULT)."
           else
-            echo "❌ launch_xfe_control_sim_example.sh exited with code $RESULT" >&2
+            echo "❌ launch_tests.py local_xfe_control_sim exited with code $RESULT" >&2
             exit $RESULT
           fi
 
       - name: Run discon simulation via launch script
         shell: bash
         run: |
-          chmod +x ./misc/launch_discon_test.sh
-          ./misc/launch_discon_test.sh 1
+          python3 ./misc/launch_tests.py sim_example_copy_test_discon 1
           RESULT=$?
           if [[ $RESULT -eq 0 ]]; then
             echo "✅ discon simulation completed successfully (exit code $RESULT)."
           else
-            echo "❌ launch_discon_test.sh exited with code $RESULT" >&2
+            echo "❌ launch_tests.py sim_example_copy_test_discon exited with code $RESULT" >&2
             exit $RESULT
           fi
 
       - name: Run sim_example via launch script
         shell: bash
         run: |
-          chmod +x ./misc/launch_sim_example_test.sh
-          ./misc/launch_sim_example_test.sh 1
+          python3 ./misc/launch_tests.py sim_example_copy_test 1
           RESULT=$?
           if [[ $RESULT -eq 0 ]]; then
             echo "✅ sim_example completed successfully (exit code $RESULT)."
           else
-            echo "❌ launch_sim_example_test.sh exited with code $RESULT" >&2
+            echo "❌ launch_tests.py sim_example_copy_test exited with code $RESULT" >&2
             exit $RESULT
           fi
 
@@ -422,39 +416,36 @@ jobs:
       - name: Run xfe-control-sim simulation via launch script
         shell: bash
         run: |
-          chmod +x ./misc/launch_xfe_control_sim_example.sh
-          ./misc/launch_xfe_control_sim_example.sh 1
+          python ./misc/launch_tests.py local_xfe_control_sim 1 -v
           RESULT=$?
           if [[ $RESULT -eq 0 ]]; then
             echo "✅ Simulation completed successfully (exit code $RESULT)."
           else
-            echo "❌ launch_xfe_control_sim_example.sh exited with code $RESULT" >&2
+            echo "❌ launch_tests.py local_xfe_control_sim exited with code $RESULT" >&2
             exit $RESULT
           fi
 
       - name: Run discon simulation via launch script
         shell: bash
         run: |
-          chmod +x ./misc/launch_discon_test.sh
-          ./misc/launch_discon_test.sh 1
+          python ./misc/launch_tests.py sim_example_copy_test_discon 1
           RESULT=$?
           if [[ $RESULT -eq 0 ]]; then
             echo "✅ Simulation completed successfully (exit code $RESULT)."
           else
-            echo "❌ launch_discon_test.sh exited with code $RESULT" >&2
+            echo "❌ launch_tests.py sim_example_copy_test_discon exited with code $RESULT" >&2
             exit $RESULT
           fi
 
       - name: Run sim_example via launch script
         shell: bash
         run: |
-          chmod +x ./misc/launch_sim_example_test.sh
-          ./misc/launch_sim_example_test.sh 1
+          python ./misc/launch_tests.py sim_example_copy_test 1
           RESULT=$?
           if [[ $RESULT -eq 0 ]]; then
             echo "✅ sim_example completed successfully (exit code $RESULT)."
           else
-            echo "❌ launch_sim_example_test.sh exited with code $RESULT" >&2
+            echo "❌ launch_tests.py sim_example_copy_test exited with code $RESULT" >&2
             exit $RESULT
           fi
 

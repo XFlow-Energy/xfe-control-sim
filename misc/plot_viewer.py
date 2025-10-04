@@ -4,16 +4,14 @@ import time
 import pandas as pd
 import pyqtgraph as pg
 from PyQt5.QtWidgets import (
-	QApplication, QMainWindow, QFileDialog, QVBoxLayout, QWidget,
-	QLabel, QComboBox, QListWidget, QPushButton, QListWidgetItem,
-	QHBoxLayout, QSplitter, QCheckBox, QFormLayout, QGroupBox,
-	QToolBox, QTableWidget, QTableWidgetItem, QDockWidget, QSizePolicy
-)
+    QApplication, QMainWindow, QFileDialog, QVBoxLayout, QWidget, QLabel, QComboBox, QListWidget, QPushButton,
+    QListWidgetItem, QHBoxLayout, QSplitter, QCheckBox, QFormLayout, QGroupBox, QToolBox, QTableWidget,
+    QTableWidgetItem, QDockWidget, QSizePolicy)
 from PyQt5.QtCore import Qt, QTimer, QSettings, QVariant
 import pyqtgraph.exporters
 
-
 class CSVPlotter(QMainWindow):
+
 	def __init__(self):
 		super().__init__()
 		self.setWindowTitle("CSV Dual-Axis Plot Viewer")
@@ -150,11 +148,7 @@ class CSVPlotter(QMainWindow):
 					marker_style.setCurrentText(style.get("marker", "None"))
 					color_style.setCurrentText(style.get("color", "Black"))
 
-				self.series_style[name] = {
-					"line": line_style,
-					"marker": marker_style,
-					"color": color_style
-				}
+				self.series_style[name] = {"line": line_style, "marker": marker_style, "color": color_style}
 
 				group = QGroupBox(f"{label_prefix}: {name}")
 				group_layout = QFormLayout(group)
@@ -203,7 +197,7 @@ class CSVPlotter(QMainWindow):
 		self.main_plot.getAxis('right').linkToView(self.right_view)
 		self.right_view.setXLink(self.main_plot)
 		self.main_plot.getViewBox().sigResized.connect(
-			lambda: self.right_view.setGeometry(self.main_plot.getViewBox().sceneBoundingRect()))
+		    lambda: self.right_view.setGeometry(self.main_plot.getViewBox().sceneBoundingRect()))
 
 		self.splitter.insertWidget(0, self.plot_area)
 
@@ -211,8 +205,10 @@ class CSVPlotter(QMainWindow):
 			self.load_column_selectors()
 			self.restore_selections()
 			self.plot_selected()
-			if zoom_x: self.main_plot.setXRange(*zoom_x, padding=0)
-			if zoom_y: self.main_plot.setYRange(*zoom_y, padding=0)
+			if zoom_x:
+				self.main_plot.setXRange(*zoom_x, padding=0)
+			if zoom_y:
+				self.main_plot.setYRange(*zoom_y, padding=0)
 
 	def toggle_theme(self, state):
 		self.theme_dark = (state == Qt.Checked)
@@ -254,14 +250,16 @@ class CSVPlotter(QMainWindow):
 					self.y2_list.addItem(QListWidgetItem(col))
 
 	def get_pen(self, style_name, color_name):
-		pen_styles = {
-			"Solid": Qt.SolidLine,
-			"Dashed": Qt.DashLine,
-			"Dotted": Qt.DotLine
-		}
+		pen_styles = {"Solid": Qt.SolidLine, "Dashed": Qt.DashLine, "Dotted": Qt.DotLine}
 		color_map = {
-			"Black": 'k', "Red": 'r', "Green": 'g', "Blue": 'b',
-			"Magenta": 'm', "Cyan": 'c', "Yellow": 'y', "Gray": 'gray'
+		    "Black": 'k',
+		    "Red": 'r',
+		    "Green": 'g',
+		    "Blue": 'b',
+		    "Magenta": 'm',
+		    "Cyan": 'c',
+		    "Yellow": 'y',
+		    "Gray": 'gray'
 		}
 		return pg.mkPen(color=color_map.get(color_name, 'k'), width=2, style=pen_styles.get(style_name, Qt.SolidLine))
 
@@ -295,9 +293,7 @@ class CSVPlotter(QMainWindow):
 			marker = style.get("marker", QComboBox()).currentText()
 			color = style.get("color", QComboBox()).currentText()
 			symbol = None if marker == "None" else marker
-			self.series_saved_styles[y_col] = {
-				"line": line_style, "marker": marker, "color": color
-			}
+			self.series_saved_styles[y_col] = {"line": line_style, "marker": marker, "color": color}
 			self.main_plot.plot(x, y, pen=self.get_pen(line_style, color), symbol=symbol, name=y_col)
 
 		for item in self.y2_list.selectedItems():
@@ -310,9 +306,7 @@ class CSVPlotter(QMainWindow):
 			marker = style.get("marker", QComboBox()).currentText()
 			color = style.get("color", QComboBox()).currentText()
 			symbol = None if marker == "None" else marker
-			self.series_saved_styles[y_col] = {
-				"line": line_style, "marker": marker, "color": color
-			}
+			self.series_saved_styles[y_col] = {"line": line_style, "marker": marker, "color": color}
 			curve = pg.PlotDataItem(x, y, pen=self.get_pen(line_style, color), symbol=symbol)
 			self.right_view.addItem(curve)
 
@@ -407,7 +401,6 @@ class CSVPlotter(QMainWindow):
 			exporter.parameters()['width'] = 2400  # Higher pixel density
 			exporter.export(filename)
 			self.statusBar().showMessage(f"Plot saved to {filename}")
-
 
 if __name__ == "__main__":
 	app = QApplication(sys.argv)

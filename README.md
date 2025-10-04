@@ -138,7 +138,7 @@ Contains MATLAB scripts and data files for post-processing and analysis:
 Miscellaneous scripts and utilities for building, installation, and launching examples:  
 
 - **misc/add_header.py**: Script to add standard headers to source files.  
-- **misc/clang_format_all.sh**: Formats code using clang-format.  
+- **misc/clang_format_all.py**: Formats code using clang-format.  
 - **misc/gui.py**, **misc/plot_viewer.py**: Python scripts for launching GUI tools.  
 - **misc/*.ps1**: PowerShell scripts to install dependencies (e.g., Clang, CMake, GSL, Jansson, libmodbus, LLVM Mingw, Ninja).  
 - **misc/*.sh**: Bash scripts to launch simulations and GUIs (e.g., `launch_xfe_control_sim_example.sh`, `launch_sim_example_test.sh`).  
