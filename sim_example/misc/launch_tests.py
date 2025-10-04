@@ -42,11 +42,20 @@ def check_command_exists(cmd):
 
 def run_yapf(repo_root):
 	"""Run yapf to format all Python files in the repository."""
+
+	# Determine if we're in CI
+	is_github_actions = os.environ.get("GITHUB_ACTIONS") == "true"
+	is_ci = is_github_actions or os.environ.get("CI") is not None
+
+	if is_ci:
+		print("Not running since we are in CI")
+		return
+
 	if not check_command_exists("yapf"):
 		print("[WARN] yapf not found in PATH; skipping Python formatting.")
 		return
 
-	print("→ Running yapf to format Python files...")
+	print("-> Running yapf to format Python files...")
 	result = subprocess.run(["yapf", "-i", "-r", "."], cwd=repo_root, capture_output=True, text=True)
 
 	if result.returncode != 0:
@@ -69,7 +78,7 @@ def run_clang_format(repo_root):
 		print("[WARN] clang-format not found in PATH; skipping clang-format step.")
 		return
 
-	print("→ Running clang-format on all source files...")
+	print("-> Running clang-format on all source files...")
 	result = subprocess.run([sys.executable, str(clang_format_script)], cwd=repo_root)
 
 	if result.returncode != 0:
@@ -87,7 +96,7 @@ def build_project(source_dir, build_dir, rebuild, verbose=False, build_shared_li
 
 	if rebuild:
 		if build_dir.exists():
-			print(f"→ Removing {build_dir}")
+			print(f"-> Removing {build_dir}")
 			shutil.rmtree(build_dir)
 
 		# Remove cppcheck cache
@@ -178,10 +187,10 @@ def build_project(source_dir, build_dir, rebuild, verbose=False, build_shared_li
 		if cmake_prefix_path:
 			cmake_cmd.append(f"-DCMAKE_PREFIX_PATH={cmake_prefix_path}")
 
-		print(f"→ Configuring with CMake...")
+		print(f"-> Configuring with CMake...")
 		subprocess.run(cmake_cmd, check=True, cwd=source_dir)
 
-		print(f"→ Building with {nproc} processors...")
+		print(f"-> Building with {nproc} processors...")
 		subprocess.run(build_cmd, check=True, cwd=build_dir)
 
 def run_clang_tidy(repo_root, source_dir, build_dir):
@@ -213,8 +222,9 @@ def run_clang_tidy(repo_root, source_dir, build_dir):
 	if is_ci:
 		cmd.extend(["--extraargs", "-warnings-as-errors='*'"])
 
-	with open(clang_tidy_log, "w") as log_file:
-		result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+	with open(clang_tidy_log, "w", encoding='utf-8') as log_file:
+		result = subprocess.run(
+		    cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env, encoding='utf-8')
 		output = result.stdout
 		print(output, end="")
 		log_file.write(output)
@@ -241,8 +251,9 @@ def run_binary(source_dir, build_dir, binary_name):
 			print(f"❌ Binary not found: {binary_name}", file=sys.stderr)
 			return 1
 
-	print(f"→ Running {bin_path}...")
-	result = subprocess.run([str(bin_path)], cwd=bin_dir, capture_output=True, text=True)
+	print(f"-> Running {bin_path}...")
+	result = subprocess.run(
+	    [str(bin_path)], cwd=bin_dir, capture_output=True, text=True, encoding='utf-8', errors='replace')
 
 	print(result.stdout)
 	if result.stderr:
@@ -257,9 +268,9 @@ def validate_log_file(log_file, test_type):
 		print(f"❌ Log file not found: {log_file}", file=sys.stderr)
 		return False
 
-	print(f"→ Validating log file: {log_file}")
+	print(f"-> Validating log file: {log_file}")
 
-	with open(log_file, "r") as f:
+	with open(log_file, "r", encoding='utf-8', errors='replace') as f:
 		content = f.read()
 		lines = [line for line in content.split("\n") if line.strip()]
 
@@ -308,7 +319,7 @@ def sync_scripts_to_subdir(repo_root, subdir_name):
 
 	scripts_to_copy = ["launch_tests.py", "clang_format_all.py", "clang_tidy_all.py"]
 
-	print(f"→ Syncing scripts to {subdir_name}/misc/...")
+	print(f"-> Syncing scripts to {subdir_name}/misc/...")
 	for script_name in scripts_to_copy:
 		source_file = source_misc / script_name
 		dest_file = dest_misc / script_name
@@ -341,12 +352,12 @@ def run_standalone_build(build_dir_name, test_type, rebuild, verbose=False):
 	build_dir = source_dir / build_dir_name
 
 	if test_type == "discon":
-		print("→ Building DISCON interface test...")
+		print("-> Building DISCON interface test...")
 		binary_name = "qblade_interface_test"
 		build_shared_libs = True
 		build_executable = False
 	else:  # xfe_control_sim
-		print("→ Building xfe_control_sim...")
+		print("-> Building xfe_control_sim...")
 		binary_name = "xfe_control_sim"
 		build_shared_libs = False
 		build_executable = True
@@ -376,8 +387,8 @@ def run_standalone_build(build_dir_name, test_type, rebuild, verbose=False):
 	# Print log file
 	log_file = source_dir / "log" / "log_data" / "xfe-control-sim-simulation-output.log"
 	if log_file.exists():
-		print("→ Contents of simulation log:")
-		with open(log_file, "r") as f:
+		print("-> Contents of simulation log:")
+		with open(log_file, "r", encoding='utf-8', errors='replace') as f:
 			print(f.read())
 		print()
 	else:
@@ -407,7 +418,7 @@ def run_main_repo_build(repo_root, rebuild, verbose=False):
 
 	build_dir = repo_root / "build"
 
-	print("→ Building xfe_control_sim from main repo...")
+	print("-> Building xfe_control_sim from main repo...")
 	build_project(repo_root, build_dir, rebuild, verbose, build_shared_libs=False, build_executable=True)
 
 	# Run clang-tidy if enabled
@@ -427,8 +438,8 @@ def run_main_repo_build(repo_root, rebuild, verbose=False):
 	# Print log file
 	log_file = repo_root / "log" / "log_data" / "xfe-control-sim-simulation-output.log"
 	if log_file.exists():
-		print("→ Contents of simulation log:")
-		with open(log_file, "r") as f:
+		print("-> Contents of simulation log:")
+		with open(log_file, "r", encoding='utf-8', errors='replace') as f:
 			print(f.read())
 		print()
 	else:
@@ -466,7 +477,7 @@ def run_copy_test(repo_root, subdir_name, test_type, rebuild):
 		test_name = subdir_name
 		command_arg = "xfe_control_sim"
 
-	print(f"→ Testing {test_name} in temporary dir: {tmp_root}")
+	print(f"-> Testing {test_name} in temporary dir: {tmp_root}")
 
 	# Recreate or skip
 	if rebuild:
@@ -474,11 +485,11 @@ def run_copy_test(repo_root, subdir_name, test_type, rebuild):
 			shutil.rmtree(tmp_root)
 
 	if not tmp_root.exists():
-		print(f"→ Copying {subdir_name} to {tmp_root}")
+		print(f"-> Copying {subdir_name} to {tmp_root}")
 		shutil.copytree(source_subdir, tmp_root)
 
 	# Build + run via this same script in the copied location
-	print(f"→ Building + running via {tmp_root}/misc/launch_tests.py")
+	print(f"-> Building + running via {tmp_root}/misc/launch_tests.py")
 
 	launcher_path = tmp_root / "misc" / "launch_tests.py"
 	if not launcher_path.exists():
