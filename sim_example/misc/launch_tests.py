@@ -310,6 +310,15 @@ def sync_scripts_to_subdir(repo_root, subdir_name):
     Copy this script and related scripts from main repo to subdirectory.
     This ensures the subdirectory has the latest versions.
     """
+
+	# Determine if we're in CI
+	is_github_actions = os.environ.get("GITHUB_ACTIONS") == "true"
+	is_ci = is_github_actions or os.environ.get("CI") is not None
+
+	if is_ci:
+		print("Not syncing scripts since we are in CI")
+		return
+
 	source_misc = repo_root / "misc"
 	dest_misc = repo_root / subdir_name / "misc"
 
@@ -326,9 +335,9 @@ def sync_scripts_to_subdir(repo_root, subdir_name):
 
 		if source_file.exists():
 			shutil.copy2(source_file, dest_file)
-			print(f"  ✓ Copied {script_name}")
+			print(f"Copied {script_name}")
 		else:
-			print(f"  ⚠ Skipped {script_name} (not found)")
+			print(f"Skipped {script_name} (not found)")
 	print()
 
 def run_standalone_build(build_dir_name, test_type, rebuild, verbose=False):
