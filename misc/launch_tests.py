@@ -63,7 +63,7 @@ def run_yapf(repo_root):
 		if result.stderr:
 			print(result.stderr)
 	else:
-		print("✅ yapf completed successfully")
+		print("yapf completed successfully")
 	print()
 
 def run_clang_format(repo_root):
@@ -84,7 +84,7 @@ def run_clang_format(repo_root):
 	if result.returncode != 0:
 		print(f"[WARN] clang-format returned non-zero exit code: {result.returncode}")
 	else:
-		print("✅ clang-format completed successfully")
+		print("clang-format completed successfully")
 	print()
 
 def build_project(source_dir, build_dir, rebuild, verbose=False, build_shared_libs=False, build_executable=True):
@@ -141,7 +141,7 @@ def build_project(source_dir, build_dir, rebuild, verbose=False, build_shared_li
 				cc = "/usr/bin/clang"
 				cxx = "/usr/bin/clang++"
 			else:
-				print(f"❌ Unsupported OS: {os_name}", file=sys.stderr)
+				print(f"Unsupported OS: {os_name}", file=sys.stderr)
 				sys.exit(1)
 		else:
 			# Local build
@@ -241,14 +241,14 @@ def run_binary(source_dir, build_dir, binary_name):
 	# Find binary
 	bin_dir = build_dir / "executables-out"
 	if not bin_dir.exists():
-		print(f"❌ Binary directory not found: {bin_dir}", file=sys.stderr)
+		print(f"Binary directory not found: {bin_dir}", file=sys.stderr)
 		return 1
 
 	bin_path = bin_dir / binary_name
 	if not bin_path.exists():
 		bin_path = bin_dir / f"{binary_name}.exe"
 		if not bin_path.exists():
-			print(f"❌ Binary not found: {binary_name}", file=sys.stderr)
+			print(f"Binary not found: {binary_name}", file=sys.stderr)
 			return 1
 
 	print(f"-> Running {bin_path}...")
@@ -265,7 +265,7 @@ def run_binary(source_dir, build_dir, binary_name):
 def validate_log_file(log_file, test_type):
 	"""Validate the log file contents."""
 	if not log_file.exists():
-		print(f"❌ Log file not found: {log_file}", file=sys.stderr)
+		print(f"Log file not found: {log_file}", file=sys.stderr)
 		return False
 
 	print(f"-> Validating log file: {log_file}")
@@ -278,26 +278,26 @@ def validate_log_file(log_file, test_type):
 
 	if test_type == "discon":
 		if "discon init complete!" not in content:
-			print("❌ Missing 'discon init complete!' line.", file=sys.stderr)
+			print("Missing 'discon init complete!' line.", file=sys.stderr)
 			log_ok = False
 	else:  # xfe_control_sim
 		if "Program Duration:" not in content:
-			print("❌ Missing 'Program Duration:' line.", file=sys.stderr)
+			print("Missing 'Program Duration:' line.", file=sys.stderr)
 			log_ok = False
 
 		if "write Duration:" not in content:
-			print("❌ Missing 'write Duration:' line.", file=sys.stderr)
+			print("Missing 'write Duration:' line.", file=sys.stderr)
 			log_ok = False
 
 		if lines:
 			last_line = lines[-1]
 			if "Closing Program" not in last_line:
-				print("❌ Last non-empty line is not 'Closing Program'.", file=sys.stderr)
+				print("Last non-empty line is not 'Closing Program'.", file=sys.stderr)
 				print(f"   Last line was: {last_line}", file=sys.stderr)
 				log_ok = False
 
 	if "ERROR" in content:
-		print("❌ Found error lines in log:", file=sys.stderr)
+		print("Found error lines in log:", file=sys.stderr)
 		for line in content.split("\n"):
 			if "ERROR" in line:
 				print(line, file=sys.stderr)
@@ -389,9 +389,9 @@ def run_standalone_build(build_dir_name, test_type, rebuild, verbose=False):
 
 	if test_type == "discon":
 		if exit_code != 0:
-			print(f"❌ qblade interface test failed (exit {exit_code})", file=sys.stderr)
+			print(f"qblade interface test failed (exit {exit_code})", file=sys.stderr)
 		else:
-			print("✅ qblade interface test passed!")
+			print("qblade interface test passed!")
 
 	# Print log file
 	log_file = source_dir / "log" / "log_data" / "xfe-control-sim-simulation-output.log"
@@ -401,13 +401,13 @@ def run_standalone_build(build_dir_name, test_type, rebuild, verbose=False):
 			print(f.read())
 		print()
 	else:
-		print(f"⚠️ Log file not found: {log_file}")
+		print(f"Log file not found: {log_file}")
 
 	# Validate log for xfe_control_sim (DISCON test doesn't validate the same way)
 	if test_type == "xfe_control_sim":
 		log_ok = validate_log_file(log_file, "xfe_control_sim")
 		if log_ok:
-			print("✅ Log validation passed")
+			print("Log validation passed")
 		if not log_ok and exit_code == 0:
 			exit_code = 1
 
@@ -452,12 +452,12 @@ def run_main_repo_build(repo_root, rebuild, verbose=False):
 			print(f.read())
 		print()
 	else:
-		print(f"⚠️ Log file not found: {log_file}")
+		print(f"Log file not found: {log_file}")
 
 	# Validate log
 	log_ok = validate_log_file(log_file, "xfe_control_sim")
 	if log_ok:
-		print("✅ Log validation passed")
+		print("Log validation passed")
 	if not log_ok and exit_code == 0:
 		exit_code = 1
 
@@ -502,7 +502,7 @@ def run_copy_test(repo_root, subdir_name, test_type, rebuild):
 
 	launcher_path = tmp_root / "misc" / "launch_tests.py"
 	if not launcher_path.exists():
-		print(f"❌ Launcher script not found: {launcher_path}", file=sys.stderr)
+		print(f"Launcher script not found: {launcher_path}", file=sys.stderr)
 		print(f"   Make sure launch_tests.py is copied to {subdir_name}/misc/", file=sys.stderr)
 		return 1
 
@@ -512,9 +512,9 @@ def run_copy_test(repo_root, subdir_name, test_type, rebuild):
 
 	# Outcome
 	if launch_exit != 0:
-		print(f"❌ {test_name} test run failed (exit {launch_exit})", file=sys.stderr)
+		print(f"{test_name} test run failed (exit {launch_exit})", file=sys.stderr)
 	else:
-		print(f"✅ {test_name} test run succeeded")
+		print(f"{test_name} test run succeeded")
 
 	# Validate log file
 	log_file = tmp_root / "log" / "log_data" / "xfe-control-sim-simulation-output.log"
@@ -523,11 +523,11 @@ def run_copy_test(repo_root, subdir_name, test_type, rebuild):
 	os.chdir(repo_root)
 
 	if log_ok:
-		print(f"✅ Log validation passed. Cleaning up temp folder: {tmp_root}")
+		print(f"Log validation passed. Cleaning up temp folder: {tmp_root}")
 		shutil.rmtree(tmp_root)
 		return launch_exit
 	else:
-		print(f"⚠️  Log validation failed. Preserving temp folder for inspection: {tmp_root}", file=sys.stderr)
+		print(f" Log validation failed. Preserving temp folder for inspection: {tmp_root}", file=sys.stderr)
 		print(f"   You can inspect the log with: less '{log_file}'", file=sys.stderr)
 		return launch_exit if launch_exit != 0 else 1
 
@@ -571,21 +571,21 @@ Main repo commands (run from xfe-control-sim/misc/):
 	if args.command == "local_xfe_control_sim":
 		repo_root = get_git_root()
 		if repo_root is None:
-			print("❌ Error: local_xfe_control_sim requires being in a git repository", file=sys.stderr)
+			print("Error: local_xfe_control_sim requires being in a git repository", file=sys.stderr)
 			sys.exit(1)
 		exit_code = run_main_repo_build(repo_root, rebuild, args.verbose)
 
 	elif args.command == "sim_example_copy_test":
 		repo_root = get_git_root()
 		if repo_root is None:
-			print("❌ Error: sim_example_copy_test requires being in a git repository", file=sys.stderr)
+			print("Error: sim_example_copy_test requires being in a git repository", file=sys.stderr)
 			sys.exit(1)
 		exit_code = run_copy_test(repo_root, args.subdir, "xfe_control_sim", rebuild)
 
 	elif args.command == "sim_example_copy_test_discon":
 		repo_root = get_git_root()
 		if repo_root is None:
-			print("❌ Error: sim_example_copy_test_discon requires being in a git repository", file=sys.stderr)
+			print("Error: sim_example_copy_test_discon requires being in a git repository", file=sys.stderr)
 			sys.exit(1)
 		exit_code = run_copy_test(repo_root, args.subdir, "discon", rebuild)
 
@@ -597,7 +597,7 @@ Main repo commands (run from xfe-control-sim/misc/):
 		exit_code = run_standalone_build(args.build_dir, "discon", rebuild, args.verbose)
 
 	else:
-		print(f"❌ Unknown command: {args.command}", file=sys.stderr)
+		print(f"Unknown command: {args.command}", file=sys.stderr)
 		print("\nStandalone commands: xfe_control_sim, discon", file=sys.stderr)
 		print(
 		    "Main repo commands: local_xfe_control_sim, sim_example_copy_test, sim_example_copy_test_discon",
