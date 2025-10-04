@@ -20,9 +20,9 @@
 
 #include "bladed_interface.h"
 #include "xfe_control_sim_common.h" // for get_param, param_array_t
-#include "discon.h"      // declare void DISCON(...)
-#include "drivetrains.h" // for drivetrain
-#include "logger.h"      // for log_message
+#include "discon.h"                 // declare void DISCON(...)
+#include "drivetrains.h"            // for drivetrain
+#include "logger.h"                 // for log_message
 #include "make_stage.h"
 #include "qblade_interface.h"
 #include "turbine_controls.h" // for turbine_control
@@ -50,8 +50,8 @@ int main(void)
 	avr_swap[REC_MEASURED_ROTOR_SPEED] = (float)omega;
 
 	/* Provide target speed and inertia to controller (read in your interface on first call) */
-	avr_swap[REC_USER_VARIABLE_1] = 2.0f;   /* omega_target [rad/s], example */
-	avr_swap[REC_USER_VARIABLE_2] = 50.0f;  /* moment_of_inertia J [kg·m^2], example */
+	avr_swap[REC_USER_VARIABLE_1] = 2.0f;  /* omega_target [rad/s], example */
+	avr_swap[REC_USER_VARIABLE_2] = 50.0f; /* moment_of_inertia J [kg·m^2], example */
 
 	while (t < simulation_time)
 	{
