@@ -188,10 +188,6 @@ def run_clang_tidy(repo_root, source_dir, build_dir):
 	"""Run clang-tidy on the project."""
 	is_ci = os.environ.get("GITHUB_ACTIONS") == "true" or os.environ.get("CI") is not None
 
-	if not check_command_exists("run-clang-tidy"):
-		print("[WARN] run-clang-tidy not found in PATH; skipping clang-tidy step.")
-		return
-
 	clang_tidy_script = repo_root / "misc" / "clang_tidy_all.py"
 	if not clang_tidy_script.exists():
 		print(f"[WARN] clang-tidy script not found at {clang_tidy_script}; skipping.")
@@ -210,7 +206,6 @@ def run_clang_tidy(repo_root, source_dir, build_dir):
 	env = os.environ.copy()
 	env["PROJECT_ROOT"] = str(source_dir)
 	env["BUILD_DIR"] = str(build_dir)
-	env["RUN_CLANG_TIDY_BIN"] = shutil.which("run-clang-tidy")
 
 	mode = os.environ.get("RUN_CLANG_TIDY_MODE", "c")
 
