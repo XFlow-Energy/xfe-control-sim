@@ -294,7 +294,7 @@ int main(const int argc, const char *argv[])
 		.argc = argc,
 		.argv = argv
 	};
-	log_message("Test_log");
+
 	// have new function here that checks here where we see if its the first run or not.
 	// if it is then we need to open csv file where the new data will be stored
 	// and the semephore for opening up the csv file.
