@@ -104,8 +104,8 @@ Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; \
   Flags: waituntilterminated runhidden
 
 Filename: "{code:GetPythonDir}\python.exe"; \
-  Parameters: """{app}\misc\launch_plot_viewer.py"" --build --script ""{app}\misc\plot_viewer.py"" --venv-dir ""{app}\.venv"" --skip-install-check"; \
-  Tasks: create_plot_executable; \
+  Parameters: """{app}\misc\launch_install_plot_gui.py"" --build --script ""{app}\misc\plot_viewer.py"" --venv-dir ""{app}\.venv"" --skip-install-check"; \
+  Tasks: launch_install_plot_gui; \
   WorkingDir: "{app}\misc"; \
   StatusMsg: "Creating Plot Viewer executable..."; \
   Flags: waituntilterminated runhidden
