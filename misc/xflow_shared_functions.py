@@ -331,8 +331,8 @@ def run_clang_tidy(
 		print(f"{Colors.RED}{Emoji.CROSS} Error running clang-tidy: {e}{Colors.RESET}", file=sys.stderr)
 		return False
 
-def run_yapf(repo_root: Path, search_depth: int = 4) -> bool:
-	"""Run yapf to format all Python files in the repository."""
+def run_yapf(repo_root: Path, search_depth: int = 4, timeout_sec: int = 5) -> bool:
+	"""Run yapf to format all Python files in the repository with a timeout."""
 	repo_root = Path(repo_root)
 
 	is_github_actions = os.environ.get("GITHUB_ACTIONS") == "true"
@@ -348,13 +348,21 @@ def run_yapf(repo_root: Path, search_depth: int = 4) -> bool:
 		return True
 
 	print("-> Running yapf to format Python files...")
-	result = subprocess.run(
-	    ["yapf", "-i", "-r", "."], cwd=repo_root, capture_output=True, encoding='utf-8', errors='replace', text=True)
+	try:
+		result = subprocess.run(
+		    ["yapf", "-i", "-r", "."],
+		    cwd=repo_root,
+		    capture_output=True,
+		    encoding='utf-8',
+		    errors='replace',
+		    text=True,
+		    timeout=timeout_sec)
+	except subprocess.TimeoutExpired:
+		print(f"{Colors.RED}{Emoji.INFO} yapf timed out after {timeout_sec} seconds{Colors.RESET}")
+		return True
 
 	if result.returncode != 0:
-		print(
-		    f"{Colors.YELLOW}{Emoji.WARNING} yapf returned non-zero exit code: "
-		    f"{result.returncode}{Colors.RESET}")
+		print(f"{Colors.YELLOW}{Emoji.WARNING} yapf returned non-zero exit code: {result.returncode}{Colors.RESET}")
 		if result.stderr:
 			print(result.stderr)
 		return False
