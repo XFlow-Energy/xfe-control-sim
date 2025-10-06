@@ -480,6 +480,67 @@ void save_param_array_data_to_csv(const char *filename, const param_array_t *dat
 	// log_message("Successfully saved dynamic data row to %s\n", filename);
 }
 
+// Helper function to write a CSV field with proper quoting
+static int write_csv_string_field(char *dest, size_t dest_size, const char *str)
+{
+	if (!str || !*str)
+	{
+		return safe_snprintf(dest, dest_size, ",");
+	}
+
+	// Check if quoting is needed (contains comma, quote, or newline)
+	bool needs_quoting = false;
+	for (const char *p = str; *p; p++)
+	{
+		if (*p == ',' || *p == '"' || *p == '\n' || *p == '\r')
+		{
+			needs_quoting = true;
+			break;
+		}
+	}
+
+	if (!needs_quoting)
+	{
+		// Simple case: no special characters
+		return safe_snprintf(dest, dest_size, ",%s", str);
+	}
+
+	// Need to quote and escape
+	int len = safe_snprintf(dest, dest_size, ",\"");
+	if (len < 0) return len;
+
+	size_t remaining = dest_size - len;
+	char *out = dest + len;
+
+	for (const char *p = str; *p && remaining > 2; p++)
+	{
+		if (*p == '"')
+		{
+			// Escape quotes by doubling them
+			if (remaining < 3) break;
+			*out++ = '"';
+			*out++ = '"';
+			remaining -= 2;
+			len += 2;
+		}
+		else
+		{
+			*out++ = *p;
+			remaining--;
+			len++;
+		}
+	}
+
+	if (remaining >= 2)
+	{
+		*out++ = '"';
+		*out = '\0';
+		len++;
+	}
+
+	return len;
+}
+
 void dynamic_data_csv_logger(const csv_logger_action_t action, const char *filename, const param_array_t *data)
 {
 	static FILE *file = NULL;
@@ -546,9 +607,25 @@ void dynamic_data_csv_logger(const csv_logger_action_t action, const char *filen
 			case INPUT_PARAM_DOUBLE:
 				len += safe_snprintf(line + len, sizeof(line) - len, ",%.10f", param->value.d);
 				break;
-			case INPUT_PARAM_STRING:
-				len += safe_snprintf(line + len, sizeof(line) - len, ",%s", param->value.s ? param->value.s : "");
-				break;
+			case INPUT_PARAM_STRING: {
+				if (!param->value.s || !*param->value.s)
+				{
+					// Empty string - write empty quoted field
+					len += safe_snprintf(line + len, sizeof(line) - len, ",\"\"");
+				}
+				else
+				{
+					int added = write_csv_string_field(line + len, sizeof(line) - len, param->value.s);
+					if (added < 0)
+					{
+						ERROR_MESSAGE("Failed to write string field for %s\n", param->name);
+						len = sizeof(line) - 1;
+						break;
+					}
+					len += added;
+				}
+			}
+			break;
 			default:
 				ERROR_MESSAGE("Unknown parameter type for %s\n", param->name);
 				break;
