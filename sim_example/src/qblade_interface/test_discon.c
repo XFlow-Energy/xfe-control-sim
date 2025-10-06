@@ -53,7 +53,7 @@ static double get_speed_from_external_source(double time)
 	double amplitude = 0.5; // rad/s
 	double frequency = 0.2; // Hz
 	double offset = 2.0;    // rad/s
-	return offset + amplitude * sin(2.0 * M_PI * frequency * time);
+	return offset + (amplitude * sin(2.0 * M_PI * frequency * time));
 }
 
 int main(void)
@@ -68,7 +68,7 @@ int main(void)
 	double simulation_time = 10.0;
 	double t = 0.0;
 	double omega = 0.0;
-	float dt = 0.1f;
+	float dt = 0.1F;
 
 	/* Controller I/O seeds */
 	avr_swap[REC_COMMUNICATION_INTERVAL] = dt;
@@ -79,8 +79,8 @@ int main(void)
 	avr_swap[REC_MEASURED_ROTOR_SPEED] = (float)measured_rotor_speed;
 
 	/* Provide target speed and inertia to controller (read in your interface on first call) */
-	avr_swap[REC_USER_VARIABLE_1] = 2.0f;  /* omega_target [rad/s], example */
-	avr_swap[REC_USER_VARIABLE_2] = 50.0f; /* moment_of_inertia J [kg·m^2], example */
+	avr_swap[REC_USER_VARIABLE_1] = 2.0F;  /* omega_target [rad/s], example */
+	avr_swap[REC_USER_VARIABLE_2] = 50.0F; /* moment_of_inertia j [kg·m^2], example */
 
 	while (t < simulation_time)
 	{
@@ -101,16 +101,16 @@ int main(void)
 		/* Retrieve the commanded torque from the controller */
 		double tau_cmd = (double)avr_swap[REC_DEMANDED_GENERATOR_TORQUE];
 
-		/* Plant integration: ω_{k+1} = ω_k + (τ_cmd/J)*dt */
+		/* Plant integration: ω_{k+1} = ω_k + (τ_cmd/j)*dt */
 		// This still updates the internal 'omega' based on the torque command.
 		// You can use this 'omega' to see how your simple plant model would react,
 		// even though it's not being used as the controller's input.
-		double J = (double)avr_swap[REC_USER_VARIABLE_2];
-		if (J <= 0.0)
+		double j = (double)avr_swap[REC_USER_VARIABLE_2];
+		if (j <= 0.0)
 		{
-			J = 1.0;
+			j = 1.0;
 		}
-		omega += (tau_cmd / J) * (double)dt;
+		omega += (tau_cmd / j) * (double)dt;
 
 		t += (double)dt;
 	}
