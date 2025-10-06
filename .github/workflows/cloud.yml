@@ -81,11 +81,11 @@ jobs:
       - name: clang-format check
         if: steps.changed.outputs.run_fmt == 'true'
         working-directory: misc
-        run: python3 clang_format_all.py dry-run
+        run: python3 misc/clang_format_all.py dry-run --verbose
 
       - name: Skip clang-format
         if: steps.changed.outputs.run_fmt == 'false'
-        run: echo "✅ No C/C++ changes, clang-format check skipped."
+        run: echo "No C/C++ changes, clang-format check skipped."
 
   build-linux:
     runs-on: ubuntu-latest
