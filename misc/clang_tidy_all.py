@@ -88,7 +88,13 @@ def get_macos_sdk_path(verbose: bool = False) -> Optional[str]:
 		return None
 
 	try:
-		result = subprocess.run(['xcrun', '--show-sdk-path'], capture_output=True, text=True, check=True)
+		result = subprocess.run(
+		    ['xcrun', '--show-sdk-path'],
+		    capture_output=True,
+		    text=True,
+		    encoding='utf-8',
+		    errors='replace',
+		    check=True)
 		sdk_path = result.stdout.strip()
 		if sdk_path:
 			if verbose:

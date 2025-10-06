@@ -68,7 +68,13 @@ def get_git_root(exit_on_error: bool = True) -> Optional[Path]:
         Path to git root as Path object, or None if not found (when exit_on_error=False).
     """
 	try:
-		result = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True, check=True)
+		result = subprocess.run(
+		    ['git', 'rev-parse', '--show-toplevel'],
+		    capture_output=True,
+		    text=True,
+		    encoding='utf-8',
+		    errors='replace',
+		    check=True)
 		return Path(result.stdout.strip())
 	except subprocess.CalledProcessError:
 		if exit_on_error:
@@ -86,7 +92,8 @@ def setup_display():
 	if not sys.stdout.isatty() or (os.name == 'nt' and not os.environ.get('ANSICON')):
 		Colors.disable()
 
-	if is_ci_environment() or (os.name == 'nt' and sys.stdout.encoding not in ['utf-8', 'UTF-8']):
+	# Disable emojis in CI or on Windows to avoid encoding issues
+	if is_ci_environment() or os.name == 'nt':
 		Emoji.disable()
 
 def find_file(project_root: Union[str, Path],
@@ -183,7 +190,13 @@ def run_clang_format(repo_root: Path, search_depth: int = 4) -> bool:
 		return True
 
 	print(f"-> Running clang-format script: {clang_format_script}")
-	result = subprocess.run([sys.executable, str(clang_format_script)], cwd=repo_root, capture_output=True, text=True)
+	result = subprocess.run(
+	    [sys.executable, str(clang_format_script)],
+	    cwd=repo_root,
+	    capture_output=True,
+	    encoding='utf-8',
+	    errors='replace',
+	    text=True)
 
 	if result.returncode != 0:
 		print(
@@ -335,7 +348,8 @@ def run_yapf(repo_root: Path, search_depth: int = 4) -> bool:
 		return True
 
 	print("-> Running yapf to format Python files...")
-	result = subprocess.run(["yapf", "-i", "-r", "."], cwd=repo_root, capture_output=True, text=True)
+	result = subprocess.run(
+	    ["yapf", "-i", "-r", "."], cwd=repo_root, capture_output=True, encoding='utf-8', errors='replace', text=True)
 
 	if result.returncode != 0:
 		print(

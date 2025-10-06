@@ -126,7 +126,13 @@ def get_nproc() -> int:
 	system = platform.system()
 	if system == "Darwin":
 		try:
-			result = subprocess.run(["sysctl", "-n", "hw.ncpu"], capture_output=True, text=True, check=True)
+			result = subprocess.run(
+			    ["sysctl", "-n", "hw.ncpu"],
+			    capture_output=True,
+			    text=True,
+			    encoding='utf-8',
+			    errors='replace',
+			    check=True)
 			return int(result.stdout.strip())
 		except (subprocess.CalledProcessError, ValueError):
 			pass
@@ -337,7 +343,7 @@ def run_standalone_build(build_dir_name: str, test_type: str, rebuild: bool, ver
 
 def sync_scripts_to_subdir(repo_root: Path, subdir_name: str):
 	"""
-    Copy this script and related scripts from main repo to subdirectory.
+    Copy scripts and config files from main repo to subdirectory.
     
     This ensures the subdirectory has the latest versions.
     """
@@ -350,14 +356,16 @@ def sync_scripts_to_subdir(repo_root: Path, subdir_name: str):
 
 	source_misc = repo_root / "misc"
 	dest_misc = repo_root / subdir_name / "misc"
+	dest_root = repo_root / subdir_name
 
 	if not dest_misc.exists():
 		print(f"{Colors.YELLOW}[WARN] Destination misc directory not found: {dest_misc}{Colors.RESET}")
 		return
 
-	scripts_to_copy = ["launch_tests.py", "clang_format_all.py", "clang_tidy_all.py", "xflow_shared_functions.py"]
-
 	print(f"{Emoji.INFO} Syncing scripts to {subdir_name}/misc/...")
+
+	# Copy Python scripts to misc/
+	scripts_to_copy = ["launch_tests.py", "clang_format_all.py", "clang_tidy_all.py", "xflow_shared_functions.py"]
 	for script_name in scripts_to_copy:
 		source_file = source_misc / script_name
 		dest_file = dest_misc / script_name
@@ -367,6 +375,29 @@ def sync_scripts_to_subdir(repo_root: Path, subdir_name: str):
 			print(f"   {Colors.GREEN}Copied {script_name}{Colors.RESET}")
 		else:
 			print(f"   {Colors.YELLOW}Skipped {script_name} (not found){Colors.RESET}")
+
+	# Copy config files to subdirectory root
+	config_files = {
+	    ".clang-format": ["c/src", ".", "misc"],
+	    ".clang-tidy": ["c/src", ".", "misc"],
+	    ".style.yapf": [".", "misc"]
+	}
+
+	print(f"{Emoji.INFO} Syncing config files to {subdir_name}/...")
+	for config_name, search_paths in config_files.items():
+		found = False
+		for search_path in search_paths:
+			source_file = repo_root / search_path / config_name
+			if source_file.exists():
+				dest_file = dest_root / config_name
+				shutil.copy2(source_file, dest_file)
+				print(f"   {Colors.GREEN}Copied {config_name} from {search_path}/{Colors.RESET}")
+				found = True
+				break
+
+		if not found:
+			print(f"   {Colors.YELLOW}Skipped {config_name} (not found){Colors.RESET}")
+
 	print()
 
 def validate_log_file(log_file: Path, test_type: str) -> bool:

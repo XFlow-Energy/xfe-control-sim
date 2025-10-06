@@ -40,7 +40,12 @@ def check_needs_formatting(clang_format_cmd: str,
 				print(f"{Colors.YELLOW}SKIP{Colors.RESET}")
 			continue
 
-		result = subprocess.run([clang_format_cmd, style_arg, file_path], capture_output=True, text=True)
+		result = subprocess.run(
+		    [clang_format_cmd, style_arg, file_path],
+		    capture_output=True,
+		    text=True,
+		    encoding='utf-8',
+		    errors='replace')
 
 		if result.returncode != 0:
 			print(f"{Colors.YELLOW}Warning: clang-format failed on {file_path}{Colors.RESET}", file=sys.stderr)
@@ -92,7 +97,8 @@ def format_files(
 		if verbose:
 			print(f"Formatting {file_path}...")
 
-		result = subprocess.run([*args, file_path], capture_output=True, text=True)
+		# FIX: Add encoding for Windows compatibility
+		result = subprocess.run([*args, file_path], capture_output=True, text=True, encoding='utf-8', errors='replace')
 
 		if result.returncode != 0:
 			print(f"{Colors.RED}Error formatting {file_path}:{Colors.RESET}", file=sys.stderr)
@@ -181,7 +187,14 @@ def main():
 		print(f"Using clang-format: {clang_format_cmd}")
 
 	try:
-		result = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True, check=True)
+		# FIX: Add encoding for Windows compatibility
+		result = subprocess.run(
+		    ['git', 'rev-parse', '--show-toplevel'],
+		    capture_output=True,
+		    text=True,
+		    encoding='utf-8',
+		    errors='replace',
+		    check=True)
 		repo_root = result.stdout.strip()
 	except (subprocess.CalledProcessError, FileNotFoundError):
 		repo_root = os.getcwd()
