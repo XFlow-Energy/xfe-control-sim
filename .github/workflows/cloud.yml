@@ -333,7 +333,7 @@ jobs:
       - name: Build & Install GSL (static only)
         if: steps.cache-deps-restore.outputs.cache-hit != 'true'
         shell: pwsh
-        working-directory: misc
+        working-directory: misc/pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
@@ -354,7 +354,7 @@ jobs:
       - name: Build & Install Jansson (static)
         if: steps.cache-deps-restore.outputs.cache-hit != 'true'
         shell: pwsh
-        working-directory: misc
+        working-directory: misc/pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
@@ -379,7 +379,7 @@ jobs:
       - name: Build & Install libmodbus (static)
         if: steps.cache-deps-restore.outputs.cache-hit != 'true'
         shell: pwsh
-        working-directory: misc
+        working-directory: misc/pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
