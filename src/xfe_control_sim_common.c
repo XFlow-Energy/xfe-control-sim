@@ -856,8 +856,10 @@ void cleanup_stale_shared_memory(void)
  *                                 the precomputed interpolation values to share.
  * @param num_sim_steps            Number of steps (elements) in the `precomputed_wind_interp` array.
  */
-static LPVOID gSharedView = NULL; // Add this global alongside gHMapFile
 
+#ifdef _WIN32
+static LPVOID gSharedView = NULL; // Add this global alongside gHMapFile
+#endif
 void create_shared_interp(const double *precomputed_wind_interp, int num_sim_steps)
 {
 	cleanup_stale_shared_memory();
