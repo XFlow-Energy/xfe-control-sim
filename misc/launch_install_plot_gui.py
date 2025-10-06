@@ -384,7 +384,7 @@ Examples:
 	print(f"{Emoji.CHECK} Virtual environment activated")
 
 	# Determine required packages
-	required_packages = ["pandas", "pyqtgraph", "PyQt5"]
+	required_packages = ["pandas", "pyqtgraph", "PyQt5", "markdown"]
 
 	# Add scipy unless minimal mode is requested
 	if not args.minimal:
