@@ -229,7 +229,7 @@ int main(const int argc, const char *argv[])
 	static int *enable_Brake_Signal = NULL;
 	static double *omega = NULL;
 	static int *total_Loop_Count = NULL;
-	static char *all_Combined = NULL;
+	// static char *all_Combined = NULL;
 
 	// below used only for data processing or optimization.
 	static int *data_Processing_Status = NULL;
@@ -244,7 +244,7 @@ int main(const int argc, const char *argv[])
 	get_param(dynamic_Data, "enable_brake_signal", &enable_Brake_Signal);
 	get_param(dynamic_Data, "omega", &omega);
 	get_param(dynamic_Data, "total_loop_count", &total_Loop_Count);
-	get_param(dynamic_Data, "all_combined", &all_Combined);
+	// get_param(dynamic_Data, "all_combined", &all_Combined);
 
 	get_param(dynamic_Data, "data_processing_status", &data_Processing_Status);
 	get_param(fixed_Data, "data_processing_first_run", &data_Processing_First_Run);
@@ -292,7 +292,8 @@ int main(const int argc, const char *argv[])
 	// Populate the program_args struct.
 	data_processing_program_args_t dp_options = {
 		.argc = argc,
-		.argv = argv};
+		.argv = argv
+	};
 
 	// have new function here that checks here where we see if its the first run or not.
 	// if it is then we need to open csv file where the new data will be stored
@@ -332,7 +333,7 @@ int main(const int argc, const char *argv[])
 
 		data_processing(dynamic_Data, fixed_Data, &dp_options); // If applicable track the requested data for processing at end of run.
 		(*total_Loop_Count)++;
-		safe_snprintf(all_Combined, MAX_LINE_LENGTH, "char, omega: %f, count: %d", *omega, *total_Loop_Count);
+		// safe_snprintf(all_Combined, MAX_LINE_LENGTH, "char, omega: %f, count: %d", *omega, *total_Loop_Count);
 	}
 
 	*data_Processing_Status = ENDING;
