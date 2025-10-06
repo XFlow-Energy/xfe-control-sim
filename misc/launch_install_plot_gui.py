@@ -354,6 +354,8 @@ Examples:
 	    help="Path to the plot viewer script (default: plot_viewer.py)")
 	parser.add_argument(
 	    "--skip-install-check", action="store_true", help="Skip checking if packages are already installed")
+	parser.add_argument(
+	    "--minimal", action="store_true", help="Install minimal dependencies (skip scipy for faster installation)")
 
 	args = parser.parse_args()
 
@@ -383,6 +385,14 @@ Examples:
 
 	# Determine required packages
 	required_packages = ["pandas", "pyqtgraph", "PyQt5"]
+
+	# Add scipy unless minimal mode is requested
+	if not args.minimal:
+		required_packages.append("scipy")
+		print(f"{Emoji.INFO} Including scipy for advanced smoothing features")
+	else:
+		print(f"{Emoji.WARNING} Minimal mode: scipy will not be installed (advanced smoothing unavailable)")
+
 	if args.build:
 		required_packages.append("pyinstaller")
 
