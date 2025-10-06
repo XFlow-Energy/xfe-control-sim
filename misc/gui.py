@@ -7,8 +7,8 @@ import shutil
 import re
 
 # Paths for CSV and config files (adjust as needed)
-CSV_FILE = "/Users/jason/Documents/GitHub/aero-control/src/config/control_1_config.csv"
-CONFIG_CMAKE_FILE = "/Users/jason/Documents/GitHub/aero-control/src/config/config.cmake"
+CSV_FILE = "/Users/jason/Documents/GitHub/xfe-control-sim/src/config/control_1_config.csv"
+CONFIG_CMAKE_FILE = "/Users/jason/Documents/GitHub/xfe-control-sim/src/config/config.cmake"
 
 def create_sample_csv():
 	# Create a sample CSV if it doesn't exist
