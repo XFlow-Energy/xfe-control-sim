@@ -1938,7 +1938,7 @@ class CSVPlotter(QMainWindow):
 				visible_check.stateChanged.connect(self.plot_selected)
 
 				line_style = QComboBox()
-				line_style.addItems(["Solid", "Dashed", "Dotted"])
+				line_style.addItems(["Solid", "None", "Dashed", "Dotted"])
 
 				marker_style = QComboBox()
 				marker_style.addItems(["None", "o", "s", "t", "d", "+", "x"])
@@ -1957,13 +1957,29 @@ class CSVPlotter(QMainWindow):
 				alpha_label = QLabel("100%")
 				alpha_slider.valueChanged.connect(lambda v, lbl=alpha_label: lbl.setText(f"{v}%"))
 
+				# Load saved styles or use defaults
 				if name in self.series_saved_styles:
 					style = self.series_saved_styles[name]
-					line_style.setCurrentText(style.get("line", "Solid"))
-					marker_style.setCurrentText(style.get("marker", "None"))
-					color_style.setCurrentText(style.get("color", "Black"))
+					saved_line = style.get("line", "Solid")
+					saved_marker = style.get("marker", "None")
+					# Restore saved styles
+					line_style.setCurrentText(
+					    saved_line if saved_line in ["Solid", "None", "Dashed", "Dotted"] else "Solid")
+					marker_style.setCurrentText(saved_marker)
+					color_style.setCurrentText(style.get("color", "Black" if not self.theme_dark else "White"))
 					line_width.setValue(style.get("width", 2.0))
 					alpha_slider.setValue(style.get("alpha", 100))
+				else:
+					# Set defaults for new series: Solid line, No marker
+					line_style.setCurrentText("Solid")
+					marker_style.setCurrentText("None")
+
+				# Auto-set line to None when marker is changed from None to something else
+				def on_marker_changed(text, line_combo=line_style):
+					if text != "None":
+						line_combo.setCurrentText("None")
+
+				marker_style.currentTextChanged.connect(on_marker_changed)
 
 				self.series_style[name] = {
 				    "visible": visible_check,
@@ -2209,17 +2225,21 @@ class CSVPlotter(QMainWindow):
 			self.y2_list.addItem(QListWidgetItem(col))
 
 	def get_pen(self, style_name, color_name, width=2.0, alpha=100):
+		# Return None if line style is "None" - this prevents line drawing
+		if style_name == "None":
+			return None
+
 		pen_styles = {"Solid": Qt.SolidLine, "Dashed": Qt.DashLine, "Dotted": Qt.DotLine}
 		color_map = {
-		    "Black": 'k',
-		    "White": 'w',
-		    "Red": 'r',
-		    "Green": 'g',
-		    "Blue": 'b',
-		    "Magenta": 'm',
-		    "Cyan": 'c',
-		    "Yellow": 'y',
-		    "Gray": 'gray',
+		    "Black": (0, 0, 0),
+		    "White": (255, 255, 255),
+		    "Red": (255, 0, 0),
+		    "Green": (0, 255, 0),
+		    "Blue": (0, 0, 255),
+		    "Magenta": (255, 0, 255),
+		    "Cyan": (0, 255, 255),
+		    "Yellow": (255, 255, 0),
+		    "Gray": (128, 128, 128),
 		    "Orange": (255, 165, 0),
 		    "Purple": (128, 0, 128),
 		    "Brown": (165, 42, 42),
@@ -2231,11 +2251,38 @@ class CSVPlotter(QMainWindow):
 		    "Olive": (128, 128, 0)
 		}
 
-		color = color_map.get(color_name, 'k')
-		if isinstance(color, tuple):
-			color = (*color, int(255 * alpha / 100))
+		# Get RGB tuple and add alpha
+		rgb = color_map.get(color_name, (0, 0, 0))
+		color = (*rgb, int(255 * alpha / 100))
 
 		return pg.mkPen(color=color, width=width, style=pen_styles.get(style_name, Qt.SolidLine))
+
+	def get_brush(self, color_name, alpha=100):
+		"""Get brush with alpha for markers"""
+		color_map = {
+		    "Black": (0, 0, 0),
+		    "White": (255, 255, 255),
+		    "Red": (255, 0, 0),
+		    "Green": (0, 255, 0),
+		    "Blue": (0, 0, 255),
+		    "Magenta": (255, 0, 255),
+		    "Cyan": (0, 255, 255),
+		    "Yellow": (255, 255, 0),
+		    "Gray": (128, 128, 128),
+		    "Orange": (255, 165, 0),
+		    "Purple": (128, 0, 128),
+		    "Brown": (165, 42, 42),
+		    "Pink": (255, 192, 203),
+		    "Lime": (0, 255, 0),
+		    "Navy": (0, 0, 128),
+		    "Teal": (0, 128, 128),
+		    "Maroon": (128, 0, 0),
+		    "Olive": (128, 128, 0)
+		}
+
+		rgb = color_map.get(color_name, (0, 0, 0))
+		color = (*rgb, int(255 * alpha / 100))
+		return pg.mkBrush(color=color)
 
 	def apply_processing(self, x, y):
 		"""Apply smoothing and decimation to data"""
@@ -2352,7 +2399,9 @@ class CSVPlotter(QMainWindow):
 			y_col = item.text()
 			style = self.series_style.get(y_col, {})
 
-			if not style.get("visible", QCheckBox()).isChecked():
+			# Check visibility
+			visible_widget = style.get("visible")
+			if visible_widget and not visible_widget.isChecked():
 				continue
 
 			left_labels.append(y_col)
@@ -2371,11 +2420,18 @@ class CSVPlotter(QMainWindow):
 
 			x_plot, y_plot = self.apply_processing(x_plot_orig.copy(), y_data)
 
-			line_style = style.get("line", QComboBox()).currentText()
-			marker = style.get("marker", QComboBox()).currentText()
-			color = style.get("color", QComboBox()).currentText()
-			width = style.get("width", QDoubleSpinBox()).value()
-			alpha = style.get("alpha", QSlider()).value()
+			# Extract style settings with proper defaults
+			line_widget = style.get("line")
+			marker_widget = style.get("marker")
+			color_widget = style.get("color")
+			width_widget = style.get("width")
+			alpha_widget = style.get("alpha")
+
+			line_style = line_widget.currentText() if line_widget else "Solid"
+			marker = marker_widget.currentText() if marker_widget else "None"
+			color = color_widget.currentText() if color_widget else ("White" if self.theme_dark else "Black")
+			width = width_widget.value() if width_widget else 2.0
+			alpha = alpha_widget.value() if alpha_widget else 100
 
 			symbol = None if marker == "None" else marker
 			self.series_saved_styles[y_col] = {
@@ -2386,19 +2442,20 @@ class CSVPlotter(QMainWindow):
 			    "alpha": alpha
 			}
 			marker_size = self.marker_size.value() if hasattr(self, 'marker_size') else 8
+
+			pen = self.get_pen(line_style, color, width, alpha)
+			brush = self.get_brush(color, alpha) if symbol else None
+
 			self.main_plot.plot(
-			    x_plot,
-			    y_plot,
-			    pen=self.get_pen(line_style, color, width, alpha),
-			    symbol=symbol,
-			    symbolSize=marker_size,
-			    name=y_col)
+			    x_plot, y_plot, pen=pen, symbol=symbol, symbolSize=marker_size, symbolBrush=brush, name=y_col)
 
 		for item in self.y2_list.selectedItems():
 			y_col = item.text()
 			style = self.series_style.get(y_col, {})
 
-			if not style.get("visible", QCheckBox()).isChecked():
+			# Check visibility
+			visible_widget = style.get("visible")
+			if visible_widget and not visible_widget.isChecked():
 				continue
 
 			right_labels.append(y_col)
@@ -2417,11 +2474,18 @@ class CSVPlotter(QMainWindow):
 
 			x_plot, y_plot = self.apply_processing(x_plot_orig.copy(), y_data)
 
-			line_style = style.get("line", QComboBox()).currentText()
-			marker = style.get("marker", QComboBox()).currentText()
-			color = style.get("color", QComboBox()).currentText()
-			width = style.get("width", QDoubleSpinBox()).value()
-			alpha = style.get("alpha", QSlider()).value()
+			# Extract style settings with proper defaults
+			line_widget = style.get("line")
+			marker_widget = style.get("marker")
+			color_widget = style.get("color")
+			width_widget = style.get("width")
+			alpha_widget = style.get("alpha")
+
+			line_style = line_widget.currentText() if line_widget else "Solid"
+			marker = marker_widget.currentText() if marker_widget else "None"
+			color = color_widget.currentText() if color_widget else ("White" if self.theme_dark else "Black")
+			width = width_widget.value() if width_widget else 2.0
+			alpha = alpha_widget.value() if alpha_widget else 100
 
 			symbol = None if marker == "None" else marker
 			self.series_saved_styles[y_col] = {
@@ -2432,12 +2496,11 @@ class CSVPlotter(QMainWindow):
 			    "alpha": alpha
 			}
 			marker_size = self.marker_size.value() if hasattr(self, 'marker_size') else 8
-			curve = pg.PlotDataItem(
-			    x_plot,
-			    y_plot,
-			    pen=self.get_pen(line_style, color, width, alpha),
-			    symbol=symbol,
-			    symbolSize=marker_size)
+
+			pen = self.get_pen(line_style, color, width, alpha)
+			brush = self.get_brush(color, alpha) if symbol else None
+
+			curve = pg.PlotDataItem(x_plot, y_plot, pen=pen, symbol=symbol, symbolSize=marker_size, symbolBrush=brush)
 			self.right_view.addItem(curve)
 
 		self.settings.setValue("series_styles", self.series_saved_styles)
