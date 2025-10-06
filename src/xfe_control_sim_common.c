@@ -507,7 +507,10 @@ static int write_csv_string_field(char *dest, size_t dest_size, const char *str)
 
 	// Need to quote and escape
 	int len = safe_snprintf(dest, dest_size, ",\"");
-	if (len < 0) return len;
+	if (len < 0)
+	{
+		return len;
+	}
 
 	size_t remaining = dest_size - len;
 	char *out = dest + len;
@@ -517,7 +520,10 @@ static int write_csv_string_field(char *dest, size_t dest_size, const char *str)
 		if (*p == '"')
 		{
 			// Escape quotes by doubling them
-			if (remaining < 3) break;
+			if (remaining < 3)
+			{
+				break;
+			}
 			*out++ = '"';
 			*out++ = '"';
 			remaining -= 2;
@@ -949,13 +955,13 @@ void create_shared_interp(const double *precomputed_wind_interp, int num_sim_ste
 	sa.bInheritHandle = TRUE;
 
 	// Try to open existing first to detect if it exists
-	HANDLE hExisting = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, shmemName);
-	if (hExisting != NULL)
+	HANDLE h_existing = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, shmemName);
+	if (h_existing != NULL)
 	{
 		DWORD size_high = 0;
-		DWORD size_low = GetFileSize(hExisting, &size_high);
+		DWORD size_low = GetFileSize(h_existing, &size_high);
 		log_message("WARNING: Shared memory already exists! Existing size: %lu bytes\n", size_low);
-		CloseHandle(hExisting);
+		CloseHandle(h_existing);
 	}
 
 	gHMapFile = CreateFileMapping(
@@ -973,8 +979,8 @@ void create_shared_interp(const double *precomputed_wind_interp, int num_sim_ste
 		exit(EXIT_FAILURE);
 	}
 
-	DWORD lastError = GetLastError();
-	if (lastError == ERROR_ALREADY_EXISTS)
+	DWORD last_error = GetLastError();
+	if (last_error == ERROR_ALREADY_EXISTS)
 	{
 		log_message("Warning: Opened existing shared memory object. Data may be stale.\n");
 	}
