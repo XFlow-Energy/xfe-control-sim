@@ -164,6 +164,8 @@ void bts_fixed_interp_flow_gen(FLOW_GEN_PARAM_LIST)
 				return;
 			}
 
+			vel_Data_Count = bts_Data.nt;
+
 			// Call the function
 			u_mag_velocity_for_y_z_position(&bts_Data, 0, -1, vel_Data);
 

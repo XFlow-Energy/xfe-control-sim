@@ -827,6 +827,22 @@ void load_double_struct_param(const param_array_t *data, const char *param_name,
 	*param = *temp_ptr;
 }
 
+void cleanup_stale_shared_memory(void)
+{
+#ifdef _WIN32
+	HANDLE h = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, shmemName);
+	if (h != NULL)
+	{
+		log_message("Found stale shared memory '%s', cleaning up...\n", shmemName);
+		CloseHandle(h);
+		// Give Windows a moment to clean up
+		Sleep(10);
+	}
+#else
+	shm_unlink(shmemName);
+#endif
+}
+
 /**
  * @brief Creates or resets a shared memory region and populates it with precomputed interpolation data.
  *
@@ -840,8 +856,11 @@ void load_double_struct_param(const param_array_t *data, const char *param_name,
  *                                 the precomputed interpolation values to share.
  * @param num_sim_steps            Number of steps (elements) in the `precomputed_wind_interp` array.
  */
+static LPVOID gSharedView = NULL; // Add this global alongside gHMapFile
+
 void create_shared_interp(const double *precomputed_wind_interp, int num_sim_steps)
 {
+	cleanup_stale_shared_memory();
 	size_t shm_size = num_sim_steps * sizeof(double);
 
 #ifdef _WIN32
@@ -849,6 +868,16 @@ void create_shared_interp(const double *precomputed_wind_interp, int num_sim_ste
 	sa.nLength = sizeof(sa);
 	sa.lpSecurityDescriptor = NULL;
 	sa.bInheritHandle = TRUE;
+
+	// Try to open existing first to detect if it exists
+	HANDLE hExisting = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, shmemName);
+	if (hExisting != NULL)
+	{
+		DWORD size_high = 0;
+		DWORD size_low = GetFileSize(hExisting, &size_high);
+		log_message("WARNING: Shared memory already exists! Existing size: %lu bytes\n", size_low);
+		CloseHandle(hExisting);
+	}
 
 	gHMapFile = CreateFileMapping(
 		INVALID_HANDLE_VALUE,
@@ -858,38 +887,38 @@ void create_shared_interp(const double *precomputed_wind_interp, int num_sim_ste
 		(DWORD)shm_size,
 		shmemName
 	);
+
 	if (gHMapFile == NULL)
 	{
 		ERROR_MESSAGE("CreateFileMapping failed: %ld\n", GetLastError());
 		exit(EXIT_FAILURE);
 	}
 
-	LPVOID p_buf = MapViewOfFile(
+	DWORD lastError = GetLastError();
+	if (lastError == ERROR_ALREADY_EXISTS)
+	{
+		log_message("Warning: Opened existing shared memory object. Data may be stale.\n");
+	}
+
+	gSharedView = MapViewOfFile(
 		gHMapFile,
 		FILE_MAP_ALL_ACCESS,
 		0,
 		0,
 		shm_size
 	);
-	if (p_buf == NULL)
+
+	if (gSharedView == NULL)
 	{
 		ERROR_MESSAGE("MapViewOfFile failed: %ld\n", GetLastError());
 		CloseHandle(gHMapFile);
+		gHMapFile = NULL;
 		exit(EXIT_FAILURE);
 	}
 
-	// Copy the precomputed data into shared memory.
-	safe_memcpy(p_buf, shm_size, precomputed_wind_interp, shm_size);
+	// Copy the precomputed data into shared memory
+	safe_memcpy(gSharedView, shm_size, precomputed_wind_interp, shm_size);
 	log_message("Just created %s\n", shmemName);
-
-	// Unmap the view and close the handle.
-	// if (!UnmapViewOfFile(p_buf))
-	// {
-	// 	ERROR_MESSAGE("UnmapViewOfFile failed: %ld\n", GetLastError());
-	// 	CloseHandle(gHMapFile);
-	// 	exit(EXIT_FAILURE);
-	// }
-	// CloseHandle(gHMapFile);
 
 #else
 	// POSIX: Remove any existing shared memory object.
@@ -949,8 +978,17 @@ void create_shared_interp(const double *precomputed_wind_interp, int num_sim_ste
 void destroy_shared_interp(void)
 {
 #ifdef _WIN32
-	// No explicit destroy/unlink is required on Windows.
-	log_message("Destroying shared memory is handled automatically in Windows.\n");
+	if (gSharedView != NULL)
+	{
+		UnmapViewOfFile(gSharedView);
+		gSharedView = NULL;
+	}
+	if (gHMapFile != NULL)
+	{
+		CloseHandle(gHMapFile);
+		gHMapFile = NULL;
+		log_message("Closed shared memory handle.\n");
+	}
 #else
 	if (shm_unlink(shmemName) == -1)
 	{
