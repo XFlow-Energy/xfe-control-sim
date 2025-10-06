@@ -69,6 +69,7 @@ void example_discon(DISCON_PARAM_LIST)
 	static bool init_Complete = false;
 	static param_array_t *dynamic_Data = NULL;
 	static param_array_t *fixed_Data = NULL;
+	static history_task_list_t *history_Tasks = NULL;
 
 	if (!init_Complete)
 	{
@@ -77,7 +78,7 @@ void example_discon(DISCON_PARAM_LIST)
 		fixed_Data = create_input_data(n_params);
 
 		// Pass the address of the pointers (i.e., pointers to pointers)
-		initialize_control_system(&dynamic_Data, &fixed_Data, 1);
+		initialize_control_system(&dynamic_Data, &fixed_Data, &history_Tasks, 1);
 
 		control_switch(dynamic_Data, fixed_Data);
 
@@ -99,7 +100,7 @@ void example_discon(DISCON_PARAM_LIST)
 
 	if (i_status >= 0)
 	{
-		qblade_interface(avr_swap, dynamic_Data, fixed_Data);
+		qblade_interface(avr_swap, dynamic_Data, fixed_Data, history_Tasks);
 	}
 
 	// Indicate successful execution

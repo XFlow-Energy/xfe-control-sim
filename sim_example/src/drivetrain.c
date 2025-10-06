@@ -18,11 +18,13 @@
  * with this software. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
+// NOLINTBEGIN(llvm-include-order)
+#include "xflow_core.h"
 #include "xfe_control_sim_common.h" // for param_array_t, read_csv_and_store
 #include "drivetrains.h"            // for drivetrain
 #include "logger.h"                 // for log_message
 #include "make_stage.h"
-#include "xflow_core.h"
+// NOLINTEND(llvm-include-order)
 
 #include <stdbool.h> // IWYU pragma: keep
 #include <stddef.h>  // for NULL

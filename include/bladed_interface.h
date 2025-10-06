@@ -33,9 +33,8 @@
 #elifdef _WIN32
 typedef int sig_atomic_t;
 #endif
-
-#include "xfe_control_sim_common.h"
 #include "xflow_core.h"
+#include "xfe_control_sim_common.h"
 #include "xfe_control_sim_version.h"
 #include <time.h>
 #include <stdint.h>

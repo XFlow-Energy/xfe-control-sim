@@ -21,11 +21,13 @@
 #ifndef DATA_PROCESSING_H
 #define DATA_PROCESSING_H
 
+// NOLINTBEGIN(llvm-include-order)
+#include "xflow_core.h"
 #include "xfe_control_sim_version.h"
 #include "xfe_control_sim_common.h"
 #include "maybe_unused.h"
-#include "xflow_core.h"
 #include "xflow_aero_sim.h"
+// NOLINTEND(llvm-include-order)
 
 #ifdef _WIN32
 #define SEM_CLOSE(sem) CloseHandle(sem)

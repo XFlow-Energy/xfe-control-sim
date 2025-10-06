@@ -26,3 +26,8 @@ sim/log*
 *.mat
 *dist*
 *.venv*
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python

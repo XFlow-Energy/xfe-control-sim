@@ -638,59 +638,6 @@ int get_param_value(const param_array_t *data, const char *name, input_param_typ
 }
 
 /**
- * @brief Initializes dynamic and fixed parameter arrays from CSV configuration files.
- *
- * Pre-populates each array with a placeholder `"initialize"` parameter (value = 1)
- * to allocate internal storage, then loads additional parameters by calling
- * `read_csv_and_store()` on the system configuration CSV. Ensures that the arrays
- * are not reallocated after this point, preserving any pointers into their contents.
- *
- * @param dynamic_data  Pointer to a `param_array_t` for dynamic/state parameters; must have at least one slot.
- * @param fixed_data    Pointer to a `param_array_t` for fixed parameters; must have at least one slot.
- *
- * @note
- * - The caller must allocate each array (with `create_input_data(n)`) before calling.
- * - Only `SYSTEM_CONFIG_FULL_PATH` is read by default; additional CSV paths can be enabled
- *   by uncommenting their calls.
- */
-void initialize_data(param_array_t *dynamic_data, param_array_t *fixed_data)
-{
-	// need to initialize with a single param.
-	set_int_param(dynamic_data, 0, "initialize", 1);
-	set_int_param(fixed_data, 0, "initialize", 1);
-
-	// data can only be added to the struct here. if data is after the function calls
-	// then the memory will be restructured and that will break the pointers used by the functions.
-	read_csv_and_store(SYSTEM_CONFIG_FULL_PATH, dynamic_data, fixed_data);
-	// read_csv_and_store(TURBINE_CONTROL_CONFIG_FULL_PATH, dynamic_data, fixed_data);
-	// read_csv_and_store(DRIVETRAIN_CONFIG_FULL_PATH, dynamic_data, fixed_data);
-
-	// #ifdef NUMERICAL_INTEGRATOR_CONFIG_FULL_PATH
-	// 	read_csv_and_store(NUMERICAL_INTEGRATOR_CONFIG_FULL_PATH, dynamic_data, fixed_data);
-	// #endif
-
-	// #ifdef EOM_CONFIG_FULL_PATH
-	// 	read_csv_and_store(EOM_CONFIG_FULL_PATH, dynamic_data, fixed_data);
-	// #endif
-
-	// #ifdef FLOW_GEN_CONFIG_FULL_PATH
-	// 	read_csv_and_store(FLOW_GEN_CONFIG_FULL_PATH, dynamic_data, fixed_data);
-	// #endif
-
-	// #ifdef FLOW_SIM_MODEL_CONFIG_FULL_PATH
-	// 	read_csv_and_store(FLOW_SIM_MODEL_CONFIG_FULL_PATH, dynamic_data, fixed_data);
-	// #endif
-
-	// #ifdef QBLADE_INTERFACE_CONFIG_FULL_PATH
-	// 	read_csv_and_store(QBLADE_INTERFACE_CONFIG_FULL_PATH, dynamic_data, fixed_data);
-	// #endif
-
-	// #ifdef DATA_PROCESSING_CONFIG_FULL_PATH
-	// 	read_csv_and_store(DATA_PROCESSING_CONFIG_FULL_PATH, dynamic_data, fixed_data);
-	// #endif
-}
-
-/**
  * @brief Saves dynamic and fixed parameter data to CSV at shutdown based on logging configuration.
  *
  * When `logging_status` is true, conditionally writes the dynamic and/or fixed parameter arrays
@@ -737,34 +684,45 @@ void save_dynamic_fixed_data_at_shutdown(MAYBE_UNUSED const param_array_t *dynam
 }
 
 /**
- * @brief Sets up input data structures and optional logging for the aero control system.
+ * @brief Sets up all control system data structures, including parameter arrays, an optimized history update list, and optional logging.
  *
- * Allocates and initializes the dynamic and fixed parameter arrays, reads configuration
- * CSV files to populate them, and optionally configures output logging. If `logging_status`
- * is true and `OUTPUT_LOG_FILE_PATH` is defined, creates a timestamped log file for
- * aerodynamic control simulation output. Also, when continuous logging is enabled, writes
- * the initial headers to the dynamic (and fixed) data CSV files.
+ * Allocates and initializes the dynamic and fixed parameter arrays, then reads the
+ * main configuration CSV file to populate them. After populating the arrays, it
+ * inspects the dynamic data to create and return an optimized list of tasks for
+ * updating parameter histories during the simulation.
  *
- * @param[out] dynamic_data   Address of a `param_array_t*` to receive the allocated dynamic data array.
- * @param[out] fixed_data     Address of a `param_array_t*` to receive the allocated fixed data array.
- * @param[in]  logging_status If true, enable log file initialization and CSV header writing.
+ * If `logging_status` is true, it also optionally configures a timestamped log file
+ * and writes the initial headers to the dynamic data CSV file if continuous
+ * logging is enabled.
+ *
+ * @param[out] dynamic_data     Address of a `param_array_t*` that will be updated to point to the new dynamic data array.
+ * @param[out] fixed_data       Address of a `param_array_t*` that will be updated to point to the new fixed data array.
+ * @param[out] out_task_list    Address of a `history_task_list_t*` that will be updated to point to the new history task list. Will be set to NULL if no history tasks are found.
+ * @param[in]  logging_status   If true, enable log file initialization and CSV header writing.
  *
  * @note
- * - Calls `create_input_data(1)` to allocate each array with a placeholder entry.
- * - Populates arrays by calling `initialize_data()`, which reads from `SYSTEM_CONFIG_FULL_PATH`.
- * - If `LOGGING_DYNAMIC_DATA_CONTINUOUS` or `LOGGING_DYNAMIC_FIXED_DATA_ONCE` are defined,
- *   writes CSV headers to `DYNAMIC_DATA_FULL_PATH` and/or `FIXED_DATA_FULL_PATH`.
+ * - Calls `create_input_data(1)` to allocate each parameter array with a placeholder entry.
+ * - The history task list is created by calling `create_history_update_list` and must be freed by the caller.
+ * - If `LOGGING_DYNAMIC_DATA_CONTINUOUS` is defined, writes CSV headers to `DYNAMIC_DATA_FULL_PATH`.
  * - Relies on compile-time macros: `OUTPUT_LOG_FILE_PATH`, `DYNAMIC_DATA_FULL_PATH`,
- *   `FIXING_DATA_FULL_PATH`, `LOGGING_DYNAMIC_DATA_CONTINUOUS`, and `LOGGING_DYNAMIC_FIXED_DATA_ONCE`.
+ * `FIXING_DATA_FULL_PATH`, and `LOGGING_DYNAMIC_DATA_CONTINUOUS`.
  */
-void initialize_control_system(param_array_t **dynamic_data, param_array_t **fixed_data, const bool logging_status)
+void initialize_control_system(param_array_t **dynamic_data, param_array_t **fixed_data, history_task_list_t **out_task_list, const bool logging_status)
 {
+	// --- Part 1: Create the main data arrays ---
 	int n_params = 1;
-	*dynamic_data = create_input_data(n_params); // Dereference the pointer to assign
-	*fixed_data = create_input_data(n_params);   // Dereference the pointer to assign
-	// log_message("after create_input_data\n");
+	*dynamic_data = create_input_data(n_params); //
+	*fixed_data = create_input_data(n_params);   //
 
-	initialize_data(*dynamic_data, *fixed_data); // Dereference when passing to function
+	// --- Part 2: Populate the main data arrays ---
+	set_int_param(*dynamic_data, 0, "initialize", 1); //
+	set_int_param(*fixed_data, 0, "initialize", 1);   //
+
+	read_csv_and_store(SYSTEM_CONFIG_FULL_PATH, *dynamic_data, *fixed_data); //
+
+	// --- Part 3: Create the history task list ---
+	// The create function is called, and the result is assigned to the output parameter.
+	*out_task_list = create_history_update_list(*dynamic_data, *fixed_data);
 	// log_message("after initialize_data\n");
 
 	if (logging_status)

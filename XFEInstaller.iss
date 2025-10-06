@@ -27,21 +27,21 @@ Name: "install_gsl";           Description: "GSL";                GroupDescripti
 Name: "install_jansson_ninja"; Description: "Jansson & Ninja";    GroupDescription: "Install Components"
 Name: "install_libmodbus";     Description: "libmodbus";          GroupDescription: "Install Components"
 Name: "install_python";        Description: "Python";             GroupDescription: "Install Components"
-Name: "create_plot_executable";Description: "Create plot executable"; GroupDescription: "Install Components"
+Name: "launch_install_plot_gui";Description: "Install and launch plot gui"; GroupDescription: "Install Components"
 Name: "clone_repo";            Description: "Clone GitHub Repo";  GroupDescription: "Install Components"
 
 [Files]
-Source: "misc\install-git.ps1";                   DestDir: "{app}\misc"; Flags: ignoreversion
-Source: "misc\install-cmake-msi.ps1";             DestDir: "{app}\misc"; Flags: ignoreversion
-Source: "misc\install-llvm-mingw.ps1";            DestDir: "{app}\misc"; Flags: ignoreversion
-Source: "misc\install-ninja-binary.ps1";          DestDir: "{app}\misc"; Flags: ignoreversion
-Source: "misc\install-gsl.ps1";                   DestDir: "{app}\misc"; Flags: ignoreversion
-Source: "misc\install-jansson-ninja.ps1";         DestDir: "{app}\misc"; Flags: ignoreversion
-Source: "misc\install-libmodbus.ps1";             DestDir: "{app}\misc"; Flags: ignoreversion
-Source: "misc\install-python.ps1";                DestDir: "{app}\misc"; Flags: ignoreversion
-Source: "misc\create_plot_viewer_executable.ps1"; DestDir: "{app}\misc"; Flags: ignoreversion
-Source: "misc\plot_viewer.py";                    DestDir: "{app}\misc"; Flags: ignoreversion
-Source: "misc\clone-repo.ps1";                    DestDir: "{app}\misc"; Flags: ignoreversion
+Source: "misc\pwsh\install-git.ps1";                   DestDir: "{app}\misc"; Flags: ignoreversion
+Source: "misc\pwsh\install-cmake-msi.ps1";             DestDir: "{app}\misc"; Flags: ignoreversion
+Source: "misc\pwsh\install-llvm-mingw.ps1";            DestDir: "{app}\misc"; Flags: ignoreversion
+Source: "misc\pwsh\install-ninja-binary.ps1";          DestDir: "{app}\misc"; Flags: ignoreversion
+Source: "misc\pwsh\install-gsl.ps1";                   DestDir: "{app}\misc"; Flags: ignoreversion
+Source: "misc\pwsh\install-jansson-ninja.ps1";         DestDir: "{app}\misc"; Flags: ignoreversion
+Source: "misc\pwsh\install-libmodbus.ps1";             DestDir: "{app}\misc"; Flags: ignoreversion
+Source: "misc\pwsh\install-python.ps1";                DestDir: "{app}\misc"; Flags: ignoreversion
+Source: "misc\launch_install_plot_gui.py";             DestDir: "{app}\misc"; Flags: ignoreversion
+Source: "misc\plot_viewer.py";                         DestDir: "{app}\misc"; Flags: ignoreversion
+Source: "misc\pwsh\clone-repo.ps1";                    DestDir: "{app}\misc"; Flags: ignoreversion
 
 [Run]
 ; All of these use the system PowerShell, run hidden, and wait until done.
@@ -103,9 +103,9 @@ Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; \
   StatusMsg: "Installing Python..."; \
   Flags: waituntilterminated runhidden
 
-Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; \
-  Parameters: "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\misc\create_plot_viewer_executable.ps1"" -scriptPath ""{app}\misc\plot_viewer.py"" -distDir ""{app}"" -pythonInstallDir ""{code:GetPythonDir}"""; \
-  Tasks: create_plot_executable; \
+Filename: "{code:GetPythonDir}\python.exe"; \
+  Parameters: """{app}\misc\launch_install_plot_gui.py"" --build --script ""{app}\misc\plot_viewer.py"" --venv-dir ""{app}\.venv"" --skip-install-check"; \
+  Tasks: launch_install_plot_gui; \
   WorkingDir: "{app}\misc"; \
   StatusMsg: "Creating Plot Viewer executable..."; \
   Flags: waituntilterminated runhidden

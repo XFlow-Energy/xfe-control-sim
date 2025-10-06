@@ -175,6 +175,7 @@ int main(const int argc, const char *argv[])
 	const struct timespec time_beg = get_monotonic_timestamp();
 	static param_array_t *dynamic_Data = NULL;
 	static param_array_t *fixed_Data = NULL;
+	static history_task_list_t *history_Tasks = NULL;
 
 	int logging_status = 1;
 	long parent_pid_initial = 0;
@@ -210,7 +211,7 @@ int main(const int argc, const char *argv[])
 #endif
 
 	// Pass the address of the pointers (i.e., pointers to pointers)
-	initialize_control_system(&dynamic_Data, &fixed_Data, logging_status != 0);
+	initialize_control_system(&dynamic_Data, &fixed_Data, &history_Tasks, logging_status != 0);
 	log_message("xfe-control-sim git commit info: %s\n", gitCommitInfoXfeControlSim);
 
 	static double **state_Vars = NULL; // Array of pointers to .value.d fields
@@ -227,6 +228,8 @@ int main(const int argc, const char *argv[])
 	static double *control_Dt_Sec = NULL;
 	static int *enable_Brake_Signal = NULL;
 	static double *omega = NULL;
+	static int *total_Loop_Count = NULL;
+	static char *all_Combined = NULL;
 
 	// below used only for data processing or optimization.
 	static int *data_Processing_Status = NULL;
@@ -240,6 +243,8 @@ int main(const int argc, const char *argv[])
 	get_param(fixed_Data, "control_dt_sec", &control_Dt_Sec);
 	get_param(dynamic_Data, "enable_brake_signal", &enable_Brake_Signal);
 	get_param(dynamic_Data, "omega", &omega);
+	get_param(dynamic_Data, "total_loop_count", &total_Loop_Count);
+	get_param(dynamic_Data, "all_combined", &all_Combined);
 
 	get_param(dynamic_Data, "data_processing_status", &data_Processing_Status);
 	get_param(fixed_Data, "data_processing_first_run", &data_Processing_First_Run);
@@ -312,6 +317,9 @@ int main(const int argc, const char *argv[])
 		// Add the elapsed time since the last update
 		accumulated_Time += *dt_Sec;
 
+		// Update the history buffers, if needed
+		perform_history_updates(*time_Sec, history_Tasks);
+
 		// Check if the accumulated time has reached or exceeded control_dt_sec
 		if (accumulated_Time >= *control_Dt_Sec)
 		{
@@ -323,6 +331,8 @@ int main(const int argc, const char *argv[])
 		continuous_logging_function(dynamic_Data, fixed_Data);
 
 		data_processing(dynamic_Data, fixed_Data, &dp_options); // If applicable track the requested data for processing at end of run.
+		(*total_Loop_Count)++;
+		safe_snprintf(all_Combined, MAX_LINE_LENGTH, "char, omega: %f, count: %d", *omega, *total_Loop_Count);
 	}
 
 	*data_Processing_Status = ENDING;
@@ -345,7 +355,12 @@ int main(const int argc, const char *argv[])
 		cleanup_program(0);
 		close_log_file();
 
-		// Step 5: Free the input data memory
+		// Step 5: Free the input data and history task memory
+		if (history_Tasks)
+		{
+			free(history_Tasks->tasks);
+			free(history_Tasks);
+		}
 		free_input_data(dynamic_Data);
 		free_input_data(fixed_Data);
 	}

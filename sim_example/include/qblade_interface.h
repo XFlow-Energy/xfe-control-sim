@@ -28,8 +28,8 @@
 #include "make_stage.h"
 
 // your one and only definition of the parameter list:
-#define QBLADE_INTERFACE_PARAM_LIST MAYBE_UNUSED float *avr_swap, MAYBE_UNUSED const param_array_t *dynamic_data, MAYBE_UNUSED const param_array_t *fixed_data
-#define QBLADE_INTERFACE_CALL_ARGS avr_swap, dynamic_data, fixed_data
+#define QBLADE_INTERFACE_PARAM_LIST MAYBE_UNUSED float *avr_swap, MAYBE_UNUSED const param_array_t *dynamic_data, MAYBE_UNUSED const param_array_t *fixed_data, MAYBE_UNUSED history_task_list_t *history_tasks
+#define QBLADE_INTERFACE_CALL_ARGS avr_swap, dynamic_data, fixed_data, history_tasks
 
 // now invoke MAKE_STAGE with the *macro* name inside parens
 MAKE_STAGE(qblade_interface, void, (QBLADE_INTERFACE_PARAM_LIST))

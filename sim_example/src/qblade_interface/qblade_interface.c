@@ -18,10 +18,10 @@
  * with this software. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
-#include "xfe_control_sim_common.h" // for get_param, param_array_t
 #include "bladed_interface.h"
-#include "drivetrains.h" // for drivetrain
-#include "logger.h"      // for log_message
+#include "xfe_control_sim_common.h" // for get_param, param_array_t
+#include "drivetrains.h"            // for drivetrain
+#include "logger.h"                 // for log_message
 #include "make_stage.h"
 #include "qblade_interface.h"
 #include "turbine_controls.h" // for turbine_control
@@ -56,6 +56,7 @@ MAKE_STAGE_DEFINE(qblade_interface, void, (QBLADE_INTERFACE_PARAM_LIST), (QBLADE
  *                              input signals and receiving the output torque command.
  * @param[in]     dynamic_data  Pointer to the array of dynamic (state) parameters.
  * @param[in]     fixed_data    Pointer to the array of fixed parameters.
+ * @param[in]     history_tasks    Pointer to the array history/buffers to be updated
  */
 void example_qblade_interface(QBLADE_INTERFACE_PARAM_LIST)
 {
@@ -91,6 +92,8 @@ void example_qblade_interface(QBLADE_INTERFACE_PARAM_LIST)
 
 	// Add the elapsed time since the last update
 	accumulated_Time += *dt_Sec;
+
+	perform_history_updates(*time_Sec, history_tasks);
 
 	// Check if the accumulated time has reached or exceeded control_dt_sec
 	if (accumulated_Time >= *control_Dt_Sec)

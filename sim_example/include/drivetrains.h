@@ -21,11 +21,13 @@
 #ifndef DRIVETRAINS_H
 #define DRIVETRAINS_H
 
+// NOLINTBEGIN(llvm-include-order)
+#include "xflow_core.h"
 #include "xfe_control_sim_version.h"
 #include "xfe_control_sim_common.h"
-#include "xflow_core.h"
 #include "xflow_aero_sim.h"
 #include "make_stage.h"
+// NOLINTEND(llvm-include-order)
 
 // your one and only definition of the parameter list:
 #define DRIVETRAIN_PARAM_LIST MAYBE_UNUSED const param_array_t *dynamic_data, MAYBE_UNUSED const param_array_t *fixed_data

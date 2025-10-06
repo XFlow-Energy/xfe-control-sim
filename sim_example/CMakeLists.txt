@@ -33,14 +33,14 @@ if (MY_PROJECT_REALLY_IS_TOP_LEVEL AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_S
 		get_filename_component(CUSTOM_XFE_CONTROL_SIM_FILES_ROOT "${CMAKE_SOURCE_DIR}" ABSOLUTE)
 	endif()
 
-	set(XFE_CONTROL_SIM_CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config/simple_ball_config.cmake" CACHE  PATH  "Which xfe_control_sim config to load" FORCE)
+	set(XFE_CONTROL_SIM_CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/config/simple_turbine_config.cmake" CACHE  PATH  "Which xfe_control_sim config to load" FORCE)
 
 	include(${XFE_CONTROL_SIM_CONFIG_FILE})
 
 	list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 	include(CMakeDependentOption) 
 
-	set(XFE_CONTROL_SIM_VERSION "v0.0.1" CACHE STRING "Version of xfe-control-sim to use (empty = latest)")
+	set(XFE_CONTROL_SIM_VERSION "v0.0.2" CACHE STRING "Version of xfe-control-sim to use (empty = latest)")
 	find_package(xfe-control-sim REQUIRED)
 
 	# specifically for xflowenergy project set these values when testing on its own.
