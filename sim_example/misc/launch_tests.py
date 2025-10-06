@@ -154,12 +154,8 @@ def run_binary(source_dir: Path, build_dir: Path, binary_name: str) -> int:
 			return 1
 
 	print(f"{Emoji.INFO} Running {bin_path}...")
-	result = subprocess.run(
-	    [str(bin_path)], cwd=bin_dir, capture_output=True, text=True, encoding='utf-8', errors='replace')
-
-	print(result.stdout)
-	if result.stderr:
-		print(result.stderr, file=sys.stderr)
+	# Run without capture_output to get real-time streaming output
+	result = subprocess.run([str(bin_path)], cwd=bin_dir)
 	print()
 
 	return result.returncode
@@ -279,13 +275,15 @@ def run_standalone_build(build_dir_name: str, test_type: str, rebuild: bool, ver
     """
 	script_dir = get_script_dir()
 	source_dir = script_dir.parent
+	is_ci = is_ci_environment()
 
-	repo_root = get_git_root()
+	repo_root = get_git_root(False)
 	if repo_root is None:
 		repo_root = source_dir
 		print(f"{Colors.YELLOW}[INFO] Not in a git repository - using local directory structure{Colors.RESET}")
 
-	run_clang_format(repo_root)
+	if not is_ci:
+		run_clang_format(repo_root)
 
 	build_dir = source_dir / build_dir_name
 
@@ -303,7 +301,6 @@ def run_standalone_build(build_dir_name: str, test_type: str, rebuild: bool, ver
 	build_project(source_dir, build_dir, rebuild, verbose, build_shared_libs, build_executable)
 
 	run_clang_tidy_enabled = os.environ.get("RUN_CLANG_TIDY", "1")
-	is_ci = is_ci_environment()
 
 	if is_ci or run_clang_tidy_enabled == "1":
 		run_clang_tidy(repo_root, build_dir)
