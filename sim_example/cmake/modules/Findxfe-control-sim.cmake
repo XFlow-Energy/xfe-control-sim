@@ -33,7 +33,7 @@ endif()
 # Branch knob (can be overridden by -DXFE_CONTROL_SIM_BRANCH=...)
 # NOTE: This is used when no tag is selected/resolved.
 if(NOT DEFINED XFE_CONTROL_SIM_BRANCH)
-	set(XFE_CONTROL_SIM_BRANCH "jason_working")
+	set(XFE_CONTROL_SIM_BRANCH "working")
 endif()
 
 # Detect if we're in GitHub Actions and, if so, derive the branch name

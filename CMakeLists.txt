@@ -24,7 +24,7 @@ cmake_minimum_required(VERSION 3.25)
 if(NOT DEFINED PROJECT_IS_TOP_LEVEL)
     set(MY_PROJECT_REALLY_IS_TOP_LEVEL TRUE)
 else()
-	set(MY_PROJECT_REALLY_IS_TOP_LEVEL PROJECT_IS_TOP_LEVEL)
+	set(MY_PROJECT_REALLY_IS_TOP_LEVEL ${PROJECT_IS_TOP_LEVEL})
 endif()
 
 # Only call project() if not already defined (i.e., not being included as a subproject)
