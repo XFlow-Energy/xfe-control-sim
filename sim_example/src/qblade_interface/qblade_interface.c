@@ -108,4 +108,10 @@ void example_qblade_interface(QBLADE_INTERFACE_PARAM_LIST)
 	avr_swap[REC_DEMANDED_GENERATOR_TORQUE] = (float)(*tau_Flow_Extract);
 
 	continuous_logging_function(dynamic_data, fixed_data);
+
+	if ((int)(avr_swap[0]) == -1)
+	{
+		save_dynamic_fixed_data_at_shutdown(dynamic_data, fixed_data, 1);
+		close_log_file();
+	}
 }

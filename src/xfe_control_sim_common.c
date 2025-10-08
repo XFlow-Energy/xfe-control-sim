@@ -79,6 +79,8 @@ static HANDLE gHMapFile = NULL; // Global handle to keep mapping alive
 #define DELETE_LOG_FILE_NEW_RUN 0
 #endif
 
+static FILE *dynamic_data_csv_logger_file = NULL;
+
 /**
  * @brief Exports time series of velocity components and magnitude at a given grid point to CSV files.
  *
@@ -547,9 +549,8 @@ static int write_csv_string_field(char *dest, size_t dest_size, const char *str)
 	return len;
 }
 
-void dynamic_data_csv_logger(const csv_logger_action_t action, const char *filename, const param_array_t *data)
+void dynamic_data_csv_logger(FILE **file, const csv_logger_action_t action, const char *filename, const param_array_t *data)
 {
-	static FILE *file = NULL;
 	static char buf[1U << 22U];
 	static char line[4096];
 	static struct timespec total_Logger_Time = {0, 0};
@@ -559,29 +560,29 @@ void dynamic_data_csv_logger(const csv_logger_action_t action, const char *filen
 	struct timespec start_ts = get_monotonic_timestamp();
 	if (action == CSV_LOGGER_INIT)
 	{
-		file = xflow_fopen_safe(filename, XFLOW_FILE_WRITE_ONLY);
-		if (!file)
+		*file = xflow_fopen_safe(filename, XFLOW_FILE_WRITE_ONLY);
+		if (!*file)
 		{
 			ERROR_MESSAGE("Failed to open file for writing: %s\n", filename);
 			return;
 		}
 
-		if (setvbuf(file, buf, _IOFBF, sizeof(buf)) != 0)
+		if (setvbuf(*file, buf, _IOFBF, sizeof(buf)) != 0)
 		{
 			ERROR_MESSAGE("Failed to set file buffer\n");
 		}
-		if (safe_fprintf(file, "epoch_time") < 0)
+		if (safe_fprintf(*file, "epoch_time") < 0)
 		{
 			ERROR_MESSAGE("Failed to write CSV header\n");
 		}
 		for (int i = 0; i < data->n_param; i++)
 		{
-			if (safe_fprintf(file, ",%s", data->params[i].name) < 0)
+			if (safe_fprintf(*file, ",%s", data->params[i].name) < 0)
 			{
 				ERROR_MESSAGE("Failed to write CSV header name\n");
 			}
 		}
-		if (safe_fprintf(file, "\n") < 0)
+		if (safe_fprintf(*file, "\n") < 0)
 		{
 			ERROR_MESSAGE("Failed to write CSV header newline\n");
 		}
@@ -593,7 +594,7 @@ void dynamic_data_csv_logger(const csv_logger_action_t action, const char *filen
 
 	if (action == CSV_LOGGER_LOG)
 	{
-		if (!file)
+		if (!*file)
 		{
 			ERROR_MESSAGE("CSV logger not initialized\n");
 			return;
@@ -646,7 +647,7 @@ void dynamic_data_csv_logger(const csv_logger_action_t action, const char *filen
 			}
 		}
 		line[len++] = '\n';
-		written = fwrite(line, 1, len, file);
+		written = fwrite(line, 1, len, *file);
 		if (written != (size_t)len)
 		{
 			ERROR_MESSAGE("Write error: %zu of %d\n", written, len);
@@ -659,22 +660,67 @@ void dynamic_data_csv_logger(const csv_logger_action_t action, const char *filen
 
 	if (action == CSV_LOGGER_CLOSE)
 	{
-		if (file)
+		if (*file)
 		{
-			if (fflush(file) != 0)
+			if (fflush(*file) != 0)
 			{
 				ERROR_MESSAGE("Failed to flush file\n");
 			}
-			if (fclose(file) == EOF)
+			if (fclose(*file) == EOF)
 			{
 				ERROR_MESSAGE("Error closing %s: %s\n", filename, safe_strerror(errno));
 			}
-			file = NULL;
+			*file = NULL;
 		}
 		log_message("write Duration: %ld.%.5ld\n", total_Logger_Time.tv_sec, total_Logger_Time.tv_nsec / 10000);
 		return;
 	}
 }
+
+#ifdef _WIN32
+void close_dynamic_data_csv_logger(void)
+{
+	if (dynamic_data_csv_logger_file)
+	{
+		if (fflush(dynamic_data_csv_logger_file) != 0)
+		{
+			ERROR_MESSAGE("Failed to flush dynamic data log file\n");
+		}
+		if (fclose(dynamic_data_csv_logger_file) == EOF)
+		{
+			ERROR_MESSAGE("Error closing dynamic data log file: %s\n", safe_strerror(errno));
+		}
+		dynamic_data_csv_logger_file = NULL;
+	}
+}
+
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
+{
+	// This switch statement checks why DllMain was called.
+	switch (fdwReason)
+	{
+	case DLL_PROCESS_DETACH:
+		// This case is triggered when the DLL is about to be unloaded.
+		// Check if our pointers were ever initialized before trying to use them.
+		// log_message("DLL_PROCESS_DETACH\n");
+		close_dynamic_data_csv_logger();
+		close_log_file();
+		break;
+
+	case DLL_PROCESS_ATTACH:
+		// log_message("DLL_PROCESS_ATTACH\n");
+		break;
+	case DLL_THREAD_ATTACH:
+		// log_message("DLL_THREAD_ATTACH\n");
+		break;
+	case DLL_THREAD_DETACH:
+		// log_message("DLL_THREAD_DETACH\n");
+		// We don't need to do anything for these other cases.
+		break;
+	}
+	return TRUE; // Signal success
+}
+#endif
 
 /**
  * @brief Retrieves a parameter’s type and value by name.
@@ -781,7 +827,7 @@ void save_dynamic_fixed_data_at_shutdown(MAYBE_UNUSED const param_array_t *dynam
 	{
 #if defined(LOGGING_DYNAMIC_DATA_CONTINUOUS) && defined(DYNAMIC_DATA_FULL_PATH)
 		// save_param_array_data_to_csv(DYNAMIC_DATA_FULL_PATH, dynamic_data, 0);
-		dynamic_data_csv_logger(CSV_LOGGER_CLOSE, DYNAMIC_DATA_FULL_PATH, dynamic_data);
+		dynamic_data_csv_logger(&dynamic_data_csv_logger_file, CSV_LOGGER_CLOSE, DYNAMIC_DATA_FULL_PATH, dynamic_data);
 #endif
 #if defined(LOGGING_DYNAMIC_DATA_CONTINUOUS) && defined(FIXED_DATA_FULL_PATH)
 		save_param_array_data_to_csv(FIXED_DATA_FULL_PATH, fixed_data, 1);
@@ -864,8 +910,8 @@ void initialize_control_system(param_array_t **dynamic_data, param_array_t **fix
 		// Use the helper function with the now-populated fixed_data.
 		if (is_dynamic_logging_enabled(*fixed_data) && LOGGING_DYNAMIC_DATA_CONTINUOUS)
 		{
-
-			dynamic_data_csv_logger(CSV_LOGGER_INIT, DYNAMIC_DATA_FULL_PATH, *dynamic_data);
+			dynamic_data_csv_logger_file = NULL;
+			dynamic_data_csv_logger(&dynamic_data_csv_logger_file, CSV_LOGGER_INIT, DYNAMIC_DATA_FULL_PATH, *dynamic_data);
 		}
 #endif
 
@@ -903,7 +949,7 @@ void continuous_logging_function(const param_array_t *dynamic_data, const param_
 #if defined(LOGGING_DYNAMIC_DATA_CONTINUOUS) && defined(DYNAMIC_DATA_FULL_PATH)
 	if (LOGGING_DYNAMIC_DATA_CONTINUOUS)
 	{
-		dynamic_data_csv_logger(CSV_LOGGER_LOG, DYNAMIC_DATA_FULL_PATH, dynamic_data);
+		dynamic_data_csv_logger(&dynamic_data_csv_logger_file, CSV_LOGGER_LOG, DYNAMIC_DATA_FULL_PATH, dynamic_data);
 		// save_param_array_data_to_csv(DYNAMIC_DATA_FULL_PATH, dynamic_data, 0);
 	}
 #endif

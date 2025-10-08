@@ -70,6 +70,11 @@ int main(void)
 	double omega = 0.0;
 	float dt = 0.1F;
 
+	// Use a small tolerance (epsilon) for safe floating-point comparisons
+	const double epsilon = 1e-9;
+	// Flag to identify the very first loop iteration for initialization
+	bool is_first_call = true;
+
 	/* Controller I/O seeds */
 	avr_swap[REC_COMMUNICATION_INTERVAL] = dt;
 	avr_swap[REC_CURRENT_TIME] = (float)t;
@@ -84,6 +89,22 @@ int main(void)
 
 	while (t < simulation_time)
 	{
+		if (is_first_call)
+		{
+			// This block only runs ONCE at the very beginning (t=0).
+			avr_swap[0] = 0;       // Initialization status
+			is_first_call = false; // Set flag to false for all future iterations
+		}
+		// Check if this is the final time step.
+		else if (t >= (simulation_time - dt - epsilon))
+		{
+			avr_swap[0] = -1; // Shutdown status
+		}
+		else // Otherwise, it's a normal intermediate step.
+		{
+			avr_swap[0] = 1;
+		}
+
 		/* Get the current speed from the external source */
 		measured_rotor_speed = get_speed_from_external_source(t);
 

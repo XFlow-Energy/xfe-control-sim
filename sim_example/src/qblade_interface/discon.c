@@ -93,15 +93,7 @@ void example_discon(DISCON_PARAM_LIST)
 	// avc_outname - char array to path to sim results folder, for saving controller data internally
 	// avc_msg - char array, can be used to send message up to caller
 
-	int i_status = 0; //, iFirstLog;
-
-	// Load variables from Bladed (See Appendix A)
-	i_status = NINT(avr_swap[0]);
-
-	if (i_status >= 0)
-	{
-		qblade_interface(avr_swap, dynamic_Data, fixed_Data, history_Tasks);
-	}
+	qblade_interface(avr_swap, dynamic_Data, fixed_Data, history_Tasks);
 
 	// Indicate successful execution
 	*avi_fail = 0;

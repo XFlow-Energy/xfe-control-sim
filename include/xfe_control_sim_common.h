@@ -76,7 +76,7 @@ void print_velocity_for_y_z_position(bts_data_t *data, const double horizontal_y
 void save_umag_velocity_data_to_csv(const double *vel_data, int num_time_steps, const char *file_path, const char *base_filename, double dt);
 double get_closest_umag(const double *vel_data, int num_time_steps, double current_time, double dt);
 void save_param_array_data_to_csv(const char *filename, const param_array_t *data, int write_header);
-void dynamic_data_csv_logger(const csv_logger_action_t action, const char *filename, const param_array_t *data);
+void dynamic_data_csv_logger(FILE **file, const csv_logger_action_t action, const char *filename, const param_array_t *data);
 
 int get_param_value(const param_array_t *data, const char *name, input_param_type_t *type, void *value);
 void initialize_data(param_array_t *dynamic_data, param_array_t *fixed_data);
