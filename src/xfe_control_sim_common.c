@@ -585,6 +585,9 @@ void dynamic_data_csv_logger(const csv_logger_action_t action, const char *filen
 		{
 			ERROR_MESSAGE("Failed to write CSV header newline\n");
 		}
+
+		log_message("Successfully initialized dynamic file logging at %s\n", filename);
+
 		return;
 	}
 
