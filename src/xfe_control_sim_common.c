@@ -721,13 +721,42 @@ int get_param_value(const param_array_t *data, const char *name, input_param_typ
 }
 
 /**
+ * @brief Checks if dynamic value logging is enabled.
+ *
+ * Caches the pointer to the "dynamic_val_logging" parameter on its first call
+ * for efficient subsequent checks.
+ * @param fixed_data Pointer to the fixed data parameter array.
+ * @return Returns true if logging is enabled, false otherwise.
+ */
+static bool is_dynamic_logging_enabled(const param_array_t *fixed_data)
+{
+	static bool first_run = true;
+	static int *dynamic_val_logging = NULL;
+
+	if (first_run)
+	{
+		// On the first run, get the pointer to the parameter.
+		// get_param should return 0 on success.
+		get_param(fixed_data, "dynamic_val_logging", &dynamic_val_logging);
+		first_run = false;
+	}
+
+	if (*dynamic_val_logging > 0)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+/**
  * @brief Saves dynamic and fixed parameter data to CSV at shutdown based on logging configuration.
  *
  * When `logging_status` is true, conditionally writes the dynamic and/or fixed parameter arrays
  * to their respective CSV files. Controlled by compile-time macros:
- * - If `LOGGING_DYNAMIC_FIXED_DATA_ONCE` and `DYNAMIC_DATA_FULL_PATH` are defined,
+ * - If `DYNAMIC_DATA_FULL_PATH` are defined,
  *   calls `save_param_array_data_to_csv(DYNAMIC_DATA_FULL_PATH, dynamic_data, 0)`.
- * - If `LOGGING_DYNAMIC_FIXED_DATA_ONCE` or `LOGGING_DYNAMIC_DATA_CONTINUOUS` and
+ * - If `LOGGING_DYNAMIC_DATA_CONTINUOUS` and
  *   `FIXED_DATA_FULL_PATH` are defined, calls `save_param_array_data_to_csv(FIXED_DATA_FULL_PATH, fixed_data, 1)`.
  *
  * @param dynamic_data     Pointer to the dynamic `param_array_t` (may be unused).
@@ -740,27 +769,18 @@ int get_param_value(const param_array_t *data, const char *name, input_param_typ
  */
 void save_dynamic_fixed_data_at_shutdown(MAYBE_UNUSED const param_array_t *dynamic_data, MAYBE_UNUSED const param_array_t *fixed_data, const bool logging_status)
 {
-	static bool first_Run = true;
-	static int *dynamic_Val_Logging = NULL;
-	if (first_Run)
-	{
-		get_param(fixed_data, "dynamic_val_logging", &dynamic_Val_Logging);
-		first_Run = false;
-	}
-
-	if (*dynamic_Val_Logging <= 0)
+	if (!is_dynamic_logging_enabled(fixed_data))
 	{
 		return;
 	}
-
+	log_message("logging_status: %d\n", logging_status);
 	if (logging_status)
 	{
-#if defined(LOGGING_DYNAMIC_FIXED_DATA_ONCE) && defined(DYNAMIC_DATA_FULL_PATH)
+#if defined(LOGGING_DYNAMIC_DATA_CONTINUOUS) && defined(DYNAMIC_DATA_FULL_PATH)
 		// save_param_array_data_to_csv(DYNAMIC_DATA_FULL_PATH, dynamic_data, 0);
 		dynamic_data_csv_logger(CSV_LOGGER_CLOSE, DYNAMIC_DATA_FULL_PATH, dynamic_data);
 #endif
-
-#if defined(LOGGING_DYNAMIC_FIXED_DATA_ONCE) || defined(LOGGING_DYNAMIC_DATA_CONTINUOUS) && defined(FIXED_DATA_FULL_PATH)
+#if defined(LOGGING_DYNAMIC_DATA_CONTINUOUS) && defined(FIXED_DATA_FULL_PATH)
 		save_param_array_data_to_csv(FIXED_DATA_FULL_PATH, fixed_data, 1);
 #endif
 	}
@@ -814,39 +834,41 @@ void initialize_control_system(param_array_t **dynamic_data, param_array_t **fix
 #ifdef OUTPUT_LOG_FILE_PATH
 		int *check_verbose = NULL;
 		get_param(*fixed_data, "verbose", &check_verbose);
-		if (*check_verbose <= 0)
+		if (*check_verbose > 0)
 		{
-			return;
-		}
 
-		const char *log_file_location_and_or_name = NULL;
-		get_param(*fixed_data, "log_file_location_and_or_name", &log_file_location_and_or_name);
+			const char *log_file_location_and_or_name = NULL;
+			get_param(*fixed_data, "log_file_location_and_or_name", &log_file_location_and_or_name);
 
-		char output_log_filename_xfe_control_sim[PATH_MAX];
+			char output_log_filename_xfe_control_sim[PATH_MAX];
 
-		create_dynamic_file_path(output_log_filename_xfe_control_sim, sizeof(output_log_filename_xfe_control_sim), "%s", log_file_location_and_or_name);
-		char logfilename[PATH_MAX];
-		log_file_ammend_remove_t log_ammend_delete = DELETE_OLD_LOG_FILE;
+			create_dynamic_file_path(output_log_filename_xfe_control_sim, sizeof(output_log_filename_xfe_control_sim), "%s", log_file_location_and_or_name);
+			char logfilename[PATH_MAX];
+			log_file_ammend_remove_t log_ammend_delete = DELETE_OLD_LOG_FILE;
 
 #if DELETE_LOG_FILE_NEW_RUN == 1
-		log_ammend_delete = DELETE_OLD_LOG_FILE;
+			log_ammend_delete = DELETE_OLD_LOG_FILE;
 #else
-		log_ammend_delete = AMMEND_LOG_FILE;
+			log_ammend_delete = AMMEND_LOG_FILE;
 #endif
-		initialize_log_file(logfilename, PATH_MAX, OUTPUT_LOG_FILE_PATH, output_log_filename_xfe_control_sim, log_ammend_delete);
+			initialize_log_file(logfilename, PATH_MAX, OUTPUT_LOG_FILE_PATH, output_log_filename_xfe_control_sim, log_ammend_delete);
+		}
 #endif
 		// log_message("after initialize_log_file\n");
 
-		// Initialize the CSV file to save the dynamic data if desired.
-#if (defined(LOGGING_DYNAMIC_FIXED_DATA_ONCE) || defined(LOGGING_DYNAMIC_DATA_CONTINUOUS)) && defined(DYNAMIC_DATA_FULL_PATH)
-		if (LOGGING_DYNAMIC_DATA_CONTINUOUS)
+		// Now we check if we should log before trying to initialize the file.
+#if defined(LOGGING_DYNAMIC_DATA_CONTINUOUS) && defined(DYNAMIC_DATA_FULL_PATH)
+		// Use the helper function with the now-populated fixed_data.
+		if (is_dynamic_logging_enabled(*fixed_data) && LOGGING_DYNAMIC_DATA_CONTINUOUS)
 		{
-			// save_param_array_data_to_csv(DYNAMIC_DATA_FULL_PATH, *dynamic_data, 1); // Dereference when passing
+
 			dynamic_data_csv_logger(CSV_LOGGER_INIT, DYNAMIC_DATA_FULL_PATH, *dynamic_data);
 		}
-#if defined(LOGGING_DYNAMIC_FIXED_DATA_ONCE) || defined(LOGGING_DYNAMIC_DATA_CONTINUOUS) && defined(FIXED_DATA_FULL_PATH)
-		save_param_array_data_to_csv(FIXED_DATA_FULL_PATH, *fixed_data, 1);
 #endif
+
+#if defined(LOGGING_DYNAMIC_DATA_CONTINUOUS) && defined(FIXED_DATA_FULL_PATH)
+		// This log seems independent of the dynamic check, so we leave it as is.
+		save_param_array_data_to_csv(FIXED_DATA_FULL_PATH, *fixed_data, 1);
 #endif
 	}
 }
@@ -870,15 +892,7 @@ void initialize_control_system(param_array_t **dynamic_data, param_array_t **fix
  */
 void continuous_logging_function(const param_array_t *dynamic_data, const param_array_t *fixed_data)
 {
-	static bool first_Run = true;
-	static int *dynamic_Val_Logging = NULL;
-	if (first_Run)
-	{
-		get_param(fixed_data, "dynamic_val_logging", &dynamic_Val_Logging);
-		first_Run = false;
-	}
-
-	if (*dynamic_Val_Logging <= 0)
+	if (!is_dynamic_logging_enabled(fixed_data))
 	{
 		return;
 	}

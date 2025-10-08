@@ -343,16 +343,13 @@ int main(const int argc, const char *argv[])
 	const struct timespec program_duration = timespec_diff(time_beg, get_monotonic_timestamp());
 	log_message("Program Duration: %ld.%.5ld\n", program_duration.tv_sec, program_duration.tv_nsec / 10000);
 
-#if defined(LOGGING_DYNAMIC_DATA_CONTINUOUS) && defined(DYNAMIC_DATA_FULL_PATH)
-	// save_param_array_data_to_csv(DYNAMIC_DATA_FULL_PATH, dynamic_Data, 0);
-	dynamic_data_csv_logger(CSV_LOGGER_CLOSE, DYNAMIC_DATA_FULL_PATH, dynamic_Data);
-#endif
+	save_dynamic_fixed_data_at_shutdown(dynamic_Data, fixed_Data, logging_status != 0);
 
 	// Graceful shutdown code
 	if (shutdownFlag)
 	{
 		// log_message("Shutdown signal received. Cleaning up...\n");
-		save_dynamic_fixed_data_at_shutdown(dynamic_Data, fixed_Data, logging_status != 0);
+
 		cleanup_program(0);
 		close_log_file();
 
