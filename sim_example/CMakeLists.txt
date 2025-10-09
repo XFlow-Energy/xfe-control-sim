@@ -40,7 +40,7 @@ if (MY_PROJECT_REALLY_IS_TOP_LEVEL AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_S
 	list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 	include(CMakeDependentOption) 
 
-	set(XFE_CONTROL_SIM_VERSION "v0.0.2" CACHE STRING "Version of xfe-control-sim to use (empty = latest)")
+	set(XFE_CONTROL_SIM_VERSION "v0.0.3" CACHE STRING "Version of xfe-control-sim to use (empty = latest)")
 	find_package(xfe-control-sim REQUIRED)
 
 	# specifically for xflowenergy project set these values when testing on its own.
