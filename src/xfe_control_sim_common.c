@@ -694,7 +694,7 @@ void close_dynamic_data_csv_logger(void)
 	}
 }
 
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
+BOOL WINAPI DllMain(MAYBE_UNUSED HINSTANCE hinstDLL, DWORD fdwReason, MAYBE_UNUSED LPVOID lpvReserved)
 {
 	// This switch statement checks why DllMain was called.
 	switch (fdwReason)
