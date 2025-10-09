@@ -46,26 +46,100 @@ option(XFLOW_UTILS_USE_STATIC "Link xflow-utils statically if static archive is 
 # Expected to be set by the including project; if not set, the local-zip step is skipped gracefully.
 #	set(XFE_CONTROL_SIM_PROJECT_DIR "/path/to/project")  # from parent project
 
-# --- 0) Look for local zip first (unchanged) ---
-set(_USE_LOCAL_ZIP FALSE)
-set(_LOCAL_BASE "${CMAKE_SOURCE_DIR}/../xflow-utils/build/c/src/dist")
-message(STATUS "xflow-utils local base dir: ${_LOCAL_BASE}")
-if(EXISTS "${_LOCAL_BASE}")
-	file(GLOB _LOCAL_MATCHES
-		"${_LOCAL_BASE}/xflow-utils-*-${CMAKE_BUILD_TYPE}.zip"
-		"${_LOCAL_BASE}/xflow-utils-*-Debug.zip"
-		"${_LOCAL_BASE}/xflow-utils-*-Release.zip"
-	)
+# Find a local xflow-utils checkout by searching parent directories.
+# This avoids hardcoding relative paths like ../xflow-utils.
+
+if(NOT DEFINED XFLOW_UTILS_MAX_PARENT_DEPTH)
+	set(XFLOW_UTILS_MAX_PARENT_DEPTH 8) # Set to -1 for no depth limit
 endif()
 
-# only keep the one matching our build type
-if(_LOCAL_MATCHES)
-	list(FILTER _LOCAL_MATCHES INCLUDE REGEX ".+-${CMAKE_BUILD_TYPE}\\.zip$")
-	if(_LOCAL_MATCHES)
-		list(GET _LOCAL_MATCHES 0 _LOCAL_ZIP)
-		set(_USE_LOCAL_ZIP TRUE)
-		set(XFLOW_UTILS_VERSION "local")
+# Discover the xflow-utils directory if a path isn't already supplied.
+if(NOT DEFINED LOCAL_XFLOW_UTILS_DIR)
+	# Set up search roots: start with the current directory, then the project root.
+	set(_xflow_utils_roots "${CMAKE_CURRENT_SOURCE_DIR}")
+	if (NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+		list(APPEND _xflow_utils_roots "${CMAKE_SOURCE_DIR}")
 	endif()
+
+	set(_xflow_utils_found FALSE)
+
+	foreach(_root IN LISTS _xflow_utils_roots)
+		if (_xflow_utils_found)
+			break()
+		endif()
+
+		set(_dir "${_root}")
+		set(_depth 0)
+		while(TRUE)
+			# At each level, check for a subdirectory named "xflow-utils"
+			set(_candidate "${_dir}/xflow-utils")
+
+			# A good check is for a sentinel file, like CMakeLists.txt, to verify it's the correct directory.
+			if (EXISTS "${_candidate}/CMakeLists.txt")
+				set(LOCAL_XFLOW_UTILS_DIR "${_candidate}")
+				set(_xflow_utils_found TRUE)
+				message(STATUS "Found local xflow-utils at ${LOCAL_XFLOW_UTILS_DIR}")
+				break()
+			endif()
+
+			# Ascend to the parent directory for the next iteration.
+			get_filename_component(_parent "${_dir}" DIRECTORY)
+			if (_parent STREQUAL _dir)
+				# We've reached the filesystem root, so stop.
+				break()
+			endif()
+
+			# Enforce the maximum search depth.
+			math(EXPR _depth "${_depth} + 1")
+			if (NOT XFLOW_UTILS_MAX_PARENT_DEPTH EQUAL -1 AND _depth GREATER_EQUAL XFLOW_UTILS_MAX_PARENT_DEPTH)
+				message(STATUS "Reached XFLOW_UTILS_MAX_PARENT_DEPTH=${XFLOW_UTILS_MAX_PARENT_DEPTH} at ${_dir}; stopping ascent.")
+				break()
+			endif()
+
+			set(_dir "${_parent}")
+		endwhile()
+	endforeach()
+
+	# If the search was performed but yielded no result, show an advisory message.
+	if (NOT _xflow_utils_found)
+		message(STATUS
+			"Could not find a local xflow-utils directory by walking parents of:\n"
+			"  ${CMAKE_CURRENT_SOURCE_DIR}\n"
+			"  ${CMAKE_SOURCE_DIR}\n"
+			"Checked each parent for a subdirectory 'xflow-utils' containing 'CMakeLists.txt'.\n"
+			"Set -DLOCAL_XFLOW_UTILS_DIR=... to point at your checkout."
+		)
+	endif()
+endif()
+
+# --- Now, find the specific zip package using the located directory ---
+
+set(_USE_LOCAL_ZIP FALSE)
+
+# Proceed only if LOCAL_XFLOW_UTILS_DIR was found or provided by the user.
+if(DEFINED LOCAL_XFLOW_UTILS_DIR AND EXISTS "${LOCAL_XFLOW_UTILS_DIR}")
+    set(_LOCAL_BASE "${LOCAL_XFLOW_UTILS_DIR}/build/c/src/dist")
+    message(STATUS "Checking for xflow-utils zip in: ${_LOCAL_BASE}")
+
+    if(EXISTS "${_LOCAL_BASE}")
+        # Find any zip files that could potentially match
+        file(GLOB _LOCAL_MATCHES
+            "${_LOCAL_BASE}/xflow-utils-*-${CMAKE_BUILD_TYPE}.zip"
+            "${_LOCAL_BASE}/xflow-utils-*-Debug.zip"
+            "${_LOCAL_BASE}/xflow-utils-*-Release.zip"
+        )
+    endif()
+
+    # From the potential matches, filter to keep only the one for the current build type.
+    if(_LOCAL_MATCHES)
+        list(FILTER _LOCAL_MATCHES INCLUDE REGEX ".+-${CMAKE_BUILD_TYPE}\\.zip$")
+        if(_LOCAL_MATCHES)
+            list(GET _LOCAL_MATCHES 0 _LOCAL_ZIP)
+            set(_USE_LOCAL_ZIP TRUE)
+            set(XFLOW_UTILS_VERSION "local")
+            message(STATUS "Using local xflow-utils zip: ${_LOCAL_ZIP}")
+        endif()
+    endif()
 endif()
 
 # --- 1) If not local, resolve version (restore 'latest' resolution) ---
