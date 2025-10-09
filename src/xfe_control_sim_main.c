@@ -364,8 +364,8 @@ int main(const int argc, const char *argv[])
 	}
 
 	cleanup_program(0);
-	close_log_file();
 	log_message("Closing Program\n");
+	close_log_file();
 
 	return 0;
 }

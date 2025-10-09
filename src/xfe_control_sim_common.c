@@ -79,7 +79,7 @@ static HANDLE gHMapFile = NULL; // Global handle to keep mapping alive
 #define DELETE_LOG_FILE_NEW_RUN 0
 #endif
 
-static FILE *dynamic_data_csv_logger_file = NULL;
+static FILE *dynamicDataCsvLoggerFile = NULL;
 
 /**
  * @brief Exports time series of velocity components and magnitude at a given grid point to CSV files.
@@ -604,7 +604,7 @@ void dynamic_data_csv_logger(FILE **file, const csv_logger_action_t action, cons
 		if (len < 0 || len >= (int)sizeof(line))
 		{
 			ERROR_MESSAGE("Timestamp formatting overflow\n");
-			len = sizeof(line) - 1;
+			return;
 		}
 		for (int i = 0; i < data->n_param; i++)
 		{
@@ -629,10 +629,13 @@ void dynamic_data_csv_logger(FILE **file, const csv_logger_action_t action, cons
 					if (added < 0)
 					{
 						ERROR_MESSAGE("Failed to write string field for %s\n", param->name);
-						len = sizeof(line) - 1;
-						break;
+						// Make sure len reflects a full buffer to trigger the overflow check
+						len = sizeof(line);
 					}
-					len += added;
+					else
+					{
+						len += added;
+					}
 				}
 			}
 			break;
@@ -642,9 +645,15 @@ void dynamic_data_csv_logger(FILE **file, const csv_logger_action_t action, cons
 			}
 			if (len < 0 || len >= (int)sizeof(line))
 			{
-				ERROR_MESSAGE("CSV line formatting overflow\n");
-				break;
+				ERROR_MESSAGE("CSV line formatting overflow for param %s\n", param->name);
+				return; // FIX #2: Change 'break' to 'return' to prevent out-of-bounds write.
 			}
+		}
+		// This check ensures there's space for the newline character
+		if (len >= (int)sizeof(line) - 1)
+		{
+			ERROR_MESSAGE("CSV line buffer full, cannot add newline\n");
+			return;
 		}
 		line[len++] = '\n';
 		written = fwrite(line, 1, len, *file);
@@ -680,17 +689,17 @@ void dynamic_data_csv_logger(FILE **file, const csv_logger_action_t action, cons
 #ifdef _WIN32
 void close_dynamic_data_csv_logger(void)
 {
-	if (dynamic_data_csv_logger_file)
+	if (dynamicDataCsvLoggerFile)
 	{
-		if (fflush(dynamic_data_csv_logger_file) != 0)
+		if (fflush(dynamicDataCsvLoggerFile) != 0)
 		{
 			ERROR_MESSAGE("Failed to flush dynamic data log file\n");
 		}
-		if (fclose(dynamic_data_csv_logger_file) == EOF)
+		if (fclose(dynamicDataCsvLoggerFile) == EOF)
 		{
 			ERROR_MESSAGE("Error closing dynamic data log file: %s\n", safe_strerror(errno));
 		}
-		dynamic_data_csv_logger_file = NULL;
+		dynamicDataCsvLoggerFile = NULL;
 	}
 }
 
@@ -779,18 +788,18 @@ int get_param_value(const param_array_t *data, const char *name, input_param_typ
  */
 static bool is_dynamic_logging_enabled(const param_array_t *fixed_data)
 {
-	static bool first_run = true;
-	static int *dynamic_val_logging = NULL;
+	static bool first_Run = true;
+	static int *dynamic_Val_Logging = NULL;
 
-	if (first_run)
+	if (first_Run)
 	{
 		// On the first run, get the pointer to the parameter.
 		// get_param should return 0 on success.
-		get_param(fixed_data, "dynamic_val_logging", &dynamic_val_logging);
-		first_run = false;
+		get_param(fixed_data, "dynamic_val_logging", &dynamic_Val_Logging);
+		first_Run = false;
 	}
 
-	if (*dynamic_val_logging > 0)
+	if (*dynamic_Val_Logging > 0)
 	{
 		return true;
 	}
@@ -827,7 +836,7 @@ void save_dynamic_fixed_data_at_shutdown(MAYBE_UNUSED const param_array_t *dynam
 	{
 #if defined(LOGGING_DYNAMIC_DATA_CONTINUOUS) && defined(DYNAMIC_DATA_FULL_PATH)
 		// save_param_array_data_to_csv(DYNAMIC_DATA_FULL_PATH, dynamic_data, 0);
-		dynamic_data_csv_logger(&dynamic_data_csv_logger_file, CSV_LOGGER_CLOSE, DYNAMIC_DATA_FULL_PATH, dynamic_data);
+		dynamic_data_csv_logger(&dynamicDataCsvLoggerFile, CSV_LOGGER_CLOSE, DYNAMIC_DATA_FULL_PATH, dynamic_data);
 #endif
 #if defined(LOGGING_DYNAMIC_DATA_CONTINUOUS) && defined(FIXED_DATA_FULL_PATH)
 		save_param_array_data_to_csv(FIXED_DATA_FULL_PATH, fixed_data, 1);
@@ -910,8 +919,8 @@ void initialize_control_system(param_array_t **dynamic_data, param_array_t **fix
 		// Use the helper function with the now-populated fixed_data.
 		if (is_dynamic_logging_enabled(*fixed_data) && LOGGING_DYNAMIC_DATA_CONTINUOUS)
 		{
-			dynamic_data_csv_logger_file = NULL;
-			dynamic_data_csv_logger(&dynamic_data_csv_logger_file, CSV_LOGGER_INIT, DYNAMIC_DATA_FULL_PATH, *dynamic_data);
+			dynamicDataCsvLoggerFile = NULL;
+			dynamic_data_csv_logger(&dynamicDataCsvLoggerFile, CSV_LOGGER_INIT, DYNAMIC_DATA_FULL_PATH, *dynamic_data);
 		}
 #endif
 
@@ -949,7 +958,7 @@ void continuous_logging_function(const param_array_t *dynamic_data, const param_
 #if defined(LOGGING_DYNAMIC_DATA_CONTINUOUS) && defined(DYNAMIC_DATA_FULL_PATH)
 	if (LOGGING_DYNAMIC_DATA_CONTINUOUS)
 	{
-		dynamic_data_csv_logger(&dynamic_data_csv_logger_file, CSV_LOGGER_LOG, DYNAMIC_DATA_FULL_PATH, dynamic_data);
+		dynamic_data_csv_logger(&dynamicDataCsvLoggerFile, CSV_LOGGER_LOG, DYNAMIC_DATA_FULL_PATH, dynamic_data);
 		// save_param_array_data_to_csv(DYNAMIC_DATA_FULL_PATH, dynamic_data, 0);
 	}
 #endif
