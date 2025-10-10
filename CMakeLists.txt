@@ -69,7 +69,7 @@ if (MY_PROJECT_REALLY_IS_TOP_LEVEL AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_S
 	include(${XFE_CONTROL_SIM_CONFIG_FILE})
 endif()
 
-set(XFLOW_UTILS_VERSION "v0.0.46" CACHE STRING "Version of xflow-utils to use (empty = latest)")
+set(XFLOW_UTILS_VERSION "v0.0.48" CACHE STRING "Version of xflow-utils to use (empty = latest)")
 
 # Add custom modules directory to CMake module path
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
