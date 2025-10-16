@@ -120,12 +120,11 @@ endif()
 # -----------------------------------------------------------------------------
 if(BUILD_XFE_CONTROL_SIM_EXECUTABLE)
 	if(BUILD_XFE_SCADA_INTERFACE)
-		set_source_files_properties(
-			xfe_control_sim_main.c
-			PROPERTIES COMPILE_DEFINITIONS "BUILD_XFE_SCADA_INTERFACE=1"
+	    list(APPEND XFE_CONTROL_SIM_LIB_COMPILE_DEFINITIONS
+			BUILD_XFE_SCADA_INTERFACE="1"
 		)
 	endif()
-
+	
 	set_source_files_properties(
 		xfe_control_sim_main.c
 		flow_gen.c
@@ -172,5 +171,5 @@ if(BUILD_XFE_SCADA_INTERFACE)
 	target_include_directories(modbus_server PRIVATE
 		${XFE_CONTROL_SIM_PROJECT_DIR}/include
 	)
-	target_link_libraries(modbus_server PRIVATE xflow-utils)
+	target_link_libraries(modbus_server PRIVATE xflow-utils libmodbus::modbus)
 endif()

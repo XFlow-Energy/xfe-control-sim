@@ -831,7 +831,6 @@ void save_dynamic_fixed_data_at_shutdown(MAYBE_UNUSED const param_array_t *dynam
 	{
 		return;
 	}
-	log_message("logging_status: %d\n", logging_status);
 	if (logging_status)
 	{
 #if defined(LOGGING_DYNAMIC_DATA_CONTINUOUS) && defined(DYNAMIC_DATA_FULL_PATH)

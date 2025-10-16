@@ -167,7 +167,6 @@ void end_modbus_server(void)
 void cleanup_program(MAYBE_UNUSED int signum)
 {
 	end_modbus_server();
-	// fflush(stderr);
 }
 
 int main(const int argc, const char *argv[])
