@@ -1,21 +1,10 @@
 # -----------------------------------------------------------------------------
-# SPDX-License-Identifier: GPL-3.0-or-later
+# © 2024–2025 XFlow Energy – https://www.xflowenergy.com/
 #
-# xfe-control-sim
-# Copyright (C) 2024-2025 XFlow Energy (https://www.xflowenergy.com/)
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY and FITNESS for a particular purpose. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <https://www.gnu.org/licenses/>.
+# CONFIDENTIAL AND PROPRIETARY
+# This file is part of a proprietary codebase and may not be copied,
+# distributed, or modified without express written permission of
+# XFlow Energy.
 # -----------------------------------------------------------------------------
 
 # config/config.cmake
@@ -28,14 +17,14 @@ option(BUILD_OTHER_PROJECT_INTEGRATION "Allow for main files to be compiled int 
 # Option to build the xfe_control_sim executable
 option(BUILD_XFE_CONTROL_SIM_EXECUTABLE "Build xfe_control_sim executable" ON)
 
-option(BUILD_BUS_INTERFACE "Build bus interface" OFF)
+option(BUILD_BUS_INTERFACE "Build bus interface" ON)
 
 option(INTEGRATE_CUSTOMER_MODELS "Build custom customer models" OFF)
 
 option(RUN_SINGLE_MODEL_ONLY "Run only a single instance of the program, otherwise allows for data processing functions." ON)
 
-set(CUSTOMER_NAME "xflowenergy" CACHE STRING "Name of the customer to use")
-set(GIT_TAG_TO_USE "add_xfe_control_sim" CACHE STRING "git tag to use")
+set(CUSTOMER_NAME "emrgy" CACHE STRING "Name of the customer to use")
+set(GIT_TAG_TO_USE "jason_working" CACHE STRING "git tag to use")
 
 # Adjust BUILD_SHARED_LIBS
 if(BUILD_SHARED_LIBS AND BUILD_XFE_CONTROL_SIM_EXECUTABLE)
@@ -66,12 +55,12 @@ message(STATUS "Current user: '${CURRENT_USER}'")
 
 # Set LIBRARY_OUTPUT_DIR based on username
 if(WIN32)
-    if("${CURRENT_USER}" STREQUAL "XFlow Sim")
-        set(LIBRARY_OUTPUT_DIR "C:/Users/XFlow Sim/Documents/QBlade Repo/QBladeEE_2.0.7.7/ControllerFiles" CACHE PATH "Directory to copy the built library to" FORCE)
+    if("${CURRENT_USER}" STREQUAL "XFlow Sim" OR "${CURRENT_USER}" STREQUAL "Alex")
+        set(LIBRARY_OUTPUT_DIR "C:/QBlade/QBladeEE_2.0.8.6/ControllerFiles" CACHE PATH "Directory to copy the built library to" FORCE)
     elseif("${CURRENT_USER}" STREQUAL "Field")
         set(LIBRARY_OUTPUT_DIR "C:/Users/Field/Downloads/QBladeCE_2.0.7.7_win/QBladeCE_2.0.7.7/ControllerFiles" CACHE PATH "Directory to copy the built library to" FORCE)
-    elseif("${CURRENT_USER}" STREQUAL "xflow")
-        set(LIBRARY_OUTPUT_DIR "C:/Users/xflow/Downloads/QBladeCE_2.0.7.7_win/QBladeCE_2.0.7.7/ControllerFiles" CACHE PATH "Directory to copy the built library to" FORCE)
+	elseif("${CURRENT_USER}" STREQUAL "xflow")
+            set(LIBRARY_OUTPUT_DIR "C:/Users/xflow/Downloads/QBladeCE_2.0.7.7_win/QBladeCE_2.0.7.7/ControllerFiles" CACHE PATH "Directory to copy the built library to" FORCE)
     endif()
 endif()
 
@@ -86,9 +75,14 @@ else()
     option(BUILD_XFE_CONTROL_SIM_EXECUTABLE "Build xfe_control_sim executable" ON)
 endif()
 
-set(SYSTEM_CONFIG_FILENAME "simple_turbine_config.csv")
+set(SYSTEM_CONFIG_FILENAME "simple_turbine_bus_interface_config.csv")
 
-set(MODBUS_NETWORK_FILENAME "modbus_network")
+set(MODBUS_SERVER_FILENAME "modbus_server")
+
+# Network configuration file
+# This file lists all Modbus TCP networks (can be a single network)
+# Format: network_id,ip_address,tcp_port,timeout_us,device_csv_filename
+set(MODBUS_NETWORKS_FILENAME "modbus_networks")
 
 set(DYNAMIC_DATA_EXPORT_FILENAME "dynamic_data_export")
 set(FIXED_DATA_EXPORT_FILENAME "fixed_data_export")
@@ -104,22 +98,16 @@ if(NOT DEFINED FLOW_GEN_FILE_DIR)
     )
 endif()
 
-set(XFE_CONTROL_SIM_CONFIG_DIR "${CMAKE_CURRENT_LIST_DIR}")
-
 # Paths to config files
-if(NOT DEFINED XFE_CONTROL_SIM_CONFIG_DIR)
-    set(XFE_CONTROL_SIM_CONFIG_DIR
-        "${CUSTOM_XFE_CONTROL_SIM_FILES_ROOT}/../../conf/turbineconfigfiles"
-        CACHE PATH "Which xfe_control_sim config to load")
-endif()
-
+set(XFE_CONTROL_SIM_CONFIG_DIR "${CMAKE_CURRENT_LIST_DIR}")
 set(LOG_DIR "${CMAKE_SOURCE_DIR}/log")
+
 set(OUTPUT_LOG_FILE_PATH "${LOG_DIR}")
 
 if(RUN_SINGLE_MODEL_ONLY)
-    set(LOGGING_DYNAMIC_DATA_CONTINUOUS_VALUE 1)
+	set(LOGGING_DYNAMIC_DATA_CONTINUOUS_VALUE 1)
 else()
-    set(LOGGING_DYNAMIC_DATA_CONTINUOUS_VALUE 0)
+	set(LOGGING_DYNAMIC_DATA_CONTINUOUS_VALUE 0)
 endif()
 
 # Compile definitions that are always included
@@ -130,28 +118,22 @@ set(XFE_CONTROL_SIM_LIB_COMPILE_DEFINITIONS
     DATA_PROCESSING_FULL_PATH="${LOG_DIR}/${DATA_PROCESSING_EXPORT_FILENAME}.csv"
     LOGGING_DYNAMIC_DATA_CONTINUOUS=${LOGGING_DYNAMIC_DATA_CONTINUOUS_VALUE}
     RUN_SINGLE_MODEL_ONLY=${RUN_SINGLE_MODEL_ONLY}
-    OUTPUT_LOG_FILE_PATH="${OUTPUT_LOG_FILE_PATH}"
+	OUTPUT_LOG_FILE_PATH="${OUTPUT_LOG_FILE_PATH}"
     DELETE_LOG_FILE_NEW_RUN=1 # set to 0 to keep history
 )
 
 set(MODBUS_DEVICE_TYPE "\"2\"" CACHE STRING "Modbus device type")
-set(MODBUS_DEV_NUM "\"2\"" CACHE STRING "Modbus device number")
-set(MODBUS_SERVER_IP "\"192.168.67.1\"" CACHE STRING "Modbus server IP address")
-set(MODBUS_TCP_PORT "\"1503\"" CACHE STRING "Modbus TCP port")
-set(MODBUS_TIMEOUT_US "\"100000\"" CACHE STRING "Modbus timeout in microseconds")
 
+# Network configuration
 set(MODBUS_SERVER_COMPILE_DEFINITIONS
-    MODBUS_SERVER_EXECUTABLE_FULL_PATH=\"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${MODBUS_SERVER_FILENAME}\"
-    MODBUS_NETWORK_FULL_PATH="${XFE_CONTROL_SIM_CONFIG_DIR}/${MODBUS_NETWORK_FILENAME}.csv"
-    MODBUS_DEVICE_FULL_PATH="${XFE_CONTROL_SIM_CONFIG_DIR}"
+    MODBUS_SERVER_EXECUTABLE_FULL_PATH=\"${MODBUS_SERVER_FILENAME}\"
+    MODBUS_NETWORKS_CONFIG_FULL_PATH="${XFE_CONTROL_SIM_CONFIG_DIR}/bus_interface/${MODBUS_NETWORKS_FILENAME}.csv"
+    MODBUS_DEVICE_FULL_PATH="${XFE_CONTROL_SIM_CONFIG_DIR}/bus_interface"
     MODBUS_DEVICE_TYPE=${MODBUS_DEVICE_TYPE}
-    MODBUS_DEV_NUM=${MODBUS_DEV_NUM}
-    MODBUS_SERVER_IP=${MODBUS_SERVER_IP}
-    MODBUS_TCP_PORT=${MODBUS_TCP_PORT}
-    MODBUS_TIMEOUT_US=${MODBUS_TIMEOUT_US}
     EXECUTABLES_DIR=\"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}\"
     OUTPUT_LOG_FILE_PATH="${OUTPUT_LOG_FILE_PATH}"
 )
+message(STATUS "Using network configuration: ${MODBUS_NETWORKS_FILENAME}.csv")
 
 set(MODBUS_SERVER_PROGRAM_COMPILE_DEFINITIONS
     OUTPUT_LOG_FILE_PATH="${OUTPUT_LOG_FILE_PATH}"
@@ -169,3 +151,11 @@ if(BUILD_OTHER_PROJECT_INTEGRATION)
         FLOW_RUN_AFTER_END="1"
     )
 endif()
+
+# if(BUILD_XFE_CONTROL_SIM_EXECUTABLE)
+# 	if(BUILD_BUS_INTERFACE)
+# 	    list(APPEND XFE_CONTROL_SIM_LIB_COMPILE_DEFINITIONS
+# 			BUILD_BUS_INTERFACE="1"
+# 		)
+# 	endif()
+# endif()

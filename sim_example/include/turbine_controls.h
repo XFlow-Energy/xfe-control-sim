@@ -21,13 +21,11 @@
 #ifndef TURBINE_CONTROLS_H
 #define TURBINE_CONTROLS_H
 
-// NOLINTBEGIN(llvm-include-order)
 #include "xflow_core.h"
 #include "xfe_control_sim_version.h"
 #include "xfe_control_sim_common.h"
 #include "xflow_aero_sim.h"
 #include "make_stage.h"
-// NOLINTEND(llvm-include-order)
 
 // your one and only definition of the parameter list:
 #define TURBINE_CONTROL_PARAM_LIST MAYBE_UNUSED const param_array_t *dynamic_data, MAYBE_UNUSED const param_array_t *fixed_data
@@ -38,10 +36,12 @@ MAKE_STAGE(turbine_control, void, (TURBINE_CONTROL_PARAM_LIST))
 
 void example_turbine_control(TURBINE_CONTROL_PARAM_LIST);
 void kw2_turbine_control(TURBINE_CONTROL_PARAM_LIST);
+void bus_interface_turbine_control(TURBINE_CONTROL_PARAM_LIST);
 
 static const turbine_control_Map turbineControlMap[] = {
-	{"example_turbine_control", example_turbine_control},
-	{"kw2_turbine_control",     kw2_turbine_control    },
+	{"example_turbine_control",       example_turbine_control      },
+	{"kw2_turbine_control",           kw2_turbine_control          },
+	{"bus_interface_turbine_control", bus_interface_turbine_control},
 };
 
 #endif

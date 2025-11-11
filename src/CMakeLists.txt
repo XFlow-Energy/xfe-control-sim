@@ -105,7 +105,7 @@ set_source_files_properties(
 	PROPERTIES COMPILE_DEFINITIONS "${XFE_CONTROL_SIM_LIB_COMPILE_DEFINITIONS}"
 )
 
-set_source_files_properties(${CUSTOM_XFE_CONTROL_SIM_FILES_ROOT}/src/xfe_scada_interface.c PROPERTIES COMPILE_DEFINITIONS "${MODBUS_SERVER_COMPILE_DEFINITIONS}")
+set_source_files_properties(${CUSTOM_XFE_CONTROL_SIM_FILES_ROOT}/src/bus_interface.c PROPERTIES COMPILE_DEFINITIONS "${MODBUS_SERVER_COMPILE_DEFINITIONS}")
 
 if(BUILD_OTHER_PROJECT_INTEGRATION)
 	set_source_files_properties(
@@ -119,9 +119,9 @@ endif()
 # xfe_control_sim executable
 # -----------------------------------------------------------------------------
 if(BUILD_XFE_CONTROL_SIM_EXECUTABLE)
-	if(BUILD_XFE_SCADA_INTERFACE)
+	if(BUILD_BUS_INTERFACE)
 	    list(APPEND XFE_CONTROL_SIM_LIB_COMPILE_DEFINITIONS
-			BUILD_XFE_SCADA_INTERFACE="1"
+			BUILD_BUS_INTERFACE="1"
 		)
 	endif()
 	
@@ -160,7 +160,7 @@ endif()
 # -----------------------------------------------------------------------------
 # modbus_server executable
 # -----------------------------------------------------------------------------
-if(BUILD_XFE_SCADA_INTERFACE)
+if(BUILD_BUS_INTERFACE)
 	message(STATUS "MODBUS_SERVER_PROGRAM_COMPILE_DEFINITIONS = ${MODBUS_SERVER_COMPILE_DEFINITIONS}")
 	set_source_files_properties(modbus_server.c PROPERTIES COMPILE_DEFINITIONS "${MODBUS_SERVER_PROGRAM_COMPILE_DEFINITIONS}")
 	if(DEFINED MODBUS_SERVER_SOURCES)

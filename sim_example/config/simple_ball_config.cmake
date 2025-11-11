@@ -28,7 +28,7 @@ option(BUILD_OTHER_PROJECT_INTEGRATION "Allow for main files to be compiled int 
 # Option to build the xfe_control_sim executable
 option(BUILD_XFE_CONTROL_SIM_EXECUTABLE "Build xfe_control_sim executable" ON)
 
-option(BUILD_XFE_SCADA_INTERFACE "Build xfe_scada interface" OFF)
+option(BUILD_BUS_INTERFACE "Build bus interface" OFF)
 
 option(INTEGRATE_CUSTOMER_MODELS "Build custom customer models" OFF)
 
@@ -42,7 +42,7 @@ if(BUILD_SHARED_LIBS AND BUILD_XFE_CONTROL_SIM_EXECUTABLE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static libraries on Windows when building the executable" FORCE)
 endif()
 
-if(BUILD_XFE_SCADA_INTERFACE)
+if(BUILD_BUS_INTERFACE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "Forcing windows shared library off just in case" FORCE)
     set(BUILD_XFE_CONTROL_SIM_EXECUTABLE ON CACHE BOOL "Forcing on building the xfe-control-sim executable" FORCE)
 endif()

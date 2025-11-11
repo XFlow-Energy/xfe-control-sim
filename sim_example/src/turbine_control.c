@@ -19,15 +19,14 @@
  * with this software. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
-// NOLINTBEGIN(llvm-include-order)
 #include "make_stage.h"
 #include "xfe_control_sim_common.h" // for get_param, param_array_t
 #include "logger.h"                 // for log_message
 #include "maybe_unused.h"
 #include "turbine_controls.h" // for turbine_control
-#include <stdbool.h>          // IWYU pragma: keep
-#include <stddef.h>           // for NULL
-							  // NOLINTEND(llvm-include-order)
+#include "bus_interface.h"
+#include <stdbool.h> // IWYU pragma: keep
+#include <stddef.h>  // for NULL
 
 // expand definitions once, using both the decl‐list and the call‐list
 MAKE_STAGE_DEFINE(turbine_control, void, (TURBINE_CONTROL_PARAM_LIST), (TURBINE_CONTROL_CALL_ARGS))
@@ -89,4 +88,17 @@ void example_turbine_control(TURBINE_CONTROL_PARAM_LIST)
 	{
 		*tau_Flow_Extract = (*k) * omega[0] * omega[0];
 	}
+}
+
+void bus_interface_turbine_control(TURBINE_CONTROL_PARAM_LIST)
+{
+	static bool first_Run = false;
+	if (!first_Run)
+	{
+		launch_shared_mem_and_hardware_interface();
+		first_Run = true;
+	}
+
+	// Add logic here that will run before the while loop to update the shared memory controls
+	shared_memory_controls_update(dynamic_data, fixed_data);
 }

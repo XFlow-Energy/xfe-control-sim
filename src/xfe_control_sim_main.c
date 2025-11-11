@@ -58,115 +58,142 @@
 void end_modbus_server(void)
 {
 	// log_message("in end_modbus_server\n");
-	if (childPID <= 0)
+
+	// Handle multi-network mode: terminate all child processes
+	int num_children = (numActiveNetworks > 0) ? numActiveNetworks : 1;
+	for (int i = 0; i < num_children; i++)
 	{
-		// log_message("Invalid PID: %d. No modbus_server process to terminate.\n", childPID);
-		return;
-	}
+		pid_t pid = childPIDs[i];
+		if (pid <= 0)
+		{
+			continue; // Skip invalid PIDs
+		}
+
+		log_message("Terminating modbus_server child %d (PID %d)\n", i, pid);
 
 #ifdef _WIN32
-	HANDLE process_handle = OpenProcess(PROCESS_TERMINATE | PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, childPID);
-	if (process_handle == NULL)
-	{
-		ERROR_MESSAGE("Failed to open modbus_server process (PID %d): %lu\n", childPID, GetLastError());
-		return;
-	}
-
-	// Try to gracefully terminate the process
-	if (TerminateProcess(process_handle, 0))
-	{
-		log_message("Sent termination request to modbus_server (PID %d).\n", childPID);
-	}
-	else
-	{
-		ERROR_MESSAGE("Failed to terminate modbus_server (PID %d): %lu\n", childPID, GetLastError());
-		CloseHandle(process_handle);
-		return;
-	}
-
-	// Wait for the process to exit
-	DWORD wait_result = WaitForSingleObject(process_handle, 5000); // Wait for up to 5 seconds
-	if (wait_result == WAIT_OBJECT_0)
-	{
-		DWORD exit_code = 0;
-		if (GetExitCodeProcess(process_handle, &exit_code))
+		HANDLE process_handle = OpenProcess(PROCESS_TERMINATE | PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, pid);
+		if (process_handle == NULL)
 		{
-			if (exit_code == 0)
+			ERROR_MESSAGE("Failed to open modbus_server process (PID %d): %lu\n", pid, GetLastError());
+			continue;
+		}
+
+		// Try to gracefully terminate the process
+		if (TerminateProcess(process_handle, 0))
+		{
+			log_message("Sent termination request to modbus_server (PID %d).\n", pid);
+		}
+		else
+		{
+			ERROR_MESSAGE("Failed to terminate modbus_server (PID %d): %lu\n", pid, GetLastError());
+			CloseHandle(process_handle);
+			continue;
+		}
+
+		// Wait for the process to exit
+		DWORD wait_result = WaitForSingleObject(process_handle, 5000); // Wait for up to 5 seconds
+		if (wait_result == WAIT_OBJECT_0)
+		{
+			DWORD exit_code = 0;
+			if (GetExitCodeProcess(process_handle, &exit_code))
 			{
-				log_message("modbus_server (PID %d) exited with status %lu.\n", childPID, exit_code);
+				if (exit_code == 0)
+				{
+					log_message("modbus_server (PID %d) exited with status %lu.\n", pid, exit_code);
+				}
+				else
+				{
+					log_message("modbus_server (PID %d) exited with non-zero status %lu.\n", pid, exit_code);
+				}
 			}
 			else
 			{
-				log_message("modbus_server (PID %d) exited with non-zero status %lu.\n", childPID, exit_code);
+				ERROR_MESSAGE("Failed to get exit code for modbus_server (PID %d): %lu\n", pid, GetLastError());
 			}
 		}
+		else if (wait_result == WAIT_TIMEOUT)
+		{
+			log_message("modbus_server (PID %d) did not exit in time. Forcibly terminating.\n", pid);
+			TerminateProcess(process_handle, 1); // Forcefully terminate the process
+		}
 		else
 		{
-			ERROR_MESSAGE("Failed to get exit code for modbus_server (PID %d): %lu\n", childPID, GetLastError());
+			ERROR_MESSAGE("Failed to wait for modbus_server (PID %d): %lu\n", pid, GetLastError());
 		}
-	}
-	else if (wait_result == WAIT_TIMEOUT)
-	{
-		log_message("modbus_server (PID %d) did not exit in time. Forcibly terminating.\n", childPID);
-		TerminateProcess(process_handle, 1); // Forcefully terminate the process
-	}
-	else
-	{
-		ERROR_MESSAGE("Failed to wait for modbus_server (PID %d): %lu\n", childPID, GetLastError());
-	}
 
-	CloseHandle(process_handle);
+		CloseHandle(process_handle);
 
 #else
-	// POSIX-specific process termination and wait logic
-	if (kill(childPID, SIGTERM) == 0)
-	{
-		log_message("Sent SIGTERM to modbus_server (PID %d).\n", childPID);
-	}
-	else
-	{
-		ERROR_MESSAGE("Failed to send SIGTERM to modbus_server (PID %d): %s\n", childPID, safe_strerror(errno));
-		return;
-	}
-
-	int status = 0;
-	pid_t result = waitpid(childPID, &status, 0);
-	if (result == -1)
-	{
-		ERROR_MESSAGE("Failed to wait for modbus_server (PID %d): %s\n", childPID, safe_strerror(errno));
-	}
-	else if (WIFEXITED(status))
-	{
-		log_message("modbus_server (PID %d) exited with status %d.\n", childPID, WEXITSTATUS(status));
-	}
-	else if (WIFSIGNALED(status))
-	{
-		log_message("modbus_server (PID %d) was terminated by signal %d.\n", childPID, WTERMSIG(status));
-	}
-	else
-	{
-		log_message("modbus_server (PID %d) exited unexpectedly.\n", childPID);
-	}
-
-	// If the process is still running, send SIGKILL to forcefully terminate it
-	if (kill(childPID, 0) == 0)
-	{
-		log_message("modbus_server (PID %d) did not exit after SIGTERM. Sending SIGKILL.\n", childPID);
-		if (kill(childPID, SIGKILL) == 0)
+		// POSIX-specific process termination and wait logic
+		if (kill(pid, SIGTERM) == 0)
 		{
-			log_message("Sent SIGKILL to modbus_server (PID %d).\n", childPID);
+			log_message("Sent SIGTERM to modbus_server (PID %d).\n", pid);
 		}
 		else
 		{
-			ERROR_MESSAGE("Failed to send SIGKILL to modbus_server (PID %d): %s\n", childPID, safe_strerror(errno));
+			ERROR_MESSAGE("Failed to send SIGTERM to modbus_server (PID %d): %s\n", pid, safe_strerror(errno));
+			continue;
 		}
-	}
+
+		int status = 0;
+		pid_t result = waitpid(pid, &status, 0);
+		if (result == -1)
+		{
+			ERROR_MESSAGE("Failed to wait for modbus_server (PID %d): %s\n", pid, safe_strerror(errno));
+		}
+		else if (WIFEXITED(status))
+		{
+			log_message("modbus_server (PID %d) exited with status %d.\n", pid, WEXITSTATUS(status));
+		}
+		else if (WIFSIGNALED(status))
+		{
+			log_message("modbus_server (PID %d) was terminated by signal %d.\n", pid, WTERMSIG(status));
+		}
+		else
+		{
+			log_message("modbus_server (PID %d) exited unexpectedly.\n", pid);
+		}
+
+		// If the process is still running, send SIGKILL to forcefully terminate it
+		if (kill(pid, 0) == 0)
+		{
+			log_message("modbus_server (PID %d) did not exit after SIGTERM. Sending SIGKILL.\n", pid);
+			if (kill(pid, SIGKILL) == 0)
+			{
+				log_message("Sent SIGKILL to modbus_server (PID %d).\n", pid);
+			}
+			else
+			{
+				ERROR_MESSAGE("Failed to send SIGKILL to modbus_server (PID %d): %s\n", pid, safe_strerror(errno));
+			}
+		}
 #endif
+	}
+
+	// Backward compatibility: also check legacy childPID
+	if (childPID > 0 && (numActiveNetworks == 0 || childPID != childPIDs[0]))
+	{
+		log_message("Terminating legacy modbus_server (PID %d)\n", childPID);
+#ifdef _WIN32
+		HANDLE process_handle = OpenProcess(PROCESS_TERMINATE, FALSE, childPID);
+		if (process_handle != NULL)
+		{
+			TerminateProcess(process_handle, 0);
+			CloseHandle(process_handle);
+		}
+#else
+		kill(childPID, SIGTERM);
+		usleep(100000);
+		kill(childPID, SIGKILL);
+#endif
+	}
 }
 
 void cleanup_program(MAYBE_UNUSED int signum)
 {
 	end_modbus_server();
+	cleanup_simulation();
 }
 
 int main(const int argc, const char *argv[])
@@ -192,6 +219,7 @@ int main(const int argc, const char *argv[])
 	// Initialize the signal handler to catch signals which will stop the program.
 	initialize_signal_handler();
 
+#ifndef BUILD_BUS_INTERFACE
 	int run_single_mode_only = 0;
 
 #ifdef RUN_SINGLE_MODEL_ONLY
@@ -207,6 +235,7 @@ int main(const int argc, const char *argv[])
 		update_csv_value(SYSTEM_CONFIG_FULL_PATH, "data_processing_single_run_only", INPUT_PARAM_INT, &run_single_zero);
 		run_single_mode_only = 0;
 	}
+#endif
 #endif
 
 	// Pass the address of the pointers (i.e., pointers to pointers)
@@ -258,21 +287,39 @@ int main(const int argc, const char *argv[])
 
 	control_switch(dynamic_Data, fixed_Data);
 
-#ifdef BUILD_XFE_SCADA_INTERFACE
-	log_message("running BUILD_XFE_SCADA_INTERFACE\n");
-	const struct timespec programStartTime = get_monotonic_timestamp();
+#ifdef BUILD_BUS_INTERFACE
+	log_message("running BUILD_BUS_INTERFACE\n");
+
+	static double *time_Scale_Factor = NULL;
+	get_param(fixed_Data, "time_scale_factor", &time_Scale_Factor);
+
+	if (*time_Scale_Factor <= 1)
+	{
+		*time_Scale_Factor = 1;
+	}
+
+	if (init_simulation_master(*time_Scale_Factor) != 0)
+	{
+		log_message("[MASTER] Failed to start simulation; running in real-time\n");
+	}
+
+	allow_start_time_updates_from_children();
+
 	while (*time_Sec < *dur_Sec && !shutdownFlag)
 	{
 		const struct timespec while_loop_start_time = get_monotonic_timestamp();
 		flow_gen(dynamic_Data, fixed_Data);
 		numerical_integrator(state_Vars, state_Names, num_state_vars, *dt_Sec, dynamic_Data, fixed_Data);
-		*time_Sec = timespec_diff_to_double(programStartTime, get_monotonic_timestamp());
+
+		// Advance time by physics timestep (deterministic, not wall-clock)
+		*time_Sec += *dt_Sec;
+
 		turbine_control(dynamic_Data, fixed_Data);
 
 		continuous_logging_function(dynamic_Data, fixed_Data);
 
 		const double while_loop_duration_time = timespec_diff_to_double(while_loop_start_time, get_monotonic_timestamp());
-		log_message("while_loop_duration_time %f, *time_Sec: %f\n", while_loop_duration_time, *time_Sec);
+		// log_message("while_loop_duration_time %f, *time_Sec: %f\n", while_loop_duration_time, *time_Sec);
 		const double sleep_time = *dt_Sec - while_loop_duration_time;
 		if (sleep_time <= 0)
 		{
@@ -281,7 +328,8 @@ int main(const int argc, const char *argv[])
 		}
 		else
 		{
-			const uint32_t sleep_time_command = (1e6 * sleep_time);
+			// Scale sleep time to run faster/slower than real-time
+			const uint32_t sleep_time_command = (uint32_t)(1e6 * sleep_time);
 			// log_message("sleep_time_command: %d\n", sleep_time_command);
 			usleep_now(sleep_time_command);
 		}

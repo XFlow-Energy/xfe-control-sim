@@ -2,7 +2,7 @@
  * @file    modbus_server.c
  * @author  XFlow Energy
  * @date    2025
- * @brief   Modbus server functions for interfacing with XFE-SCADA
+ * @brief   Modbus server functions for interfacing with BUS
  */
 
 /* SPDX-License-Identifier: GPL-3.0-or-later */
@@ -152,17 +152,36 @@ void cleanup_program(MAYBE_UNUSED int signum)
 
 int main(int argc, char *argv[])
 {
-	// for (int i = 0; i < argc; i++)
-	// {
-	// 	log_message("argv[%d] %s\n", i, argv[i]);
-	// }
-	log_message("Starting modbus server, OUTPUT_LOG_FILE_PATH: %s\n", OUTPUT_LOG_FILE_PATH);
+	// Parse network_id first to use it for the log filename
+	int network_id = -1;
+	for (int i = 1; i < argc; i++)
+	{
+		if (strcmp(argv[i], "--network_id") == 0 && i + 1 < argc)
+		{
+			network_id = safe_atoi(argv[i + 1]);
+			break;
+		}
+		else if (strcmp(argv[i], "--dev_num") == 0 && i + 1 < argc && network_id == -1)
+		{
+			// Fallback to dev_num if network_id not found
+			network_id = safe_atoi(argv[i + 1]);
+		}
+	}
+
+	log_message("Starting modbus server for network %d, OUTPUT_LOG_FILE_PATH: %s\n", network_id, OUTPUT_LOG_FILE_PATH);
 
 #ifdef OUTPUT_LOG_FILE_PATH
 	char output_log_filename_aero[PATH_MAX];
-	create_dynamic_file_path(output_log_filename_aero, sizeof(output_log_filename_aero), "%s", "modbus_server.log");
+	if (network_id >= 0)
+	{
+		create_dynamic_file_path(output_log_filename_aero, sizeof(output_log_filename_aero), "modbus_server_network_%d.log", network_id);
+	}
+	else
+	{
+		create_dynamic_file_path(output_log_filename_aero, sizeof(output_log_filename_aero), "%s", "modbus_server.log");
+	}
 	char logfilename[PATH_MAX];
-	log_file_ammend_remove_t log_ammend_delete;
+	log_file_ammend_remove_t log_ammend_delete = DELETE_OLD_LOG_FILE;
 #if DELETE_LOG_FILE_NEW_RUN == 1
 	log_ammend_delete = DELETE_OLD_LOG_FILE;
 #else
@@ -187,7 +206,15 @@ int main(int argc, char *argv[])
 		{
 			deviceNumber = safe_atoi(argv[++i]);
 		}
+		else if (strcmp(argv[i], "--network_id") == 0)
+		{
+			// network_id is used to filter devices in set_config_data()
+			// It's stored in deviceNumber which is then assigned to each device's network_id
+			deviceNumber = safe_atoi(argv[++i]);
+		}
 	}
+
+	connect_to_simulation();
 
 	// log_message("Program Name: %s\n", argv[0]);
 	shutdownFlag = set_config_data(HARDWARE_CONNECTIONS);

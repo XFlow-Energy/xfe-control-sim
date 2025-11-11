@@ -112,6 +112,12 @@ def build_project(
 		    f"-DBUILD_SHARED_LIBS={'ON' if build_shared_libs else 'OFF'}",
 		]
 
+		# Allow overriding config file via environment variable
+		config_file_override = os.environ.get("XFE_CONTROL_SIM_CONFIG_FILE")
+		if config_file_override:
+			cmake_cmd.append(f"-DXFE_CONTROL_SIM_CONFIG_FILE={config_file_override}")
+			print(f"{Emoji.INFO} Using config file: {config_file_override}")
+
 		if cmake_prefix_path:
 			cmake_cmd.append(f"-DCMAKE_PREFIX_PATH={cmake_prefix_path}")
 
