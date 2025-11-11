@@ -192,20 +192,20 @@ pid_t launch_modbus_server_windows(char *modbus_server_executable_location_progr
 	safe_memset(&pi, 0, sizeof(pi));
 
 	// Create the command line string with network-specific parameters
-	char commandLine[2048];
-	safe_snprintf(commandLine, sizeof(commandLine), "\"%s\" --modbus_device_type \"%s\" --dev_num \"%s\" --device_config_csv_file \"%s\" --csv_file_location \"%s\" --server_ip \"%s\" --tcp_port \"%s\" --timeout_us \"%s\" --network_id \"%s\"", modbus_server_executable_location_program_name, MODBUS_DEVICE_TYPE, network_id_str, device_csv_file, csvFileLocation, server_ip, tcp_port, timeout_us, network_id_str);
+	char command_line[2048];
+	safe_snprintf(command_line, sizeof(command_line), "\"%s\" --modbus_device_type \"%s\" --dev_num \"%s\" --device_config_csv_file \"%s\" --csv_file_location \"%s\" --server_ip \"%s\" --tcp_port \"%s\" --timeout_us \"%s\" --network_id \"%s\"", modbus_server_executable_location_program_name, MODBUS_DEVICE_TYPE, network_id_str, device_csv_file, csvFileLocation, server_ip, tcp_port, timeout_us, network_id_str);
 
-	log_message("launch child command: %s\n", commandLine);
+	log_message("launch child command: %s\n", command_line);
 
 #ifdef OUTPUT_LOG_FILE_PATH
 	// Create the child process in new process group to prevent receiving Ctrl+C signals
 	// CREATE_NEW_PROCESS_GROUP is Windows equivalent of Unix setpgid(0, 0)
-	if (!CreateProcess(NULL, commandLine, NULL, NULL, FALSE, CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP, NULL, NULL, &si, &pi))
+	if (!CreateProcess(NULL, command_line, NULL, NULL, FALSE, CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP, NULL, NULL, &si, &pi))
 #else
 	// Use CREATE_NEW_CONSOLE and CREATE_NEW_PROCESS_GROUP to launch the child process
 	if (!CreateProcess(
 			NULL,                                          // No module name (use command line)
-			commandLine,                                   // Command line
+			command_line,                                  // Command line
 			NULL,                                          // Process handle not inheritable
 			NULL,                                          // Thread handle not inheritable
 			FALSE,                                         // Set handle inheritance to FALSE
