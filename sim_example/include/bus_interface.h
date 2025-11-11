@@ -25,12 +25,14 @@
 #include "xfe_control_sim_common.h"
 #include "xflow_core.h"
 #include "xflow_aero_sim.h"
+#include <sys/types.h>
 
 #ifdef _WIN32
 #include <windows.h>
+// Only under MSVC do we need to supply pid_t
+#ifdef _MSC_VER
 typedef DWORD pid_t;
-#else
-#include <sys/types.h>
+#endif
 #endif
 
 // Solis Inverter Modbus Register Addresses
