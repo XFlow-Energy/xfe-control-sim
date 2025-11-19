@@ -27,7 +27,8 @@ def build_project(
         rebuild: bool,
         verbose: bool = False,
         build_shared_libs: bool = False,
-        build_executable: bool = True):
+        build_executable: bool = True,
+        debug_build: bool = False):
 	"""Build the project using CMake."""
 	is_github_actions = os.environ.get("GITHUB_ACTIONS") == "true"
 	is_ci = is_github_actions or os.environ.get("CI") is not None
@@ -90,11 +91,8 @@ def build_project(
 		if is_github_actions and os_name == "Windows":
 			cmake_prefix_path = "C:/deps/gsl-install;C:/deps/jansson-install;C:/deps/libmodbus"
 
-		build_type = "Release" if is_ci else "Debug"
-		if not build_executable:
-			build_type = "Release"
-		else:
-			build_type = "Debug"
+		# Default to Release for performance, use Debug only when explicitly requested
+		build_type = "Debug" if debug_build else "Release"
 
 		cmake_cmd = [
 		    "cmake",
@@ -237,7 +235,82 @@ def run_copy_test(repo_root: Path, subdir_name: str, test_type: str, rebuild: bo
 		print(f"{Colors.YELLOW}   You can inspect the log with: less '{log_file}'{Colors.RESET}", file=sys.stderr)
 		return launch_exit if launch_exit != 0 else 1
 
-def run_main_repo_build(repo_root: Path, rebuild: bool, verbose: bool = False) -> int:
+def run_all_tests(repo_root: Path, rebuild: bool, verbose: bool = False, debug_build: bool = False) -> int:
+	"""
+    Build and run all test executables without running the main simulation.
+    """
+	run_yapf(repo_root)
+	sync_scripts_to_subdir(repo_root, "sim_example")
+	run_clang_format(repo_root)
+
+	build_dir = repo_root / "build"
+
+	print(f"{Emoji.INFO} Building test executables from main repo...")
+	build_project(
+	    repo_root, build_dir, rebuild, verbose, build_shared_libs=False, build_executable=True, debug_build=debug_build)
+
+	print()
+
+	# List of all test executables
+	test_executables = [
+	    "test_pulse_generator",
+	    "test_numerical_integrator",
+	    "test_flow_gen",
+	    "test_param_array",
+	    "test_common_utils",
+	    "test_control_switch",
+	]
+
+	bin_dir = build_dir / "executables-out"
+	failed_tests = []
+	passed_tests = []
+	missing_tests = []
+
+	for test_name in test_executables:
+		test_binary = bin_dir / test_name
+		if not test_binary.exists():
+			test_binary = bin_dir / f"{test_name}.exe"
+			if not test_binary.exists():
+				print(f"{Colors.YELLOW}Test binary not found: {test_name}{Colors.RESET}")
+				missing_tests.append(test_name)
+				continue
+
+		print(f"\n{Emoji.INFO} Running {test_name}...")
+		print("=" * 70)
+		test_result = subprocess.run([str(test_binary)], capture_output=False)
+		print("=" * 70)
+
+		if test_result.returncode != 0:
+			print(f"{Colors.RED}{test_name} FAILED{Colors.RESET}")
+			failed_tests.append(test_name)
+		else:
+			print(f"{Colors.GREEN}{test_name} PASSED{Colors.RESET}")
+			passed_tests.append(test_name)
+
+	# Print summary
+	print(f"\n{Colors.BLUE}{'=' * 70}{Colors.RESET}")
+	print(f"{Colors.BLUE}Test Summary{Colors.RESET}")
+	print(f"{Colors.BLUE}{'=' * 70}{Colors.RESET}")
+	print(f"Total tests:   {len(test_executables)}")
+	print(f"{Colors.GREEN}Passed:        {len(passed_tests)}{Colors.RESET}")
+	print(f"{Colors.RED}Failed:        {len(failed_tests)}{Colors.RESET}")
+	print(f"{Colors.YELLOW}Missing:       {len(missing_tests)}{Colors.RESET}")
+
+	if failed_tests:
+		print(f"\n{Colors.RED}Failed tests:{Colors.RESET}")
+		for test in failed_tests:
+			print(f"  - {test}")
+
+	if missing_tests:
+		print(f"\n{Colors.YELLOW}Missing tests:{Colors.RESET}")
+		for test in missing_tests:
+			print(f"  - {test}")
+
+	print(f"{Colors.BLUE}{'=' * 70}{Colors.RESET}\n")
+
+	return 1 if failed_tests else 0
+
+def run_main_repo_build(repo_root: Path, rebuild: bool, verbose: bool = False, debug_build: bool = False) -> int:
 	"""
     Run build from the main xfe-control-sim repo (local_xfe_control_sim command).
     """
@@ -248,7 +321,8 @@ def run_main_repo_build(repo_root: Path, rebuild: bool, verbose: bool = False) -
 	build_dir = repo_root / "build"
 
 	print(f"{Emoji.INFO} Building xfe_control_sim from main repo...")
-	build_project(repo_root, build_dir, rebuild, verbose, build_shared_libs=False, build_executable=True)
+	build_project(
+	    repo_root, build_dir, rebuild, verbose, build_shared_libs=False, build_executable=True, debug_build=debug_build)
 
 	run_clang_tidy_enabled = os.environ.get("RUN_CLANG_TIDY", "1")
 	is_ci = is_ci_environment()
@@ -279,10 +353,11 @@ def run_main_repo_build(repo_root: Path, rebuild: bool, verbose: bool = False) -
 
 	return exit_code
 
-def run_standalone_build(build_dir_name: str, test_type: str, rebuild: bool, verbose: bool = False) -> int:
+def run_standalone_build(
+        build_dir_name: str, test_type: str, rebuild: bool, verbose: bool = False, debug_build: bool = False) -> int:
 	"""
     Default mode: Run as a standalone build script.
-    
+
     This is what runs when the script is in a copied directory like sim_example.
     """
 	script_dir = get_script_dir()
@@ -310,7 +385,7 @@ def run_standalone_build(build_dir_name: str, test_type: str, rebuild: bool, ver
 		build_shared_libs = False
 		build_executable = True
 
-	build_project(source_dir, build_dir, rebuild, verbose, build_shared_libs, build_executable)
+	build_project(source_dir, build_dir, rebuild, verbose, build_shared_libs, build_executable, debug_build)
 
 	run_clang_tidy_enabled = os.environ.get("RUN_CLANG_TIDY", "1")
 
@@ -452,15 +527,19 @@ def validate_log_file(log_file: Path, test_type: str) -> bool:
 def main():
 	"""Main entry point."""
 	parser = argparse.ArgumentParser(
-	    description="Cross-platform build and test launcher",
+	    description="Cross-platform build and test launcher (defaults to Release build for performance)",
 	    epilog="""
 Standalone build commands (default - run from any build directory):
-  %(prog)s xfe_control_sim 1         Build and run xfe_control_sim (with rebuild)
+  %(prog)s xfe_control_sim 1         Build and run xfe_control_sim (Release mode, with rebuild)
   %(prog)s discon 0                  Build and run DISCON test (no rebuild)
   %(prog)s xfe_control_sim 0 -v      Build xfe_control_sim (no rebuild, verbose)
+  %(prog)s xfe_control_sim 1 --debug Build with Debug mode (slower, includes debug symbols)
 
 Main repo commands (run from xfe-control-sim/misc/):
-  %(prog)s local_xfe_control_sim 1            Build and run in main repo (with rebuild)
+  %(prog)s local_xfe_control_sim 1            Build and run in main repo (Release mode, with rebuild)
+  %(prog)s local_xfe_control_sim 1 --debug    Build in Debug mode (slower, for debugging)
+  %(prog)s run_tests 1                        Build and run ALL tests (with rebuild)
+  %(prog)s run_tests 0                        Run ALL tests (no rebuild)
   %(prog)s sim_example_copy_test 1            Copy sim_example to temp, build, and test
   %(prog)s sim_example_copy_test_discon 0     Copy sim_example to temp and test DISCON
         """,
@@ -474,6 +553,10 @@ Main repo commands (run from xfe-control-sim/misc/):
 	    choices=["0", "1"],
 	    help="Whether to rebuild (1) or reuse existing build (0)")
 	parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose build output")
+	parser.add_argument(
+	    "--debug",
+	    action="store_true",
+	    help="Build with Debug mode instead of Release (slower, includes debug symbols)")
 	parser.add_argument("--build-dir", default="build", help="Build directory name (default: build)")
 	parser.add_argument(
 	    "--subdir", default="sim_example", help="Subdirectory name for copy tests (default: sim_example)")
@@ -493,7 +576,14 @@ Main repo commands (run from xfe-control-sim/misc/):
 			    f"{Colors.RED}Error: local_xfe_control_sim requires being in a git repository{Colors.RESET}",
 			    file=sys.stderr)
 			sys.exit(1)
-		exit_code = run_main_repo_build(repo_root, rebuild, args.verbose)
+		exit_code = run_main_repo_build(repo_root, rebuild, args.verbose, args.debug)
+
+	elif args.command == "run_tests":
+		repo_root = get_git_root()
+		if repo_root is None:
+			print(f"{Colors.RED}Error: run_tests requires being in a git repository{Colors.RESET}", file=sys.stderr)
+			sys.exit(1)
+		exit_code = run_all_tests(repo_root, rebuild, args.verbose, args.debug)
 
 	elif args.command == "sim_example_copy_test":
 		repo_root = get_git_root()
@@ -514,16 +604,16 @@ Main repo commands (run from xfe-control-sim/misc/):
 		exit_code = run_copy_test(repo_root, args.subdir, "discon", rebuild)
 
 	elif args.command == "xfe_control_sim":
-		exit_code = run_standalone_build(args.build_dir, "xfe_control_sim", rebuild, args.verbose)
+		exit_code = run_standalone_build(args.build_dir, "xfe_control_sim", rebuild, args.verbose, args.debug)
 
 	elif args.command == "discon":
-		exit_code = run_standalone_build(args.build_dir, "discon", rebuild, args.verbose)
+		exit_code = run_standalone_build(args.build_dir, "discon", rebuild, args.verbose, args.debug)
 
 	else:
 		print(f"{Colors.RED}Unknown command: {args.command}{Colors.RESET}", file=sys.stderr)
 		print(f"\n{Colors.YELLOW}Standalone commands: xfe_control_sim, discon{Colors.RESET}", file=sys.stderr)
 		print(
-		    f"{Colors.YELLOW}Main repo commands: local_xfe_control_sim, sim_example_copy_test, "
+		    f"{Colors.YELLOW}Main repo commands: local_xfe_control_sim, run_tests, sim_example_copy_test, "
 		    f"sim_example_copy_test_discon{Colors.RESET}",
 		    file=sys.stderr)
 		sys.exit(1)
