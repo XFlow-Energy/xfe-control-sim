@@ -1,10 +1,15 @@
 import sys
 import os
 import logging
-import numpy as np
-import pandas as pd
-import pyqtgraph as pg
 from pathlib import Path
+
+# CRITICAL: Set OpenGL platform BEFORE any imports that might use OpenGL
+# This must happen before pyqtgraph import for frozen Windows builds
+if sys.platform == 'win32':
+	os.environ['PYOPENGL_PLATFORM'] = 'nt'
+	# Disable OpenGL accelerate in frozen builds (can cause ctypes issues)
+	if getattr(sys, 'frozen', False):
+		os.environ['PYOPENGL_ACCELERATE'] = 'False'
 
 # Setup file logging for frozen Windows builds (no console available)
 if getattr(sys, 'frozen', False) and sys.platform == 'win32':
@@ -18,6 +23,12 @@ if getattr(sys, 'frozen', False) and sys.platform == 'win32':
 	sys.stdout = open(log_path, 'a')
 	sys.stderr = sys.stdout
 	logging.info("Plot Viewer started (frozen Windows build)")
+	logging.info(f"PYOPENGL_PLATFORM={os.environ.get('PYOPENGL_PLATFORM', 'not set')}")
+	logging.info(f"PYOPENGL_ACCELERATE={os.environ.get('PYOPENGL_ACCELERATE', 'not set')}")
+
+import numpy as np
+import pandas as pd
+import pyqtgraph as pg
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QFileDialog, QVBoxLayout, QWidget, QLabel, QComboBox, QListWidget, QPushButton,
     QListWidgetItem, QHBoxLayout, QSplitter, QCheckBox, QFormLayout, QGroupBox, QTableWidget, QTableWidgetItem,
@@ -184,6 +195,8 @@ class CSVPlotter(QMainWindow):
 		self.pinned_annotations = []  # List of pinned TextItem annotations
 		self._last_tooltip_data = None  # Store last tooltip data for pinning
 		self._array_cache = {}  # Cache for numpy arrays
+		# Track OpenGL state (get from pyqtgraph config, default True)
+		self.opengl_enabled = pg.getConfigOption('useOpenGL') if pg.getConfigOption('useOpenGL') is not None else True
 
 		# Debounced plot update timer - prevents redundant redraws
 		self._plot_update_timer = QTimer(self)
@@ -1786,6 +1799,12 @@ class CSVPlotter(QMainWindow):
 		self.downsample_action.triggered.connect(self.schedule_plot_update)
 		view_menu.addAction(self.downsample_action)
 
+		self.opengl_action = QAction("&OpenGL Acceleration", self, checkable=True)
+		self.opengl_action.setChecked(self.opengl_enabled)
+		self.opengl_action.setToolTip("Enable OpenGL hardware acceleration (faster for large datasets, may cause issues on some systems)")
+		self.opengl_action.triggered.connect(self.toggle_opengl)
+		view_menu.addAction(self.opengl_action)
+
 		# Plot Menu
 		plot_menu = menubar.addMenu("&Plot")
 
@@ -2615,6 +2634,14 @@ class CSVPlotter(QMainWindow):
 		self.crosshair_enabled = self.crosshair_action.isChecked()
 		self.vLine.setVisible(self.crosshair_enabled)
 		self.hLine.setVisible(self.crosshair_enabled)
+
+	def toggle_opengl(self):
+		"""Toggle OpenGL hardware acceleration and recreate the plot widget."""
+		self.opengl_enabled = self.opengl_action.isChecked()
+		pg.setConfigOptions(useOpenGL=self.opengl_enabled, enableExperimental=self.opengl_enabled)
+		logging.info(f"OpenGL acceleration {'enabled' if self.opengl_enabled else 'disabled'}")
+		self.statusBar().showMessage(f"OpenGL acceleration {'enabled' if self.opengl_enabled else 'disabled'} - recreating plot...", 3000)
+		self.replace_plot_widget()
 
 	def format_value(self, val):
 		"""Format a numeric value, avoiding scientific notation for reasonable numbers."""
@@ -3612,10 +3639,23 @@ if __name__ == "__main__":
 
 	# Enable OpenGL by default for better performance
 	if not args.no_opengl:
-		pg.setConfigOptions(useOpenGL=True, enableExperimental=True)
-		if args.debug:
-			print("OpenGL hardware acceleration enabled")
+		try:
+			pg.setConfigOptions(useOpenGL=True, enableExperimental=True)
+			logging.info("OpenGL hardware acceleration enabled")
+			if args.debug:
+				print("OpenGL hardware acceleration enabled")
+			# Verify OpenGL is actually available
+			try:
+				import OpenGL.GL as gl
+				logging.info(f"OpenGL module loaded successfully")
+			except ImportError as e:
+				logging.warning(f"OpenGL import failed: {e}")
+		except Exception as e:
+			logging.error(f"Failed to enable OpenGL: {e}")
+			if args.debug:
+				print(f"Warning: Failed to enable OpenGL: {e}")
 	else:
+		logging.info("OpenGL hardware acceleration disabled by user")
 		if args.debug:
 			print("OpenGL hardware acceleration disabled")
 
