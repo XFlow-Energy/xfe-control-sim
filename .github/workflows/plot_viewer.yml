@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - main
+      - working
     paths:
       - 'misc/plot_viewer.py'
       - 'misc/plot_viewer_help.md'
