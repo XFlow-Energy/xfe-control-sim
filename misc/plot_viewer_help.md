@@ -30,17 +30,22 @@ CSV Dual-Axis Plot Viewer Pro is a professional-grade data visualization and ana
 ### Key Features
 - Dual Y-axis plotting with independent scales
 - Real-time file monitoring and auto-reload
-- Advanced data processing (smoothing, decimation)
+- Advanced data processing (smoothing, decimation, transformations)
 - Comprehensive analysis tools (curve fitting, peak detection, derivatives, FFT)
-- Enhanced visualization (tooltips, reference lines, region highlighting)
+- Enhanced visualization (tooltips, reference lines, region highlighting, pinned annotations)
 - Multiple CSV file comparison
-- Customizable styling with 16 colors, line styles, markers, and opacity control
-- Multiple export formats (PNG, SVG, PDF)
+- Customizable styling with 18 colors, line styles, markers, and opacity control
+- Auto-color assignment for new series
+- Multiple export formats (PNG, SVG, PDF) plus clipboard copy
+- Zoom history with back navigation
+- Auto downsampling for large datasets
 
 ### System Requirements
 - Python 3.8 or higher
 - Required packages: pandas, PyQt5, pyqtgraph, numpy
 - Optional: scipy (for advanced smoothing and analysis features)
+- Optional: asteval (for safer custom equation evaluation in curve fitting)
+- Optional: markdown (for formatted help display)
 
 ---
 
@@ -180,10 +185,11 @@ For every selected series, you can customize:
 - x: X-shaped markers
 
 **Color Selection**
-- 16 colors available
+- 18 colors available
 - Dark theme: White, Red, Green, Blue, etc. (Black excluded)
 - Light theme: Black, Red, Green, Blue, etc. (White excluded)
 - Theme-appropriate colors ensure visibility
+- **Auto-color assignment**: New series automatically get the next available unused color
 
 **Line Width**
 - Range: 0.5 to 10.0 pixels
@@ -219,12 +225,42 @@ For every selected series, you can customize:
 3. A tooltip box appears showing:
    - X value at cursor position
    - Y values for ALL plotted series at that X position
-4. Uncheck to disable tooltip
+4. A green dashed indicator line shows the exact X position
+5. Uncheck to disable tooltip
 
 **Benefits**:
 - More detailed than status bar
 - Shows all series values simultaneously
 - Stays near your cursor for easy reading
+- Improved number formatting (avoids unnecessary scientific notation)
+- Visual indicator line makes it easy to see exact data position
+
+### Pinned Annotations
+
+**Purpose**: Pin tooltip data as permanent, draggable labels on the plot
+
+**Creating Annotations**:
+1. Hover over the plot to show tooltip at desired location
+2. Press `P` to pin the current tooltip data
+3. A green dashed vertical line and text annotation appear
+4. The annotation shows all Y values at that X position
+
+**Editing Annotations**:
+1. **Move**: Click and drag the annotation text to reposition
+2. **Add Label**: Double-click the annotation → Select "Add/Edit Annotation Label"
+3. **Delete**: Double-click the annotation → Select "Delete Annotation"
+
+**Managing Annotations**:
+- `P`: Pin current tooltip
+- `Shift+P`: Remove the most recently pinned annotation
+- `Ctrl+Shift+P`: Clear all pinned annotations
+
+**Features**:
+- Annotations persist until cleared
+- Draggable to any position on the plot
+- Custom labels can be added for context
+- Included when copying plot to clipboard
+- Useful for marking key data points
 
 ### Marker Size Control
 
@@ -403,6 +439,57 @@ For every selected series, you can customize:
 - Not recommended for detailed analysis
 - Use with smoothing for best results
 
+### Data Transformation
+
+**Purpose**: Apply mathematical transformations to Y-axis data for alternative views
+
+**Usage**:
+1. Check "Enable Transformation"
+2. Select transformation method
+3. Plot updates automatically
+
+**Available Methods**:
+
+**None**
+- No transformation applied
+- Shows original data
+
+**Log10**
+- Base-10 logarithm
+- Useful for data spanning multiple orders of magnitude
+- Note: Zero/negative values become NaN
+
+**Ln (Natural Log)**
+- Natural logarithm (base e)
+- Useful for exponential data
+- Note: Zero/negative values become NaN
+
+**Sqrt**
+- Square root
+- Compresses large values
+- Note: Negative values become NaN
+
+**Abs**
+- Absolute value
+- Shows magnitude only
+- Useful for signed data
+
+**Normalize (0-1)**
+- Scales data to range 0-1
+- Formula: (y - min) / (max - min)
+- Useful for comparing different scales
+
+**Z-score**
+- Standardizes to mean=0, std=1
+- Formula: (y - mean) / std
+- Useful for statistical analysis
+
+**Important Notes**:
+- Applied to Y-axis data only
+- Original data is not modified
+- Transformations are applied before smoothing/decimation
+- Can be combined with other processing options
+
 ---
 
 ## 8. Analysis Tab
@@ -569,20 +656,27 @@ At the bottom of Analysis tab, results appear as you enable features:
 
 **Disabling**: Press `C` again
 
-### Resetting View
+### Zoom Navigation
 
-**Auto-scale**: Press `R` or click "Reset Zoom"
+**Zoom Back**: Press `Ctrl+Z` or click "⬅ Zoom" button
+- Returns to your previous zoom level
+- Maintains a history of up to 20 zoom states
+- Button only visible when history exists
+- Great for exploring data then returning
+
+**Auto-scale/Reset**: Press `R` or `Ctrl+R` or click "↻ Reset Zoom"
 - Returns to full data view
 - Scales both axes to fit all data
 - Useful after zooming too far
+- Clears zoom history when loading new data
 
 ### Legend
 
-The legend appears in the top-left corner:
-- Shows series names
-- Color-coded to match plots
+The legend appears inside the plot area (top-left):
+- Shows series names with color-coded text
 - Includes left and right axis series
 - Automatically updates with plot changes
+- Follows the view when zooming/panning
 
 ---
 
@@ -642,6 +736,13 @@ The legend appears in the top-left corner:
 **Logarithmic Y-Axis (Left)**
 - Toggle log scale for left Y-axis
 - Useful for exponential Y data
+
+**Auto Downsampling**
+- Automatically reduce displayed points for large datasets (>10k points)
+- Enabled by default
+- Uses peak-preserving algorithm
+- Greatly improves panning/zooming performance
+- Disable for pixel-perfect accuracy on large datasets
 
 ### Plot Menu
 
@@ -727,10 +828,17 @@ Quick access buttons for common operations:
 **🔍 Box Zoom**
 - Toggle box zoom mode
 - Checkable button
+- Same as pressing `Space`
+
+**⬅ Zoom**
+- Go back to previous zoom level
+- Only visible when there's zoom history
+- Same as `Ctrl+Z`
+- Maintains up to 20 zoom states
 
 **↻ Reset Zoom**
 - Auto-scale view
-- Same as pressing `R`
+- Same as pressing `R` or `Ctrl+R`
 
 **🗑️ Clear Selections**
 - Deselect all columns
@@ -743,6 +851,12 @@ Quick access buttons for common operations:
 **💾 Save**
 - Export plot image
 - Same as Ctrl+S
+
+**📋 Copy**
+- Copy plot to clipboard as image
+- Same as `Ctrl+C`
+- Pinned annotations are included
+- Floating tooltip and indicator line are hidden
 
 ---
 
@@ -794,7 +908,9 @@ Located at bottom of window, shows:
 
 ### View Controls
 - `C`: Toggle Crosshair
-- `R`: Reset Zoom
+- `R` or `Ctrl+R`: Reset Zoom
+- `Ctrl+Z`: Zoom Back (return to previous zoom level)
+- `Space`: Toggle Box Zoom Mode
 
 ### Plot Operations
 - `Ctrl+P`: Update Plot
@@ -802,6 +918,12 @@ Located at bottom of window, shows:
 - `Ctrl+T`: Set Plot Title
 - `Ctrl+L`: Set Axis Labels
 - `Ctrl+A`: Add Annotation
+- `Ctrl+C`: Copy Plot to Clipboard
+
+### Annotation Shortcuts
+- `P`: Pin current tooltip as annotation
+- `Shift+P`: Remove last pinned annotation
+- `Ctrl+Shift+P`: Clear all pinned annotations
 
 ### Help
 - `F1`: Show Keyboard Shortcuts
@@ -816,11 +938,13 @@ Located at bottom of window, shows:
 - Monitors CSV file for changes
 - Automatically reloads when file modified
 - Preserves zoom level after reload
+- Detects column changes and updates selectors
 
 **How It Works**:
-- Checks file every 2 seconds
+- Checks file every 5 seconds (only after a file is loaded)
 - Detects modification time changes
 - Reloads data seamlessly
+- Preserves column selections when possible
 
 **Use Cases**:
 - Live data logging
@@ -906,13 +1030,15 @@ Located at bottom of window, shows:
 **Problem**: Slow plotting with large datasets
 
 **Solutions**:
-1. Enable decimation (Processing tab)
+1. Ensure **Auto Downsampling** is enabled (View menu, on by default)
+   - Automatically optimizes datasets >10k points
+2. Enable manual decimation (Processing tab) for very large datasets
    - Start with factor of 10
    - Increase if still slow
-2. Reduce number of plotted series
-3. Close other applications
-4. Use smaller marker size
-5. Disable smoothing if not needed
+3. Reduce number of plotted series
+4. Close other applications
+5. Use smaller marker size
+6. Disable smoothing if not needed
 
 ### Missing Features
 
@@ -1052,11 +1178,14 @@ Then restart application
 6. Document findings
 
 ### Performance Optimization
-1. Use decimation for >100,000 points
-2. Limit plotted series to essential data
-3. Reduce marker size for dense data
-4. Close unused dock panels
-5. Restart application if sluggish
+1. **Auto Downsampling** is enabled by default (View menu) for datasets >10k points
+2. Use manual decimation (Processing tab) for >100,000 points if needed
+3. Limit plotted series to essential data
+4. Reduce marker size for dense data
+5. Close unused dock panels
+6. Application uses debounced updates to prevent redundant redraws
+7. Numpy array caching reduces repeated data conversions
+8. Binary search is used for tooltip position finding
 
 ---
 

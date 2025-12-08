@@ -268,13 +268,23 @@ def install_packages(venv_python: Path, packages: list, check_installed: bool = 
 	print(f"{Emoji.UPGRADE} Upgrading pip...")
 	subprocess.run([str(venv_python), "-m", "pip", "install", "--upgrade", "pip"], check=True)
 
+	# Map package names to their import names (when different)
+	import_names = {
+	    "PyOpenGL": "OpenGL",
+	    "PyOpenGL_accelerate": "OpenGL_accelerate",
+	    "PyQt5": "PyQt5",
+	}
+
 	if check_installed:
 		print(f"{Emoji.SEARCH} Checking and installing required packages...")
 		for pkg in packages:
 			print(f"Checking {pkg}...")
 
+			# Get the import name (may differ from package name)
+			import_name = import_names.get(pkg, pkg)
+
 			# Try to import the package
-			result = subprocess.run([str(venv_python), "-c", f"import {pkg}"], capture_output=True, check=False)
+			result = subprocess.run([str(venv_python), "-c", f"import {import_name}"], capture_output=True, check=False)
 
 			if result.returncode == 0:
 				print(f" {Emoji.CHECK} {pkg} already installed.")
@@ -288,25 +298,61 @@ def install_packages(venv_python: Path, packages: list, check_installed: bool = 
 def build_executable(venv_python: Path, script_path: Path) -> Path:
 	"""
 	Build a standalone executable using PyInstaller.
-	
+
 	Args:
 		venv_python: Path to the venv Python executable.
 		script_path: Path to the Python script to package.
-		
+
 	Returns:
 		Path to the created executable.
 	"""
 	print(f"{Emoji.ROCKET} Building standalone executable with PyInstaller...")
 
-	subprocess.run(
-	    [str(venv_python), "-m", "PyInstaller", "--noconfirm", "--onefile", "--windowed",
-	     str(script_path)], check=True)
+	# Find the help file in the same directory as the script
+	help_file = script_path.parent / "plot_viewer_help.md"
+	system = platform.system()
 
-	# Determine executable path
-	if platform.system() == "Windows":
-		executable = Path("dist") / f"{script_path.stem}.exe"
+	# Build PyInstaller command
+	pyinstaller_cmd = [
+	    str(venv_python), "-m", "PyInstaller",
+	    "--noconfirm",
+	]
+
+	# On macOS, use --onedir to avoid deprecation warning and improve launch speed
+	# On Windows, --onefile works well
+	if system == "Darwin":
+		pyinstaller_cmd.append("--onedir")
+		pyinstaller_cmd.append("--windowed")  # Creates .app bundle on macOS
+	elif system == "Windows":
+		pyinstaller_cmd.append("--onefile")
+		pyinstaller_cmd.append("--windowed")
 	else:
-		executable = Path("dist") / script_path.stem
+		# Linux: onedir is faster, no windowed flag needed
+		pyinstaller_cmd.append("--onedir")
+
+	# Add help file as bundled data if it exists
+	if help_file.exists():
+		# PyInstaller --add-data format: "source:dest" (Unix) or "source;dest" (Windows)
+		separator = ";" if system == "Windows" else ":"
+		add_data_arg = f"{help_file}{separator}."
+		pyinstaller_cmd.extend(["--add-data", add_data_arg])
+		print(f"{Emoji.INFO} Bundling help file: {help_file}")
+	else:
+		print(f"{Emoji.WARNING} Help file not found at {help_file}, skipping bundle")
+
+	pyinstaller_cmd.append(str(script_path))
+
+	subprocess.run(pyinstaller_cmd, check=True)
+
+	# Determine executable path based on OS and mode
+	if system == "Windows":
+		executable = Path("dist") / f"{script_path.stem}.exe"
+	elif system == "Darwin":
+		# macOS .app bundle - the actual executable is inside
+		executable = Path("dist") / f"{script_path.stem}.app"
+	else:
+		# Linux onedir
+		executable = Path("dist") / script_path.stem / script_path.stem
 
 	if not executable.exists():
 		print(f"{Colors.RED}Executable not found at {executable}{Colors.RESET}", file=sys.stderr)
@@ -315,16 +361,20 @@ def build_executable(venv_python: Path, script_path: Path) -> Path:
 	print(f"{Emoji.CHECK} Standalone executable created at: {executable}")
 	return executable
 
-def launch_script(venv_python: Path, script_path: Path):
+def launch_script(venv_python: Path, script_path: Path, extra_args: list = None):
 	"""
 	Launch the Python script directly using the virtual environment Python.
-	
+
 	Args:
 		venv_python: Path to the venv Python executable.
 		script_path: Path to the Python script to run.
+		extra_args: Additional arguments to pass to the script.
 	"""
+	cmd = [str(venv_python), str(script_path)]
+	if extra_args:
+		cmd.extend(extra_args)
 	print(f"{Emoji.ROCKET} Launching {script_path}...")
-	subprocess.run([str(venv_python), str(script_path)], check=True)
+	subprocess.run(cmd, check=True)
 
 def main():
 	"""Main entry point."""
@@ -335,7 +385,9 @@ def main():
 	    formatter_class=argparse.RawDescriptionHelpFormatter,
 	    epilog="""
 Examples:
-  %(prog)s                    # Run plot_viewer.py directly
+  %(prog)s                    # Run plot_viewer.py (OpenGL enabled by default)
+  %(prog)s --debug            # Run with debug logging enabled
+  %(prog)s --no-opengl        # Disable OpenGL hardware acceleration
   %(prog)s --build            # Build standalone executable and run it
   %(prog)s --venv-dir .venv   # Use custom venv directory
 		""")
@@ -356,6 +408,12 @@ Examples:
 	    "--skip-install-check", action="store_true", help="Skip checking if packages are already installed")
 	parser.add_argument(
 	    "--minimal", action="store_true", help="Install minimal dependencies (skip scipy for faster installation)")
+
+	# Plot viewer options (passed through to the script)
+	parser.add_argument(
+	    "-d", "--debug", action="store_true", help="Enable debug logging in plot viewer")
+	parser.add_argument(
+	    "--no-opengl", action="store_true", help="Disable OpenGL hardware acceleration (enabled by default)")
 
 	args = parser.parse_args()
 
@@ -384,7 +442,7 @@ Examples:
 	print(f"{Emoji.CHECK} Virtual environment activated")
 
 	# Determine required packages
-	required_packages = ["pandas", "pyqtgraph", "PyQt5", "markdown"]
+	required_packages = ["pandas", "pyqtgraph", "PyQt5", "markdown", "PyOpenGL", "PyOpenGL_accelerate", "asteval"]
 
 	# Add scipy unless minimal mode is requested
 	if not args.minimal:
@@ -404,13 +462,29 @@ Examples:
 		print(f"{Colors.RED}{args.script} not found in the current directory.{Colors.RESET}", file=sys.stderr)
 		sys.exit(1)
 
+	# Build extra args to pass to plot_viewer
+	script_args = []
+	if args.debug:
+		script_args.append("--debug")
+	if args.no_opengl:
+		script_args.append("--no-opengl")
+
 	# Build or run
 	if args.build:
 		executable = build_executable(venv_python, args.script)
 		print(f"{Emoji.ROCKET} Launching the standalone executable...")
-		subprocess.run([str(executable)], check=True)
+
+		# On macOS, use 'open' to launch .app bundles (needs absolute path)
+		if platform.system() == "Darwin" and str(executable).endswith(".app"):
+			cmd = ["open", str(executable.resolve())]
+			if script_args:
+				cmd.extend(["--args"] + script_args)
+		else:
+			cmd = [str(executable)] + script_args
+
+		subprocess.run(cmd, check=True)
 	else:
-		launch_script(venv_python, args.script)
+		launch_script(venv_python, args.script, script_args)
 
 	print(f"{Emoji.CHECK} Complete")
 

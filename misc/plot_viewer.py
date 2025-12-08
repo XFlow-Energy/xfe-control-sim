@@ -7,10 +7,11 @@ from pathlib import Path
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QFileDialog, QVBoxLayout, QWidget, QLabel, QComboBox, QListWidget, QPushButton,
     QListWidgetItem, QHBoxLayout, QSplitter, QCheckBox, QFormLayout, QGroupBox, QTableWidget, QTableWidgetItem,
-    QDockWidget, QSizePolicy, QMenuBar, QAction, QToolBar, QSpinBox, QDoubleSpinBox, QScrollArea, QMessageBox,
+    QDockWidget, QSizePolicy, QMenuBar, QMenu, QAction, QToolBar, QSpinBox, QDoubleSpinBox, QScrollArea, QMessageBox,
     QLineEdit, QDialog, QDialogButtonBox, QTabWidget, QSlider, QTextEdit, QInputDialog, QTextBrowser)
 from PyQt5.QtCore import Qt, QTimer, QSettings, QVariant, QMimeData
-from PyQt5.QtGui import QKeySequence, QColor, QDragEnterEvent, QDropEvent
+from PyQt5.QtGui import QKeySequence, QColor, QDragEnterEvent, QDropEvent, QClipboard, QPixmap, QCursor
+from PyQt5.QtWidgets import QShortcut
 import pyqtgraph.exporters
 
 # Optional scipy imports with fallbacks
@@ -33,7 +34,109 @@ except ImportError:
 	print(
 	    "Warning: markdown library not available. Help will display as plain text. Install with: pip install markdown")
 
+# Safe expression evaluation for custom equations
+try:
+	from asteval import Interpreter
+	ASTEVAL_AVAILABLE = True
+except ImportError:
+	ASTEVAL_AVAILABLE = False
+	print("Warning: asteval not available. Custom equations will use restricted eval. Install with: pip install asteval")
+
+
+def get_resource_path(relative_path):
+	"""
+	Get the absolute path to a resource, works for dev and for PyInstaller.
+
+	When running as a PyInstaller bundle, resources are extracted to a temp folder
+	accessible via sys._MEIPASS. When running normally, use the script's directory.
+	"""
+	if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+		# Running as PyInstaller bundle
+		base_path = Path(sys._MEIPASS)
+	else:
+		# Running as normal Python script
+		base_path = Path(__file__).parent
+	return base_path / relative_path
+
+
+class DraggableAnnotation(pg.TextItem):
+	"""A draggable text annotation that can be edited."""
+
+	def __init__(self, data_text, label="", parent_plotter=None, **kwargs):
+		super().__init__(**kwargs)
+		self.data_text = data_text  # The data values (read-only)
+		self.label = label  # User-editable label
+		self.parent_plotter = parent_plotter
+		self._dragging = False
+		self._drag_start = None
+		self.update_display()
+
+	def update_display(self):
+		"""Update the HTML display with label and data."""
+		# Convert newlines to <br> for HTML
+		data_html = self.data_text.replace('\n', '<br>')
+		label_html = f'<b>{self.label}</b><br>' if self.label else ''
+		html = (f'<div style="background-color: rgba(0,0,0,0.7); padding: 3px; '
+		        f'border-radius: 3px; cursor: move;">'
+		        f'<span style="color: #00ff00; font-size: 9pt;">'
+		        f'{label_html}{data_html}</span></div>')
+		self.setHtml(html)
+
+	def mousePressEvent(self, ev):
+		if ev.button() == Qt.LeftButton:
+			self._dragging = True
+			self._drag_start = ev.pos()
+			ev.accept()
+		else:
+			super().mousePressEvent(ev)
+
+	def mouseMoveEvent(self, ev):
+		if self._dragging:
+			# Calculate new position
+			delta = ev.pos() - self._drag_start
+			new_pos = self.pos() + delta
+			self.setPos(new_pos)
+			ev.accept()
+		else:
+			super().mouseMoveEvent(ev)
+
+	def mouseReleaseEvent(self, ev):
+		if ev.button() == Qt.LeftButton:
+			self._dragging = False
+			ev.accept()
+		else:
+			super().mouseReleaseEvent(ev)
+
+	def mouseDoubleClickEvent(self, ev):
+		"""Show menu to edit or delete the annotation."""
+		if self.parent_plotter:
+			self.parent_plotter.show_annotation_menu(self)
+		ev.accept()
+
+
 class CSVPlotter(QMainWindow):
+	# Class-level constants to avoid recreating on every call
+	PEN_STYLES = {"Solid": Qt.SolidLine, "Dashed": Qt.DashLine, "Dotted": Qt.DotLine}
+	COLOR_MAP = {
+	    "Black": (0, 0, 0),
+	    "White": (255, 255, 255),
+	    "Red": (255, 0, 0),
+	    "Green": (0, 255, 0),
+	    "Blue": (0, 0, 255),
+	    "Magenta": (255, 0, 255),
+	    "Cyan": (0, 255, 255),
+	    "Yellow": (255, 255, 0),
+	    "Gray": (128, 128, 128),
+	    "Orange": (255, 165, 0),
+	    "Purple": (128, 0, 128),
+	    "Brown": (165, 42, 42),
+	    "Pink": (255, 192, 203),
+	    "Lime": (0, 255, 0),
+	    "Navy": (0, 0, 128),
+	    "Teal": (0, 128, 128),
+	    "Maroon": (128, 0, 0),
+	    "Olive": (128, 128, 0)
+	}
 
 	def __init__(self):
 		super().__init__()
@@ -47,6 +150,9 @@ class CSVPlotter(QMainWindow):
 		self.csv_path = None
 		self.csv_mtime = None
 		self.zoom_mode = False
+		self.zoom_history = []  # Stack of previous zoom states (max 20)
+		self._last_view_range = None  # Track last view range for history
+		self._restoring_zoom = False  # Flag to prevent saving when going back
 		self.series_saved_styles = self.settings.value("series_styles", {}, type=dict)
 		self.series_visibility = {}
 		self.crosshair_enabled = False
@@ -61,6 +167,15 @@ class CSVPlotter(QMainWindow):
 		self.reference_lines = []  # Store reference lines
 		self.highlighted_regions = []  # Store highlighted regions
 		self.data_tooltip = None  # Tooltip for showing data values
+		self.pinned_annotations = []  # List of pinned TextItem annotations
+		self._last_tooltip_data = None  # Store last tooltip data for pinning
+		self._array_cache = {}  # Cache for numpy arrays
+
+		# Debounced plot update timer - prevents redundant redraws
+		self._plot_update_timer = QTimer(self)
+		self._plot_update_timer.setSingleShot(True)
+		self._plot_update_timer.setInterval(100)
+		self._plot_update_timer.timeout.connect(self._do_plot_update)
 
 		self.setup_ui()
 		self.create_menu_bar()
@@ -70,13 +185,44 @@ class CSVPlotter(QMainWindow):
 		self.replace_plot_widget()
 
 		self.monitor_timer = QTimer(self)
-		self.monitor_timer.setInterval(2000)
+		self.monitor_timer.setInterval(5000)  # Check every 5s instead of 2s
 		self.monitor_timer.timeout.connect(self.check_file_update)
-		self.monitor_timer.start()
+		# Don't start timer until a file is loaded (lazy start)
+
+		# Restore window geometry
+		geometry = self.settings.value("window_geometry")
+		if geometry:
+			self.restoreGeometry(geometry)
+
+		# Set initial splitter sizes (plot gets most space, control panel gets fixed width)
+		total_width = self.width()
+		control_width = 500
+		self.splitter.setSizes([total_width - control_width, control_width])
 
 		last_file = self.settings.value("last_csv_file", "", type=str)
 		if last_file and os.path.isfile(last_file):
 			self.load_csv(last_file)
+
+	def schedule_plot_update(self):
+		"""Schedule a debounced plot update to avoid redundant redraws."""
+		self._plot_update_timer.start()
+
+	def _do_plot_update(self):
+		"""Execute the actual plot update after debounce delay."""
+		self.plot_selected()
+
+	def get_column_array(self, col_name):
+		"""Get numpy array for column with caching to avoid repeated conversions."""
+		if col_name not in self._array_cache:
+			if self.df is not None and col_name in self.df.columns:
+				self._array_cache[col_name] = self.df[col_name].to_numpy()
+			else:
+				return None
+		return self._array_cache[col_name]
+
+	def clear_array_cache(self):
+		"""Clear the numpy array cache when data changes."""
+		self._array_cache.clear()
 
 	def setup_ui(self):
 		self.central_widget = QWidget()
@@ -87,12 +233,18 @@ class CSVPlotter(QMainWindow):
 		self.main_layout.addWidget(self.splitter)
 
 		self.plot_area = QWidget()
+		self.plot_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 		self.splitter.addWidget(self.plot_area)
 
 		# Control panel with tabs
 		self.control_panel = QWidget()
+		self.control_panel.setMaximumWidth(500)
+		self.control_panel.setMinimumWidth(350)
+		self.control_panel.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
 		self.control_layout = QVBoxLayout(self.control_panel)
 		self.splitter.addWidget(self.control_panel)
+		self.splitter.setCollapsible(0, False)  # Don't collapse plot
+		self.splitter.setCollapsible(1, False)  # Don't collapse controls
 
 		# Theme toggle at top, outside tabs
 		theme_layout = QHBoxLayout()
@@ -150,22 +302,29 @@ class CSVPlotter(QMainWindow):
 		if self.tooltip_enabled.isChecked():
 			if self.data_tooltip is None:
 				self.data_tooltip = pg.TextItem(anchor=(0, 1), color='y')
-				self.main_plot.addItem(self.data_tooltip)
+				self.main_plot.addItem(self.data_tooltip, ignoreBounds=True)
 		else:
 			if self.data_tooltip is not None:
 				self.main_plot.removeItem(self.data_tooltip)
 				self.data_tooltip = None
 
 	def find_nearest_point(self, x_pos):
-		"""Find the nearest data point to the given x position"""
+		"""Find the nearest data point to the given x position using binary search."""
 		if self.df is None or not self.x_selector.currentText():
 			return None
 
 		x_col = self.x_selector.currentText()
-		x_data = self.df[x_col].to_numpy()
+		x_data = self.get_column_array(x_col)  # Use cached array
+		if x_data is None or len(x_data) == 0:
+			return None
 
-		# Find nearest x index
-		idx = np.argmin(np.abs(x_data - x_pos))
+		# Binary search for O(log n) lookup instead of O(n) linear scan
+		idx = np.searchsorted(x_data, x_pos)
+		idx = np.clip(idx, 0, len(x_data) - 1)
+
+		# Check if previous point is closer
+		if idx > 0 and abs(x_data[idx - 1] - x_pos) < abs(x_data[idx] - x_pos):
+			idx = idx - 1
 
 		# Collect y values at this x position
 		info = {x_col: x_data[idx]}
@@ -209,7 +368,7 @@ class CSVPlotter(QMainWindow):
 			# We'll force specific tick values
 			if self.df is not None and self.x_selector.currentText():
 				x_col = self.x_selector.currentText()
-				x_data = self.df[x_col].to_numpy()
+				x_data = self.get_column_array(x_col)
 				x_min, x_max = x_data.min(), x_data.max()
 				x_ticks = np.arange(
 				    np.floor(x_min / x_spacing) * x_spacing,
@@ -229,7 +388,7 @@ class CSVPlotter(QMainWindow):
 			return
 
 		x_col = self.x_selector.currentText()
-		x_data = self.df[x_col].to_numpy()
+		x_data = self.get_column_array(x_col)
 		x_mid = (x_data.min() + x_data.max()) / 2
 
 		value, ok = QInputDialog.getDouble(
@@ -305,7 +464,7 @@ class CSVPlotter(QMainWindow):
 			return
 
 		x_col = self.x_selector.currentText()
-		x_data = self.df[x_col].to_numpy()
+		x_data = self.get_column_array(x_col)
 		x_min, x_max = x_data.min(), x_data.max()
 		x_range = x_max - x_min
 
@@ -537,8 +696,8 @@ class CSVPlotter(QMainWindow):
 			return None
 
 		x_col = self.x_selector.currentText()
-		x = self.df[x_col].to_numpy()
-		y = self.df[series_name].to_numpy()
+		x = self.get_column_array(x_col).copy()  # Copy since we modify with mask
+		y = self.get_column_array(series_name).copy()
 
 		# Remove NaN values
 		mask = ~(np.isnan(x) | np.isnan(y))
@@ -635,28 +794,51 @@ class CSVPlotter(QMainWindow):
 					# Create function signature
 					func_params = ', '.join(params_in_eq)
 
-					# Build safe namespace for eval
-					safe_namespace = {
-					    'exp': np.exp,
-					    'log': np.log,
-					    'ln': np.log,
-					    'sin': np.sin,
-					    'cos': np.cos,
-					    'tan': np.tan,
-					    'sqrt': np.sqrt,
-					    'abs': np.abs,
-					    'pi': np.pi,
-					    'e': np.e,
-					    'np': np
-					}
+					# Create the fitting function using asteval for safe evaluation
+					if ASTEVAL_AVAILABLE:
+						# Use asteval for safe expression evaluation
+						aeval = Interpreter()
+						aeval.symtable['exp'] = np.exp
+						aeval.symtable['log'] = np.log
+						aeval.symtable['ln'] = np.log
+						aeval.symtable['sin'] = np.sin
+						aeval.symtable['cos'] = np.cos
+						aeval.symtable['tan'] = np.tan
+						aeval.symtable['sqrt'] = np.sqrt
+						aeval.symtable['abs'] = np.abs
+						aeval.symtable['pi'] = np.pi
+						aeval.symtable['e'] = np.e
 
-					# Create the fitting function
-					def custom_func(x, *params):
-						local_vars = safe_namespace.copy()
-						local_vars['x'] = x
-						for param_name, param_val in zip(params_in_eq, params):
-							local_vars[param_name] = param_val
-						return eval(equation_str, {"__builtins__": {}}, local_vars)
+						def custom_func(x, *params):
+							aeval.symtable['x'] = x
+							for param_name, param_val in zip(params_in_eq, params):
+								aeval.symtable[param_name] = param_val
+							result = aeval(equation_str)
+							if aeval.error:
+								raise ValueError(f"Equation error: {aeval.error[0].msg}")
+							return result
+					else:
+						# Fallback to restricted eval (less safe but functional)
+						safe_namespace = {
+						    'exp': np.exp,
+						    'log': np.log,
+						    'ln': np.log,
+						    'sin': np.sin,
+						    'cos': np.cos,
+						    'tan': np.tan,
+						    'sqrt': np.sqrt,
+						    'abs': np.abs,
+						    'pi': np.pi,
+						    'e': np.e,
+						    'np': np
+						}
+
+						def custom_func(x, *params):
+							local_vars = safe_namespace.copy()
+							local_vars['x'] = x
+							for param_name, param_val in zip(params_in_eq, params):
+								local_vars[param_name] = param_val
+							return eval(equation_str, {"__builtins__": {}}, local_vars)
 
 					# Perform fit
 					popt, pcov = curve_fit(custom_func, x, y, p0=initial_params, maxfev=10000)
@@ -709,8 +891,8 @@ class CSVPlotter(QMainWindow):
 			return None
 
 		x_col = self.x_selector.currentText()
-		x = self.df[x_col].to_numpy()
-		y = self.df[series_name].to_numpy()
+		x = self.get_column_array(x_col)
+		y = self.get_column_array(series_name)
 
 		prominence = self.peak_prominence.value()
 		peaks, properties = find_peaks(y, prominence=prominence)
@@ -741,8 +923,8 @@ class CSVPlotter(QMainWindow):
 			return None
 
 		x_col = self.x_selector.currentText()
-		x = self.df[x_col].to_numpy()
-		y = self.df[series_name].to_numpy()
+		x = self.get_column_array(x_col)
+		y = self.get_column_array(series_name)
 
 		# Calculate derivative (dy/dx)
 		dy = np.gradient(y, x)
@@ -776,8 +958,8 @@ class CSVPlotter(QMainWindow):
 			return
 
 		x_col = self.x_selector.currentText()
-		x = self.df[x_col].to_numpy()
-		y = self.df[series_name].to_numpy()
+		x = self.get_column_array(x_col)
+		y = self.get_column_array(series_name)
 
 		# Calculate FFT
 		N = len(y)
@@ -892,7 +1074,7 @@ class CSVPlotter(QMainWindow):
 		self.marker_size = QSpinBox()
 		self.marker_size.setRange(3, 30)
 		self.marker_size.setValue(8)
-		self.marker_size.valueChanged.connect(lambda: self.plot_selected() if hasattr(self, 'plot_selected') else None)
+		self.marker_size.valueChanged.connect(lambda: self.schedule_plot_update() if hasattr(self, 'schedule_plot_update') else None)
 		marker_layout.addRow("Size (px):", self.marker_size)
 		marker_group.setLayout(marker_layout)
 		self.viz_layout.addWidget(marker_group)
@@ -991,7 +1173,7 @@ class CSVPlotter(QMainWindow):
 		smooth_group = QGroupBox("Smoothing")
 		smooth_layout = QFormLayout()
 		self.smooth_enabled = QCheckBox("Enable Smoothing")
-		self.smooth_enabled.stateChanged.connect(self.plot_selected)
+		self.smooth_enabled.stateChanged.connect(self.schedule_plot_update)
 		smooth_layout.addRow(self.smooth_enabled)
 
 		self.smooth_method = QComboBox()
@@ -999,14 +1181,14 @@ class CSVPlotter(QMainWindow):
 			self.smooth_method.addItems(["Savitzky-Golay", "Gaussian", "Moving Average"])
 		else:
 			self.smooth_method.addItems(["Moving Average (scipy not installed)"])
-		self.smooth_method.currentIndexChanged.connect(self.plot_selected)
+		self.smooth_method.currentIndexChanged.connect(self.schedule_plot_update)
 		smooth_layout.addRow("Method:", self.smooth_method)
 
 		self.smooth_window = QSpinBox()
 		self.smooth_window.setRange(3, 501)
 		self.smooth_window.setValue(11)
 		self.smooth_window.setSingleStep(1)
-		self.smooth_window.valueChanged.connect(self.plot_selected)
+		self.smooth_window.valueChanged.connect(self.schedule_plot_update)
 		smooth_layout.addRow("Window Size:", self.smooth_window)
 
 		smooth_group.setLayout(smooth_layout)
@@ -1016,17 +1198,36 @@ class CSVPlotter(QMainWindow):
 		decimate_group = QGroupBox("Data Decimation")
 		decimate_layout = QFormLayout()
 		self.decimate_enabled = QCheckBox("Enable (for large datasets)")
-		self.decimate_enabled.stateChanged.connect(self.plot_selected)
+		self.decimate_enabled.stateChanged.connect(self.schedule_plot_update)
 		decimate_layout.addRow(self.decimate_enabled)
 
 		self.decimate_factor = QSpinBox()
 		self.decimate_factor.setRange(2, 100)
 		self.decimate_factor.setValue(10)
-		self.decimate_factor.valueChanged.connect(self.plot_selected)
+		self.decimate_factor.valueChanged.connect(self.schedule_plot_update)
 		decimate_layout.addRow("Factor:", self.decimate_factor)
 
 		decimate_group.setLayout(decimate_layout)
 		self.processing_layout.addWidget(decimate_group)
+
+		# Data Transformation
+		transform_group = QGroupBox("Data Transformation")
+		transform_layout = QFormLayout()
+		self.transform_enabled = QCheckBox("Enable Transformation")
+		self.transform_enabled.stateChanged.connect(self.schedule_plot_update)
+		transform_layout.addRow(self.transform_enabled)
+
+		self.transform_method = QComboBox()
+		self.transform_method.addItems(["None", "Log10", "Ln (Natural Log)", "Sqrt", "Abs", "Normalize (0-1)", "Z-score"])
+		self.transform_method.currentIndexChanged.connect(self.schedule_plot_update)
+		transform_layout.addRow("Method:", self.transform_method)
+
+		transform_note = QLabel("Applied to Y-axis data only.\nOriginal data is not modified.")
+		transform_note.setStyleSheet("font-size: 9pt; font-style: italic;")
+		transform_layout.addRow(transform_note)
+
+		transform_group.setLayout(transform_layout)
+		self.processing_layout.addWidget(transform_group)
 
 		self.processing_layout.addStretch()
 
@@ -1210,7 +1411,7 @@ class CSVPlotter(QMainWindow):
 
 	def load_help_file(self):
 		"""Load and display the markdown help file"""
-		help_file = Path(__file__).parent / "plot_viewer_help.md"
+		help_file = get_resource_path("plot_viewer_help.md")
 
 		if help_file.exists():
 			try:
@@ -1563,6 +1764,14 @@ class CSVPlotter(QMainWindow):
 		self.log_y_action.triggered.connect(self.toggle_log_y)
 		view_menu.addAction(self.log_y_action)
 
+		view_menu.addSeparator()
+
+		self.downsample_action = QAction("Auto &Downsampling", self, checkable=True)
+		self.downsample_action.setChecked(True)  # Enabled by default
+		self.downsample_action.setToolTip("Enable automatic downsampling for large datasets (>10k points)")
+		self.downsample_action.triggered.connect(self.schedule_plot_update)
+		view_menu.addAction(self.downsample_action)
+
 		# Plot Menu
 		plot_menu = menubar.addMenu("&Plot")
 
@@ -1667,6 +1876,12 @@ class CSVPlotter(QMainWindow):
 		self.zoom_action.triggered.connect(self.toggle_zoom_mode)
 		toolbar.addAction(self.zoom_action)
 
+		self.zoom_back_action = QAction("⬅ Zoom", self)
+		self.zoom_back_action.triggered.connect(self.zoom_back)
+		self.zoom_back_action.setVisible(False)  # Hidden until there's history
+		self.zoom_back_action.setToolTip("Go back to previous zoom level")
+		toolbar.addAction(self.zoom_back_action)
+
 		reset_btn = QAction("↻ Reset Zoom", self)
 		reset_btn.triggered.connect(self.reset_zoom)
 		toolbar.addAction(reset_btn)
@@ -1684,6 +1899,192 @@ class CSVPlotter(QMainWindow):
 		save_btn = QAction("💾 Save", self)
 		save_btn.triggered.connect(self.save_plot_view)
 		toolbar.addAction(save_btn)
+
+		copy_btn = QAction("📋 Copy", self)
+		copy_btn.triggered.connect(self.copy_plot_to_clipboard)
+		copy_btn.setToolTip("Copy plot to clipboard (Ctrl+C)")
+		toolbar.addAction(copy_btn)
+
+		# Setup keyboard shortcuts
+		self.setup_shortcuts()
+
+	def setup_shortcuts(self):
+		"""Setup keyboard shortcuts for common actions."""
+		# Ctrl+Z - Zoom back
+		shortcut_zoom_back = QShortcut(QKeySequence("Ctrl+Z"), self)
+		shortcut_zoom_back.activated.connect(self.zoom_back)
+
+		# Ctrl+R - Reset zoom
+		shortcut_reset = QShortcut(QKeySequence("Ctrl+R"), self)
+		shortcut_reset.activated.connect(self.reset_zoom)
+
+		# Space - Toggle zoom mode
+		shortcut_zoom_toggle = QShortcut(QKeySequence(Qt.Key_Space), self)
+		shortcut_zoom_toggle.activated.connect(self.toggle_zoom_shortcut)
+
+		# Ctrl+C - Copy plot to clipboard
+		shortcut_copy = QShortcut(QKeySequence("Ctrl+C"), self)
+		shortcut_copy.activated.connect(self.copy_plot_to_clipboard)
+
+		# Ctrl+O - Open file
+		shortcut_open = QShortcut(QKeySequence("Ctrl+O"), self)
+		shortcut_open.activated.connect(self.open_file_dialog)
+
+		# Ctrl+S - Save plot
+		shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
+		shortcut_save.activated.connect(self.save_plot_view)
+
+		# P - Pin current tooltip as annotation
+		shortcut_pin = QShortcut(QKeySequence(Qt.Key_P), self)
+		shortcut_pin.activated.connect(self.pin_current_tooltip)
+
+		# Shift+P - Remove last pinned annotation
+		shortcut_unpin = QShortcut(QKeySequence("Shift+P"), self)
+		shortcut_unpin.activated.connect(self.remove_last_annotation)
+
+		# Ctrl+Shift+P - Clear all pinned annotations
+		shortcut_clear_pins = QShortcut(QKeySequence("Ctrl+Shift+P"), self)
+		shortcut_clear_pins.activated.connect(self.clear_pinned_annotations)
+
+	def toggle_zoom_shortcut(self):
+		"""Toggle zoom mode via keyboard shortcut."""
+		self.zoom_action.setChecked(not self.zoom_action.isChecked())
+		self.toggle_zoom_mode(self.zoom_action.isChecked())
+
+	def copy_plot_to_clipboard(self):
+		"""Copy the current plot to clipboard as an image."""
+		if not hasattr(self, 'plot_area') or not hasattr(self, 'main_plot'):
+			return
+
+		# Temporarily hide floating tooltip and indicator line (but keep pinned annotations)
+		tooltip_was_visible = False
+		indicator_was_visible = False
+
+		if self.data_tooltip is not None:
+			tooltip_was_visible = True
+			self.data_tooltip.setVisible(False)
+
+		if hasattr(self, 'tooltip_indicator_line') and self.tooltip_indicator_line.isVisible():
+			indicator_was_visible = True
+			self.tooltip_indicator_line.setVisible(False)
+
+		try:
+			# Use pyqtgraph's ImageExporter which works with OpenGL
+			exporter = pg.exporters.ImageExporter(self.plot_area.scene())
+
+			# Set the export size to match the widget size
+			exporter.parameters()['width'] = self.plot_area.width()
+
+			# Export to QImage then convert to QPixmap
+			# export() with copy=True returns a QImage
+			qimage = exporter.export(toBytes=False, copy=True)
+
+			if qimage is not None:
+				pixmap = QPixmap.fromImage(qimage)
+				clipboard = QApplication.clipboard()
+				clipboard.setPixmap(pixmap)
+				self.statusBar().showMessage("Plot copied to clipboard", 3000)
+			else:
+				self.statusBar().showMessage("Failed to export plot image", 3000)
+
+		except Exception:
+			# Fallback to grab() if exporter fails
+			pixmap = self.plot_area.grab()
+			clipboard = QApplication.clipboard()
+			clipboard.setPixmap(pixmap)
+			self.statusBar().showMessage("Plot copied (fallback method)", 3000)
+
+		# Restore visibility
+		if tooltip_was_visible and self.data_tooltip is not None:
+			self.data_tooltip.setVisible(True)
+		if indicator_was_visible:
+			self.tooltip_indicator_line.setVisible(True)
+
+	def pin_current_tooltip(self):
+		"""Pin the current tooltip as a permanent annotation on the plot."""
+		if self._last_tooltip_data is None:
+			self.statusBar().showMessage("No tooltip data to pin - hover over plot first", 3000)
+			return
+
+		text, x_pos, y_pos = self._last_tooltip_data
+
+		# Create a vertical line at the data point
+		pinned_line = pg.InfiniteLine(
+		    pos=x_pos, angle=90, movable=False,
+		    pen=pg.mkPen('#00ff00', width=1, style=Qt.DashLine))
+		self.main_plot.addItem(pinned_line, ignoreBounds=True)
+
+		# Create a draggable annotation (can be moved and edited)
+		pinned_text = DraggableAnnotation(
+		    data_text=text,
+		    label="",
+		    parent_plotter=self,
+		    anchor=(0, 1))
+		pinned_text.setPos(x_pos, y_pos)
+		self.main_plot.addItem(pinned_text, ignoreBounds=True)
+
+		# Store both items as a tuple
+		self.pinned_annotations.append((pinned_text, pinned_line))
+
+		self.statusBar().showMessage(
+		    f"Annotation pinned ({len(self.pinned_annotations)} total) - drag to move, double-click to edit label",
+		    3000)
+
+	def show_annotation_menu(self, annotation):
+		"""Show context menu for annotation with edit/delete options."""
+		menu = QMenu(self)
+		edit_action = menu.addAction("Add/Edit Annotation Label")
+		delete_action = menu.addAction("Delete Annotation")
+
+		action = menu.exec_(QCursor.pos())
+
+		if action == edit_action:
+			self.edit_annotation_label(annotation)
+		elif action == delete_action:
+			self.delete_specific_annotation(annotation)
+
+	def edit_annotation_label(self, annotation):
+		"""Open dialog to edit an annotation's label."""
+		current_label = annotation.label
+		new_label, ok = QInputDialog.getText(
+		    self, "Edit Annotation Label",
+		    "Enter a label for this annotation (leave empty for none):",
+		    QLineEdit.Normal, current_label)
+		if ok:
+			annotation.label = new_label
+			annotation.update_display()
+
+	def delete_specific_annotation(self, annotation):
+		"""Delete a specific annotation by reference."""
+		for i, (text_item, line_item) in enumerate(self.pinned_annotations):
+			if text_item is annotation:
+				self.main_plot.removeItem(text_item)
+				self.main_plot.removeItem(line_item)
+				self.pinned_annotations.pop(i)
+				self.statusBar().showMessage(
+				    f"Annotation deleted ({len(self.pinned_annotations)} remaining)", 2000)
+				return
+		self.statusBar().showMessage("Annotation not found", 2000)
+
+	def clear_pinned_annotations(self):
+		"""Remove all pinned annotations from the plot."""
+		for annotation in self.pinned_annotations:
+			text_item, line_item = annotation
+			self.main_plot.removeItem(text_item)
+			self.main_plot.removeItem(line_item)
+		count = len(self.pinned_annotations)
+		self.pinned_annotations.clear()
+		self.statusBar().showMessage(f"Cleared {count} pinned annotations", 2000)
+
+	def remove_last_annotation(self):
+		"""Remove the most recently pinned annotation."""
+		if self.pinned_annotations:
+			text_item, line_item = self.pinned_annotations.pop()
+			self.main_plot.removeItem(text_item)
+			self.main_plot.removeItem(line_item)
+			self.statusBar().showMessage(f"Removed annotation ({len(self.pinned_annotations)} remaining)", 2000)
+		else:
+			self.statusBar().showMessage("No annotations to remove", 2000)
 
 	def update_recent_menu(self):
 		self.recent_menu.clear()
@@ -1909,12 +2310,9 @@ class CSVPlotter(QMainWindow):
             """)
 
 	def update_style_selectors(self):
-		while self.style_form.count():
-			item = self.style_form.takeAt(0)
-			if item.widget():
-				item.widget().deleteLater()
-
-		self.series_style = {}
+		# Initialize series_style if it doesn't exist
+		if not hasattr(self, 'series_style'):
+			self.series_style = {}
 
 		# Color options based on theme - exclude invisible colors
 		if self.theme_dark:
@@ -1928,85 +2326,114 @@ class CSVPlotter(QMainWindow):
 			    "Lime", "Navy", "Teal", "Maroon", "Olive"
 			]
 
-		def add_style_rows(label_prefix, items):
-			for item in items:
-				name = item.text()
+		# Build set of currently needed columns (with prefix for uniqueness)
+		needed_keys = set()
+		for item in self.y1_list.selectedItems():
+			needed_keys.add(("Left", item.text()))
+		for item in self.y2_list.selectedItems():
+			needed_keys.add(("Right", item.text()))
 
-				# Visibility toggle
-				visible_check = QCheckBox("Visible")
-				visible_check.setChecked(self.series_visibility.get(name, True))
-				visible_check.stateChanged.connect(self.plot_selected)
+		# Track existing widget groups by key
+		if not hasattr(self, '_style_widget_cache'):
+			self._style_widget_cache = {}  # {(prefix, name): group_widget}
 
-				line_style = QComboBox()
-				line_style.addItems(["Solid", "None", "Dashed", "Dotted"])
+		# Remove widgets for columns no longer selected
+		keys_to_remove = set(self._style_widget_cache.keys()) - needed_keys
+		for key in keys_to_remove:
+			group = self._style_widget_cache.pop(key)
+			# Remove from layout and delete
+			for i in range(self.style_form.count()):
+				item = self.style_form.itemAt(i)
+				if item and item.widget() == group:
+					self.style_form.removeRow(i)
+					break
+			# Also remove from series_style
+			_, name = key
+			if name in self.series_style:
+				del self.series_style[name]
 
-				marker_style = QComboBox()
-				marker_style.addItems(["None", "o", "s", "t", "d", "+", "x"])
+		def create_style_group(label_prefix, name):
+			"""Create a new style widget group for a column."""
+			# Visibility toggle
+			visible_check = QCheckBox("Visible")
+			visible_check.setChecked(self.series_visibility.get(name, True))
+			visible_check.stateChanged.connect(self.schedule_plot_update)
 
-				color_style = QComboBox()
-				color_style.addItems(colors)
+			line_style = QComboBox()
+			line_style.addItems(["Solid", "None", "Dashed", "Dotted"])
 
-				line_width = QDoubleSpinBox()
-				line_width.setRange(0.5, 10.0)
-				line_width.setValue(2.0)
-				line_width.setSingleStep(0.5)
+			marker_style = QComboBox()
+			marker_style.addItems(["None", "o", "s", "t", "d", "+", "x"])
 
-				alpha_slider = QSlider(Qt.Horizontal)
-				alpha_slider.setRange(10, 100)
-				alpha_slider.setValue(100)
-				alpha_label = QLabel("100%")
-				alpha_slider.valueChanged.connect(lambda v, lbl=alpha_label: lbl.setText(f"{v}%"))
+			color_style = QComboBox()
+			color_style.addItems(colors)
 
-				# Load saved styles or use defaults
-				if name in self.series_saved_styles:
-					style = self.series_saved_styles[name]
-					saved_line = style.get("line", "Solid")
-					saved_marker = style.get("marker", "None")
-					# Restore saved styles
-					line_style.setCurrentText(
-					    saved_line if saved_line in ["Solid", "None", "Dashed", "Dotted"] else "Solid")
-					marker_style.setCurrentText(saved_marker)
-					color_style.setCurrentText(style.get("color", "Black" if not self.theme_dark else "White"))
-					line_width.setValue(style.get("width", 2.0))
-					alpha_slider.setValue(style.get("alpha", 100))
-				else:
-					# Set defaults for new series: Solid line, No marker
-					line_style.setCurrentText("Solid")
-					marker_style.setCurrentText("None")
+			line_width = QDoubleSpinBox()
+			line_width.setRange(0.5, 10.0)
+			line_width.setValue(2.0)
+			line_width.setSingleStep(0.5)
 
-				# Auto-set line to None when marker is changed from None to something else
-				def on_marker_changed(text, line_combo=line_style):
-					if text != "None":
-						line_combo.setCurrentText("None")
+			alpha_slider = QSlider(Qt.Horizontal)
+			alpha_slider.setRange(10, 100)
+			alpha_slider.setValue(100)
+			alpha_label = QLabel("100%")
+			alpha_slider.valueChanged.connect(lambda v, lbl=alpha_label: lbl.setText(f"{v}%"))
 
-				marker_style.currentTextChanged.connect(on_marker_changed)
+			# Load saved styles or use defaults
+			if name in self.series_saved_styles:
+				style = self.series_saved_styles[name]
+				saved_line = style.get("line", "Solid")
+				saved_marker = style.get("marker", "None")
+				line_style.setCurrentText(
+				    saved_line if saved_line in ["Solid", "None", "Dashed", "Dotted"] else "Solid")
+				marker_style.setCurrentText(saved_marker)
+				color_style.setCurrentText(style.get("color", "Black" if not self.theme_dark else "White"))
+				line_width.setValue(style.get("width", 2.0))
+				alpha_slider.setValue(style.get("alpha", 100))
+			else:
+				line_style.setCurrentText("Solid")
+				marker_style.setCurrentText("None")
+				# Set to next available color (not already used)
+				color_style.setCurrentText(self._get_next_available_color())
 
-				self.series_style[name] = {
-				    "visible": visible_check,
-				    "line": line_style,
-				    "marker": marker_style,
-				    "color": color_style,
-				    "width": line_width,
-				    "alpha": alpha_slider
-				}
-				self.series_visibility[name] = visible_check.isChecked()
+			# Auto-set line to None when marker is changed from None to something else
+			def on_marker_changed(text, line_combo=line_style):
+				if text != "None":
+					line_combo.setCurrentText("None")
 
-				group = QGroupBox(f"{label_prefix}: {name}")
-				group_layout = QFormLayout(group)
-				group_layout.addRow("Visible:", visible_check)
-				group_layout.addRow("Line:", line_style)
-				group_layout.addRow("Marker:", marker_style)
-				group_layout.addRow("Color:", color_style)
-				group_layout.addRow("Width:", line_width)
-				alpha_layout = QHBoxLayout()
-				alpha_layout.addWidget(alpha_slider)
-				alpha_layout.addWidget(alpha_label)
-				group_layout.addRow("Opacity:", alpha_layout)
+			marker_style.currentTextChanged.connect(on_marker_changed)
 
+			self.series_style[name] = {
+			    "visible": visible_check,
+			    "line": line_style,
+			    "marker": marker_style,
+			    "color": color_style,
+			    "width": line_width,
+			    "alpha": alpha_slider
+			}
+			self.series_visibility[name] = visible_check.isChecked()
+
+			group = QGroupBox(f"{label_prefix}: {name}")
+			group_layout = QFormLayout(group)
+			group_layout.addRow("Visible:", visible_check)
+			group_layout.addRow("Line:", line_style)
+			group_layout.addRow("Marker:", marker_style)
+			group_layout.addRow("Color:", color_style)
+			group_layout.addRow("Width:", line_width)
+			alpha_layout = QHBoxLayout()
+			alpha_layout.addWidget(alpha_slider)
+			alpha_layout.addWidget(alpha_label)
+			group_layout.addRow("Opacity:", alpha_layout)
+
+			return group
+
+		# Add widgets for newly selected columns (reuse existing ones)
+		for key in needed_keys:
+			prefix, name = key
+			if key not in self._style_widget_cache:
+				group = create_style_group(prefix, name)
+				self._style_widget_cache[key] = group
 				self.style_form.addRow(group)
-
-		add_style_rows("Left", self.y1_list.selectedItems())
-		add_style_rows("Right", self.y2_list.selectedItems())
 
 		# Update analysis series lists
 		self.update_analysis_series_lists()
@@ -2046,10 +2473,6 @@ class CSVPlotter(QMainWindow):
 		self.main_plot.setLabel('bottom', '')
 		self.main_plot.setLabel('left', '')
 
-		# Add legend - Note: pyqtgraph legends are not directly draggable
-		# but they anchor to the plot corner
-		self.legend = self.main_plot.addLegend(offset=(10, 10))
-
 		# Add plot title if set
 		if self.plot_title:
 			self.main_plot.setTitle(self.plot_title, size='12pt')
@@ -2061,6 +2484,21 @@ class CSVPlotter(QMainWindow):
 		self.right_view.setXLink(self.main_plot)
 		self.main_plot.getViewBox().sigResized.connect(
 		    lambda: self.right_view.setGeometry(self.main_plot.getViewBox().sceneBoundingRect()))
+
+		# Track right axis curves for manual clipToView (stores full data for efficient clipping)
+		self._right_curves = []  # [(curve, full_x, full_y, kwargs), ...]
+		self.main_plot.getViewBox().sigRangeChanged.connect(self._update_right_axis_view)
+
+		# Legend TextItem inside the plot (uses HTML for colored text)
+		# anchor=(0, 0) means the top-left of text is at the position
+		self.legend_text = pg.TextItem(html='', anchor=(0, 0))
+		self.main_plot.addItem(self.legend_text, ignoreBounds=True)
+
+		# Update legend position when view range changes
+		self.main_plot.getViewBox().sigRangeChanged.connect(self._update_legend_position)
+
+		# Track zoom history for back button
+		self.main_plot.getViewBox().sigRangeChanged.connect(self._on_view_range_changed)
 
 		# Crosshair setup
 		self.vLine = pg.InfiniteLine(angle=90, movable=False, pen=pg.mkPen('y', width=1, style=Qt.DashLine))
@@ -2081,7 +2519,7 @@ class CSVPlotter(QMainWindow):
 		# Restore tooltip if enabled
 		if hasattr(self, 'tooltip_enabled') and self.tooltip_enabled.isChecked():
 			if self.data_tooltip is not None:
-				self.main_plot.addItem(self.data_tooltip)
+				self.main_plot.addItem(self.data_tooltip, ignoreBounds=True)
 
 		self.proxy = pg.SignalProxy(self.main_plot.scene().sigMouseMoved, rateLimit=60, slot=self.mouse_moved)
 
@@ -2118,6 +2556,19 @@ class CSVPlotter(QMainWindow):
 		self.vLine.setVisible(self.crosshair_enabled)
 		self.hLine.setVisible(self.crosshair_enabled)
 
+	def format_value(self, val):
+		"""Format a numeric value, avoiding scientific notation for reasonable numbers."""
+		abs_val = abs(val) if val != 0 else 0
+		# Use scientific notation only for very large or very small numbers
+		if abs_val >= 1e10 or (abs_val < 1e-10 and abs_val != 0):
+			return f"{val:.4e}"
+		elif abs_val >= 1:
+			# For numbers >= 1, show up to 4 decimal places, strip trailing zeros
+			return f"{val:.4f}".rstrip('0').rstrip('.')
+		else:
+			# For small decimals, show enough precision
+			return f"{val:.6f}".rstrip('0').rstrip('.')
+
 	def mouse_moved(self, evt):
 		if self.df is None:
 			return
@@ -2140,19 +2591,38 @@ class CSVPlotter(QMainWindow):
 					# Format tooltip text
 					tooltip_text = ""
 					for key, val in info.items():
-						tooltip_text += f"{key}: {val:.4g}\n"
+						tooltip_text += f"{key}: {self.format_value(val)}\n"
 
 					# Update tooltip
 					if self.data_tooltip is None:
 						self.data_tooltip = pg.TextItem(anchor=(0, 1), color='y')
-						self.main_plot.addItem(self.data_tooltip)
+						self.main_plot.addItem(self.data_tooltip, ignoreBounds=True)
 
 					self.data_tooltip.setText(tooltip_text.strip())
 					self.data_tooltip.setPos(x_val, mousePoint.y())
+
+					# Show tooltip indicator line (dashed vertical line at data point)
+					if not hasattr(self, 'tooltip_indicator_line'):
+						self.tooltip_indicator_line = pg.InfiniteLine(
+						    angle=90, movable=False,
+						    pen=pg.mkPen('g', width=1, style=Qt.DashLine))
+						self.main_plot.addItem(self.tooltip_indicator_line, ignoreBounds=True)
+					self.tooltip_indicator_line.setPos(x_val)
+					self.tooltip_indicator_line.setVisible(True)
+
+					# Save data for pinning (text without trailing newline, x position, y position)
+					self._last_tooltip_data = (tooltip_text.strip(), x_val, mousePoint.y())
+				else:
+					# Hide indicator line when no data found
+					if hasattr(self, 'tooltip_indicator_line'):
+						self.tooltip_indicator_line.setVisible(False)
 			else:
 				if self.data_tooltip is not None:
 					self.main_plot.removeItem(self.data_tooltip)
 					self.data_tooltip = None
+				# Hide indicator line when tooltip disabled
+				if hasattr(self, 'tooltip_indicator_line'):
+					self.tooltip_indicator_line.setVisible(False)
 
 			# Status bar update
 			self.statusBar().showMessage(f"x={mousePoint.x():.4f}, y={mousePoint.y():.4f}")
@@ -2187,9 +2657,20 @@ class CSVPlotter(QMainWindow):
 			QMessageBox.critical(self, "Error", f"Failed to read CSV: {e}")
 			return
 
+		# Clear numpy array cache when new data is loaded
+		self.clear_array_cache()
+
+		# Clear zoom history for new dataset
+		self.zoom_history.clear()
+		self._last_view_range = None
+		self._update_zoom_back_button()
+
 		self.statusBar().showMessage(f"Loaded: {os.path.basename(filename)} ({len(self.df)} rows)")
 		self.csv_path = filename
 		self.csv_mtime = os.path.getmtime(filename)
+		# Start file monitor timer if not already running (lazy start)
+		if not self.monitor_timer.isActive():
+			self.monitor_timer.start()
 		self.settings.setValue("last_csv_file", filename)
 		self.settings.setValue("last_csv_dir", os.path.dirname(filename))
 		self.add_to_recent(filename)
@@ -2224,68 +2705,135 @@ class CSVPlotter(QMainWindow):
 			self.y1_list.addItem(QListWidgetItem(col))
 			self.y2_list.addItem(QListWidgetItem(col))
 
+	def _get_next_available_color(self):
+		"""Get the next color that isn't already in use by other series."""
+		# Preferred color order (good contrast, avoiding white/black first)
+		if self.theme_dark:
+			color_order = ["White", "Cyan", "Yellow", "Magenta", "Green", "Orange", "Red", "Blue",
+			               "Pink", "Lime", "Purple", "Teal", "Brown", "Navy", "Maroon", "Olive", "Gray"]
+		else:
+			color_order = ["Black", "Blue", "Red", "Green", "Magenta", "Orange", "Purple", "Cyan",
+			               "Brown", "Navy", "Teal", "Maroon", "Olive", "Pink", "Gray", "Yellow", "Lime"]
+
+		# Get colors already in use from active style widgets
+		used_colors = set()
+		for style_data in self.series_style.values():
+			if isinstance(style_data, dict):
+				color_widget = style_data.get('color')
+				if color_widget and hasattr(color_widget, 'currentText'):
+					used_colors.add(color_widget.currentText())
+
+		# Find first unused color
+		for color in color_order:
+			if color not in used_colors:
+				return color
+
+		# All colors used, return default
+		return color_order[0]
+
+	def _extract_series_style(self, y_col):
+		"""Extract style settings for a series column. Returns dict with style info."""
+		style = self.series_style.get(y_col, {})
+
+		# Check visibility
+		visible_widget = style.get("visible")
+		if visible_widget and not visible_widget.isChecked():
+			return None  # Not visible
+
+		# Extract style settings with proper defaults
+		line_widget = style.get("line")
+		marker_widget = style.get("marker")
+		color_widget = style.get("color")
+		width_widget = style.get("width")
+		alpha_widget = style.get("alpha")
+
+		line_style = line_widget.currentText() if line_widget else "Solid"
+		marker = marker_widget.currentText() if marker_widget else "None"
+		# Use next available color if no color widget set
+		color = color_widget.currentText() if color_widget else self._get_next_available_color()
+		width = width_widget.value() if width_widget else 2.0
+		alpha = alpha_widget.value() if alpha_widget else 100
+
+		symbol = None if marker == "None" else marker
+		marker_size = self.marker_size.value() if hasattr(self, 'marker_size') else 8
+
+		# Save style for persistence
+		self.series_saved_styles[y_col] = {
+		    "line": line_style,
+		    "marker": marker,
+		    "color": color,
+		    "width": width,
+		    "alpha": alpha
+		}
+
+		pen = self.get_pen(line_style, color, width, alpha)
+		brush = self.get_brush(color, alpha) if symbol else None
+
+		return {
+		    'pen': pen,
+		    'brush': brush,
+		    'symbol': symbol,
+		    'marker_size': marker_size
+		}
+
 	def get_pen(self, style_name, color_name, width=2.0, alpha=100):
 		# Return None if line style is "None" - this prevents line drawing
 		if style_name == "None":
 			return None
 
-		pen_styles = {"Solid": Qt.SolidLine, "Dashed": Qt.DashLine, "Dotted": Qt.DotLine}
-		color_map = {
-		    "Black": (0, 0, 0),
-		    "White": (255, 255, 255),
-		    "Red": (255, 0, 0),
-		    "Green": (0, 255, 0),
-		    "Blue": (0, 0, 255),
-		    "Magenta": (255, 0, 255),
-		    "Cyan": (0, 255, 255),
-		    "Yellow": (255, 255, 0),
-		    "Gray": (128, 128, 128),
-		    "Orange": (255, 165, 0),
-		    "Purple": (128, 0, 128),
-		    "Brown": (165, 42, 42),
-		    "Pink": (255, 192, 203),
-		    "Lime": (0, 255, 0),
-		    "Navy": (0, 0, 128),
-		    "Teal": (0, 128, 128),
-		    "Maroon": (128, 0, 0),
-		    "Olive": (128, 128, 0)
-		}
-
-		# Get RGB tuple and add alpha
-		rgb = color_map.get(color_name, (0, 0, 0))
+		# Get RGB tuple and add alpha (use class constants)
+		rgb = self.COLOR_MAP.get(color_name, (0, 0, 0))
 		color = (*rgb, int(255 * alpha / 100))
 
-		return pg.mkPen(color=color, width=width, style=pen_styles.get(style_name, Qt.SolidLine))
+		return pg.mkPen(color=color, width=width, style=self.PEN_STYLES.get(style_name, Qt.SolidLine))
 
 	def get_brush(self, color_name, alpha=100):
-		"""Get brush with alpha for markers"""
-		color_map = {
-		    "Black": (0, 0, 0),
-		    "White": (255, 255, 255),
-		    "Red": (255, 0, 0),
-		    "Green": (0, 255, 0),
-		    "Blue": (0, 0, 255),
-		    "Magenta": (255, 0, 255),
-		    "Cyan": (0, 255, 255),
-		    "Yellow": (255, 255, 0),
-		    "Gray": (128, 128, 128),
-		    "Orange": (255, 165, 0),
-		    "Purple": (128, 0, 128),
-		    "Brown": (165, 42, 42),
-		    "Pink": (255, 192, 203),
-		    "Lime": (0, 255, 0),
-		    "Navy": (0, 0, 128),
-		    "Teal": (0, 128, 128),
-		    "Maroon": (128, 0, 0),
-		    "Olive": (128, 128, 0)
-		}
-
-		rgb = color_map.get(color_name, (0, 0, 0))
+		"""Get brush with alpha for markers (uses class COLOR_MAP constant)"""
+		rgb = self.COLOR_MAP.get(color_name, (0, 0, 0))
 		color = (*rgb, int(255 * alpha / 100))
 		return pg.mkBrush(color=color)
 
+	def apply_transform(self, y):
+		"""Apply mathematical transformation to Y data."""
+		if not self.transform_enabled.isChecked():
+			return y
+
+		method = self.transform_method.currentText()
+		if method == "None":
+			return y
+
+		# Work with a copy to avoid modifying original
+		y = y.copy()
+
+		if method == "Log10":
+			# Handle zero/negative values
+			y = np.where(y > 0, np.log10(y), np.nan)
+		elif method == "Ln (Natural Log)":
+			y = np.where(y > 0, np.log(y), np.nan)
+		elif method == "Sqrt":
+			y = np.where(y >= 0, np.sqrt(y), np.nan)
+		elif method == "Abs":
+			y = np.abs(y)
+		elif method == "Normalize (0-1)":
+			y_min, y_max = np.nanmin(y), np.nanmax(y)
+			if y_max != y_min:
+				y = (y - y_min) / (y_max - y_min)
+			else:
+				y = np.zeros_like(y)
+		elif method == "Z-score":
+			y_mean, y_std = np.nanmean(y), np.nanstd(y)
+			if y_std != 0:
+				y = (y - y_mean) / y_std
+			else:
+				y = np.zeros_like(y)
+
+		return y
+
 	def apply_processing(self, x, y):
-		"""Apply smoothing and decimation to data"""
+		"""Apply transformation, smoothing, and decimation to data"""
+		# Apply transformation first
+		y = self.apply_transform(y)
+
 		if self.smooth_enabled.isChecked():
 			method = self.smooth_method.currentText()
 			window = self.smooth_window.value()
@@ -2336,10 +2884,10 @@ class CSVPlotter(QMainWindow):
 					x_col = df.columns[0]
 					return df[x_col].to_numpy(), df[actual_col].to_numpy()
 
-		# Regular column from main dataframe
+		# Regular column from main dataframe (use cache)
 		x_col = self.x_selector.currentText()
 		if col_name in self.df.columns:
-			return self.df[x_col].to_numpy(), self.df[col_name].to_numpy()
+			return self.get_column_array(x_col), self.get_column_array(col_name)
 
 		return None, None
 
@@ -2361,34 +2909,18 @@ class CSVPlotter(QMainWindow):
 				return
 			x = x_data
 		else:
-			# X is from main dataframe
-			x = self.df[x_col].to_numpy()
+			# X is from main dataframe (use cache)
+			x = self.get_column_array(x_col)
 
-		self.main_plot.clear()
-		self.right_view.clear()
-
-		# Re-add analysis items
-		for item in self.analysis_items:
+		# Selective clearing: only remove PlotDataItems (curves), keep grid/legend/crosshair
+		for item in list(self.main_plot.items):
 			if isinstance(item, pg.PlotDataItem):
-				self.main_plot.addItem(item)
-			elif isinstance(item, pg.TextItem):
-				self.main_plot.addItem(item)
-
-		# Re-add reference lines
-		for line in self.reference_lines:
-			self.main_plot.addItem(line)
-
-		# Re-add highlighted regions
-		for region in self.highlighted_regions:
-			self.main_plot.addItem(region)
-
-		# Re-add legend and grid
-		self.legend = self.main_plot.addLegend(offset=(10, 10))
-		self.main_plot.showGrid(x=True, y=True, alpha=0.3)
-
-		# Re-add crosshair
-		self.main_plot.addItem(self.vLine, ignoreBounds=True)
-		self.main_plot.addItem(self.hLine, ignoreBounds=True)
+				self.main_plot.removeItem(item)
+		for item in list(self.right_view.allChildren()):
+			if isinstance(item, pg.PlotDataItem):
+				self.right_view.removeItem(item)
+		# Clear right curves tracking list
+		self._right_curves = []
 
 		self.settings.setValue("x_column", x_col)
 		left_labels, right_labels = [], []
@@ -2397,11 +2929,10 @@ class CSVPlotter(QMainWindow):
 
 		for item in self.y1_list.selectedItems():
 			y_col = item.text()
-			style = self.series_style.get(y_col, {})
 
-			# Check visibility
-			visible_widget = style.get("visible")
-			if visible_widget and not visible_widget.isChecked():
+			# Extract style (returns None if not visible)
+			style_info = self._extract_series_style(y_col)
+			if style_info is None:
 				continue
 
 			left_labels.append(y_col)
@@ -2413,49 +2944,27 @@ class CSVPlotter(QMainWindow):
 				continue
 
 			# Use the column's own x data if from comparison file, otherwise use main x
-			if x_data is not None:
-				x_plot_orig = x_data
-			else:
-				x_plot_orig = x
-
+			x_plot_orig = x_data if x_data is not None else x
 			x_plot, y_plot = self.apply_processing(x_plot_orig.copy(), y_data)
 
-			# Extract style settings with proper defaults
-			line_widget = style.get("line")
-			marker_widget = style.get("marker")
-			color_widget = style.get("color")
-			width_widget = style.get("width")
-			alpha_widget = style.get("alpha")
-
-			line_style = line_widget.currentText() if line_widget else "Solid"
-			marker = marker_widget.currentText() if marker_widget else "None"
-			color = color_widget.currentText() if color_widget else ("White" if self.theme_dark else "Black")
-			width = width_widget.value() if width_widget else 2.0
-			alpha = alpha_widget.value() if alpha_widget else 100
-
-			symbol = None if marker == "None" else marker
-			self.series_saved_styles[y_col] = {
-			    "line": line_style,
-			    "marker": marker,
-			    "color": color,
-			    "width": width,
-			    "alpha": alpha
-			}
-			marker_size = self.marker_size.value() if hasattr(self, 'marker_size') else 8
-
-			pen = self.get_pen(line_style, color, width, alpha)
-			brush = self.get_brush(color, alpha) if symbol else None
-
-			self.main_plot.plot(
-			    x_plot, y_plot, pen=pen, symbol=symbol, symbolSize=marker_size, symbolBrush=brush, name=y_col)
+			curve = self.main_plot.plot(
+			    x_plot, y_plot,
+			    pen=style_info['pen'],
+			    symbol=style_info['symbol'],
+			    symbolSize=style_info['marker_size'],
+			    symbolBrush=style_info['brush'],
+			    name=y_col)
+			# Performance optimization for large datasets (controlled by View > Auto Downsampling)
+			if len(x_plot) > 10000 and self.downsample_action.isChecked():
+				curve.setClipToView(True)  # Only process visible data
+				curve.setDownsampling(auto=True, method='peak')  # Auto-adjust based on view
 
 		for item in self.y2_list.selectedItems():
 			y_col = item.text()
-			style = self.series_style.get(y_col, {})
 
-			# Check visibility
-			visible_widget = style.get("visible")
-			if visible_widget and not visible_widget.isChecked():
+			# Extract style (returns None if not visible)
+			style_info = self._extract_series_style(y_col)
+			if style_info is None:
 				continue
 
 			right_labels.append(y_col)
@@ -2467,40 +2976,26 @@ class CSVPlotter(QMainWindow):
 				continue
 
 			# Use the column's own x data if from comparison file, otherwise use main x
-			if x_data is not None:
-				x_plot_orig = x_data
-			else:
-				x_plot_orig = x
-
+			x_plot_orig = x_data if x_data is not None else x
 			x_plot, y_plot = self.apply_processing(x_plot_orig.copy(), y_data)
 
-			# Extract style settings with proper defaults
-			line_widget = style.get("line")
-			marker_widget = style.get("marker")
-			color_widget = style.get("color")
-			width_widget = style.get("width")
-			alpha_widget = style.get("alpha")
-
-			line_style = line_widget.currentText() if line_widget else "Solid"
-			marker = marker_widget.currentText() if marker_widget else "None"
-			color = color_widget.currentText() if color_widget else ("White" if self.theme_dark else "Black")
-			width = width_widget.value() if width_widget else 2.0
-			alpha = alpha_widget.value() if alpha_widget else 100
-
-			symbol = None if marker == "None" else marker
-			self.series_saved_styles[y_col] = {
-			    "line": line_style,
-			    "marker": marker,
-			    "color": color,
-			    "width": width,
-			    "alpha": alpha
-			}
-			marker_size = self.marker_size.value() if hasattr(self, 'marker_size') else 8
-
-			pen = self.get_pen(line_style, color, width, alpha)
-			brush = self.get_brush(color, alpha) if symbol else None
-
-			curve = pg.PlotDataItem(x_plot, y_plot, pen=pen, symbol=symbol, symbolSize=marker_size, symbolBrush=brush)
+			curve = pg.PlotDataItem(
+			    x_plot, y_plot,
+			    pen=style_info['pen'],
+			    symbol=style_info['symbol'],
+			    symbolSize=style_info['marker_size'],
+			    symbolBrush=style_info['brush'])
+			# Store curve with full data for manual clipToView (makes right axis as efficient as left)
+			self._right_curves.append((curve, x_plot.copy(), y_plot.copy(), {
+				'pen': style_info['pen'],
+				'symbol': style_info['symbol'],
+				'symbolSize': style_info['marker_size'],
+				'symbolBrush': style_info['brush']
+			}))
+			# Initial downsampling for large datasets
+			if len(x_plot) > 10000 and self.downsample_action.isChecked():
+				ds_ratio = max(1, len(x_plot) // 10000)
+				curve.setDownsampling(ds=ds_ratio, auto=False, method='peak')
 			self.right_view.addItem(curve)
 
 		self.settings.setValue("series_styles", self.series_saved_styles)
@@ -2523,9 +3018,100 @@ class CSVPlotter(QMainWindow):
 		else:
 			self.main_plot.getAxis('right').setLabel('')
 
-		# Update analysis overlays
-		if hasattr(self, 'update_analysis'):
-			self.update_analysis()
+		# Update analysis overlays (only if any analysis feature is enabled)
+		if hasattr(self, 'update_analysis') and hasattr(self, 'fit_enabled'):
+			if (self.fit_enabled.isChecked() or
+			    self.peaks_enabled.isChecked() or
+			    self.deriv_enabled.isChecked()):
+				self.update_analysis()
+
+		# Update the legend bar
+		self.update_legend(left_cols, right_cols)
+
+	def _update_legend_position(self):
+		"""Update legend position to top-left of plot area."""
+		if hasattr(self, 'legend_text') and hasattr(self, 'main_plot'):
+			vb = self.main_plot.getViewBox()
+			# Position in data coordinates (top-left with padding)
+			view_range = vb.viewRange()
+			x_min = view_range[0][0]
+			y_max = view_range[1][1]
+			# Small offset from top-left corner
+			x_offset = (view_range[0][1] - view_range[0][0]) * 0.01
+			y_offset = (view_range[1][1] - view_range[1][0]) * 0.02
+			self.legend_text.setPos(x_min + x_offset, y_max - y_offset)
+
+	def update_legend(self, left_cols, right_cols):
+		"""Update the legend inside the plot with colored series names and markers."""
+		if not hasattr(self, 'legend_text'):
+			return
+
+		# Map pyqtgraph marker symbols to unicode characters for display
+		marker_symbols = {
+			'o': '●', 's': '■', 't': '▲', 'd': '◆',
+			'+': '+', 'x': '×', 'None': '', None: ''
+		}
+
+		# Map line styles to unicode representations
+		line_symbols = {
+			'Solid': '—',
+			'Dashed': '╌╌',
+			'Dotted': '···',
+			'None': ''
+		}
+
+		html_parts = []
+
+		# Add left axis series
+		for col in left_cols:
+			style = self.series_style.get(col, {})
+			color_widget = style.get('color')
+			marker_widget = style.get('marker')
+			line_widget = style.get('line')
+			color_name = color_widget.currentText() if color_widget else "White"
+			marker = marker_widget.currentText() if marker_widget else "None"
+			line_style = line_widget.currentText() if line_widget else "Solid"
+			rgb = self.COLOR_MAP.get(color_name, (255, 255, 255))
+			marker_char = marker_symbols.get(marker, '')
+			line_char = line_symbols.get(line_style, '—')
+
+			# Build prefix: line style + marker (if any)
+			if marker_char:
+				prefix = f"{line_char}{marker_char} " if line_char else f"{marker_char} "
+			else:
+				prefix = f"{line_char} " if line_char else ""
+			html_parts.append(
+			    f'<span style="color: rgb({rgb[0]},{rgb[1]},{rgb[2]}); font-weight: bold;">'
+			    f'{prefix}{col} (L)</span>')
+
+		# Add right axis series
+		for col in right_cols:
+			style = self.series_style.get(col, {})
+			color_widget = style.get('color')
+			marker_widget = style.get('marker')
+			line_widget = style.get('line')
+			color_name = color_widget.currentText() if color_widget else "Cyan"
+			marker = marker_widget.currentText() if marker_widget else "None"
+			line_style = line_widget.currentText() if line_widget else "Solid"
+			rgb = self.COLOR_MAP.get(color_name, (0, 255, 255))
+			marker_char = marker_symbols.get(marker, '')
+			line_char = line_symbols.get(line_style, '—')
+
+			# Build prefix: line style + marker (if any)
+			if marker_char:
+				prefix = f"{line_char}{marker_char} " if line_char else f"{marker_char} "
+			else:
+				prefix = f"{line_char} " if line_char else ""
+			html_parts.append(
+			    f'<span style="color: rgb({rgb[0]},{rgb[1]},{rgb[2]}); font-weight: bold;">'
+			    f'{prefix}{col} (R)</span>')
+
+		# Join with spacing
+		html = '&nbsp;&nbsp;&nbsp;'.join(html_parts)
+		self.legend_text.setHtml(html)
+
+		# Update position
+		self._update_legend_position()
 
 	def toggle_zoom_mode(self, checked):
 		self.zoom_mode = checked
@@ -2534,8 +3120,107 @@ class CSVPlotter(QMainWindow):
 		vb.setMouseMode(pg.ViewBox.RectMode if checked else pg.ViewBox.PanMode)
 
 	def reset_zoom(self):
+		# Clear zoom history since we're fully resetting
+		self.zoom_history.clear()
+		self._last_view_range = None
+		self._update_zoom_back_button()
 		self.main_plot.enableAutoRange(axis=pg.ViewBox.XYAxes)
 		self.right_view.enableAutoRange(axis=pg.ViewBox.XYAxes)
+
+	def _on_view_range_changed(self):
+		"""Track view range changes for zoom history."""
+		if self._restoring_zoom:
+			return  # Don't save when we're restoring from history
+
+		# Only track history when zoom box mode is enabled
+		if not self.zoom_mode:
+			return
+
+		vb = self.main_plot.getViewBox()
+		current_range = vb.viewRange()
+
+		# Save the previous range to history (if we have one and it's different)
+		if self._last_view_range is not None:
+			# Check if range actually changed significantly
+			last_x, last_y = self._last_view_range
+			curr_x, curr_y = current_range
+			if (abs(last_x[0] - curr_x[0]) > 0.001 or abs(last_x[1] - curr_x[1]) > 0.001 or
+			    abs(last_y[0] - curr_y[0]) > 0.001 or abs(last_y[1] - curr_y[1]) > 0.001):
+				# Save the previous state
+				self.zoom_history.append(self._last_view_range)
+				# Keep only last 20 states
+				if len(self.zoom_history) > 20:
+					self.zoom_history.pop(0)
+				# Update back button state
+				self._update_zoom_back_button()
+
+		# Update last known range
+		self._last_view_range = (list(current_range[0]), list(current_range[1]))
+
+	def zoom_back(self):
+		"""Go back to the previous zoom level."""
+		if not self.zoom_history:
+			return
+
+		# Pop the last saved state
+		prev_range = self.zoom_history.pop()
+
+		# Set flag to prevent saving this restore as a new history entry
+		self._restoring_zoom = True
+
+		# Restore the view range
+		vb = self.main_plot.getViewBox()
+		vb.setRange(xRange=prev_range[0], yRange=prev_range[1], padding=0)
+
+		# Update last known range to the restored state
+		self._last_view_range = prev_range
+
+		# Clear flag
+		self._restoring_zoom = False
+
+		# Update button state
+		self._update_zoom_back_button()
+
+	def _update_zoom_back_button(self):
+		"""Show/hide the zoom back button based on history."""
+		if hasattr(self, 'zoom_back_action'):
+			self.zoom_back_action.setVisible(len(self.zoom_history) > 0)
+
+	def _update_right_axis_view(self):
+		"""
+		Manual clipToView implementation for right axis.
+
+		Since ViewBox overlay doesn't support clipToView, we manually clip data
+		to the visible range. This makes right axis as efficient as left axis.
+		"""
+		if not self._right_curves:
+			return
+
+		# Get current visible x range with small margin for smooth panning
+		x_range = self.main_plot.getViewBox().viewRange()[0]
+		x_min, x_max = x_range
+		margin = (x_max - x_min) * 0.1  # 10% margin on each side
+		x_min -= margin
+		x_max += margin
+
+		for curve, full_x, full_y, curve_kwargs in self._right_curves:
+			# Use binary search to find visible data range
+			left_idx = max(0, np.searchsorted(full_x, x_min) - 1)
+			right_idx = min(len(full_x), np.searchsorted(full_x, x_max) + 1)
+
+			# Extract only visible data (like clipToView does internally)
+			visible_x = full_x[left_idx:right_idx]
+			visible_y = full_y[left_idx:right_idx]
+
+			# Apply downsampling if needed and enabled
+			if len(visible_x) > 10000 and self.downsample_action.isChecked():
+				ds_ratio = max(1, len(visible_x) // 10000)
+				curve.setDownsampling(ds=ds_ratio, auto=False, method='peak')
+			else:
+				curve.setDownsampling(ds=1, auto=False, method='peak')
+
+			# Update curve with clipped data
+			curve.setData(visible_x, visible_y)
 
 	def check_file_update(self):
 		if not self.csv_path or not os.path.exists(self.csv_path):
@@ -2554,7 +3239,20 @@ class CSVPlotter(QMainWindow):
 				self.statusBar().showMessage(f"Failed to reload: {e}")
 				return
 
+			# Check if columns changed
+			old_cols = set(self.df.columns) if self.df is not None else set()
+			new_cols = set(new_df.columns)
+			columns_changed = old_cols != new_cols
+
 			self.df = new_df
+			# Clear array cache since data changed
+			self.clear_array_cache()
+
+			# Update column selectors if columns changed (preserves selections)
+			if columns_changed:
+				self.load_column_selectors()
+				self.restore_selections()
+
 			x_range, y_range = self.main_plot.getViewBox().viewRange()
 			self.plot_selected()
 			self.main_plot.setXRange(*x_range, padding=0)
@@ -2745,16 +3443,24 @@ class CSVPlotter(QMainWindow):
 <b>File Operations:</b><br>
 • Ctrl+O: Open CSV<br>
 • Ctrl+S: Save Plot<br>
+• Ctrl+C: Copy Plot to Clipboard<br>
 • Ctrl+Q: Quit<br><br>
-<b>View Controls:</b><br>
-• C: Toggle Crosshair<br>
-• R: Reset Zoom<br><br>
+<b>Zoom Controls:</b><br>
+• Space: Toggle Box Zoom Mode<br>
+• Ctrl+Z: Zoom Back (undo zoom)<br>
+• Ctrl+R: Reset Zoom<br>
+• C: Toggle Crosshair<br><br>
+<b>Annotations:</b><br>
+• P: Pin current tooltip as annotation<br>
+• Shift+P: Remove last annotation<br>
+• Ctrl+Shift+P: Clear all annotations<br>
+• Drag: Move pinned annotation<br>
+• Double-click: Edit annotation label<br><br>
 <b>Plot Operations:</b><br>
 • Ctrl+P: Update Plot<br>
 • Ctrl+D: Clear All Selections<br>
 • Ctrl+T: Set Plot Title<br>
-• Ctrl+L: Set Axis Labels<br>
-• Ctrl+A: Add Annotation<br><br>
+• Ctrl+L: Set Axis Labels<br><br>
 <b>Analysis:</b><br>
 • Access via Analysis menu or Analysis tab<br>
 • Curve fitting, peak detection, derivatives, FFT<br><br>
@@ -2820,7 +3526,28 @@ advanced styling, data processing, and comprehensive analysis tools.</p>
         """
 		QMessageBox.about(self, "About", about_text)
 
+	def closeEvent(self, event):
+		"""Save window geometry before closing."""
+		self.settings.setValue("window_geometry", self.saveGeometry())
+		super().closeEvent(event)
+
 if __name__ == "__main__":
+	import argparse
+	parser = argparse.ArgumentParser(description="CSV Dual-Axis Plot Viewer Pro")
+	parser.add_argument("-d", "--debug", action="store_true", help="Enable debug logging")
+	parser.add_argument("--no-opengl", action="store_true", help="Disable OpenGL hardware acceleration (enabled by default)")
+	parser.add_argument("--opengl", action="store_true", help="(Deprecated) OpenGL is now enabled by default")
+	args = parser.parse_args()
+
+	# Enable OpenGL by default for better performance
+	if not args.no_opengl:
+		pg.setConfigOptions(useOpenGL=True, enableExperimental=True)
+		if args.debug:
+			print("OpenGL hardware acceleration enabled")
+	else:
+		if args.debug:
+			print("OpenGL hardware acceleration disabled")
+
 	app = QApplication(sys.argv)
 	app.setStyle('Fusion')
 	window = CSVPlotter()
