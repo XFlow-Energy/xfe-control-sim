@@ -1,0 +1,242 @@
+name: Build Plot Viewer Executables
+
+permissions:
+  contents: write
+  actions: read
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'misc/plot_viewer.py'
+      - 'misc/plot_viewer_help.md'
+      - 'misc/launch_install_plot_gui.py'
+      - '.github/workflows/plot_viewer.yml'
+    tags:
+      - 'plot-viewer-v*.*.*'
+  pull_request:
+    paths:
+      - 'misc/plot_viewer.py'
+      - 'misc/plot_viewer_help.md'
+      - 'misc/launch_install_plot_gui.py'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build-linux-x64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxcb-xinerama0 libxcb-cursor0 libegl1
+
+      - name: Install Python dependencies
+        working-directory: misc
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas pyqtgraph PyQt5 numpy scipy markdown asteval pyinstaller
+
+      - name: Build executable
+        working-directory: misc
+        run: |
+          python -m PyInstaller --noconfirm --onedir \
+            --add-data "plot_viewer_help.md:." \
+            plot_viewer.py
+
+      - name: Create archive
+        working-directory: misc
+        run: |
+          cd dist
+          tar -czvf plot_viewer-linux-x64.tar.gz plot_viewer/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plot_viewer-linux-x64
+          path: misc/dist/plot_viewer-linux-x64.tar.gz
+
+  build-macos-arm64:
+    runs-on: macos-latest  # ARM (Apple Silicon)
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        working-directory: misc
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas pyqtgraph PyQt5 numpy scipy markdown asteval pyinstaller PyOpenGL PyOpenGL_accelerate
+
+      - name: Build executable
+        working-directory: misc
+        run: |
+          python -m PyInstaller --noconfirm --onedir --windowed \
+            --add-data "plot_viewer_help.md:." \
+            plot_viewer.py
+
+      - name: Create archive
+        working-directory: misc
+        run: |
+          cd dist
+          # Create a zip of the .app bundle
+          zip -r plot_viewer-macos-arm64.zip plot_viewer.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plot_viewer-macos-arm64
+          path: misc/dist/plot_viewer-macos-arm64.zip
+
+  build-macos-x64:
+    runs-on: macos-13  # Intel x86_64
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        working-directory: misc
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas pyqtgraph PyQt5 numpy scipy markdown asteval pyinstaller PyOpenGL PyOpenGL_accelerate
+
+      - name: Build executable
+        working-directory: misc
+        run: |
+          python -m PyInstaller --noconfirm --onedir --windowed \
+            --add-data "plot_viewer_help.md:." \
+            plot_viewer.py
+
+      - name: Create archive
+        working-directory: misc
+        run: |
+          cd dist
+          zip -r plot_viewer-macos-x64.zip plot_viewer.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plot_viewer-macos-x64
+          path: misc/dist/plot_viewer-macos-x64.zip
+
+  build-windows-x64:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        working-directory: misc
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas pyqtgraph PyQt5 numpy scipy markdown asteval pyinstaller PyOpenGL PyOpenGL_accelerate
+
+      - name: Build executable
+        working-directory: misc
+        run: |
+          python -m PyInstaller --noconfirm --onefile --windowed `
+            --add-data "plot_viewer_help.md;." `
+            plot_viewer.py
+
+      - name: Create archive
+        working-directory: misc
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist\plot_viewer.exe -DestinationPath dist\plot_viewer-windows-x64.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plot_viewer-windows-x64
+          path: misc/dist/plot_viewer-windows-x64.zip
+
+  publish-release:
+    if: startsWith(github.ref, 'refs/tags/plot-viewer-v')
+    runs-on: ubuntu-latest
+    needs:
+      - build-linux-x64
+      - build-macos-arm64
+      - build-macos-x64
+      - build-windows-x64
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List artifacts
+        run: |
+          echo "Downloaded artifacts:"
+          find artifacts -type f -name "*.zip" -o -name "*.tar.gz" | head -20
+
+      - name: Compute tag
+        id: set_tag
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "TAG=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "TAG=${TAG}" >> "$GITHUB_ENV"
+          echo "Release tag: ${TAG}"
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "${TAG}" \
+            --title "Plot Viewer ${TAG}" \
+            --notes "## CSV Dual-Axis Plot Viewer Pro
+
+          Cross-platform data visualization tool for CSV files.
+
+          ### Downloads
+          - **Windows (x64)**: \`plot_viewer-windows-x64.zip\` - Single executable
+          - **macOS (Apple Silicon)**: \`plot_viewer-macos-arm64.zip\` - App bundle for M1/M2/M3
+          - **macOS (Intel)**: \`plot_viewer-macos-x64.zip\` - App bundle for Intel Macs
+          - **Linux (x64)**: \`plot_viewer-linux-x64.tar.gz\` - Extract and run \`plot_viewer/plot_viewer\`
+
+          ### Features
+          - Dual Y-axis plotting
+          - OpenGL hardware acceleration (enabled by default)
+          - Data transformations, smoothing, curve fitting
+          - Pinned annotations, zoom history
+          - Built-in help documentation
+
+          ### First Run Notes
+          - **macOS**: Right-click → Open (first time only, due to Gatekeeper)
+          - **Linux**: May need \`chmod +x plot_viewer\`
+          "
+
+      - name: Upload release assets
+        run: |
+          # Upload all artifacts
+          gh release upload "${TAG}" \
+            artifacts/plot_viewer-linux-x64/plot_viewer-linux-x64.tar.gz \
+            artifacts/plot_viewer-macos-arm64/plot_viewer-macos-arm64.zip \
+            artifacts/plot_viewer-macos-x64/plot_viewer-macos-x64.zip \
+            artifacts/plot_viewer-windows-x64/plot_viewer-windows-x64.zip \
+            --clobber
