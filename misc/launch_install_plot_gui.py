@@ -318,17 +318,29 @@ def build_executable(venv_python: Path, script_path: Path) -> Path:
 	    "--noconfirm",
 	]
 
-	# On macOS, use --onedir to avoid deprecation warning and improve launch speed
-	# On Windows, --onefile works well
+	# Use --onefile for truly standalone executables (slower startup but portable)
+	# On Windows, also add --windowed to hide console
+	# On macOS, don't use --windowed to avoid .app bundle (Gatekeeper issues)
 	if system == "Darwin":
-		pyinstaller_cmd.append("--onedir")
-		pyinstaller_cmd.append("--windowed")  # Creates .app bundle on macOS
+		pyinstaller_cmd.append("--onefile")
+		# No --windowed to avoid .app bundle (Gatekeeper issues)
 	elif system == "Windows":
 		pyinstaller_cmd.append("--onefile")
 		pyinstaller_cmd.append("--windowed")
+		# PyOpenGL hidden imports required for Windows (not auto-detected by PyInstaller)
+		opengl_hidden_imports = [
+		    "OpenGL.platform.win32",
+		    "OpenGL.arrays.ctypesarrays",
+		    "OpenGL.arrays.numpymodule",
+		    "OpenGL.arrays.lists",
+		    "OpenGL.arrays.numbers",
+		    "OpenGL.arrays.strings",
+		]
+		for module in opengl_hidden_imports:
+			pyinstaller_cmd.extend(["--hidden-import", module])
 	else:
-		# Linux: onedir is faster, no windowed flag needed
-		pyinstaller_cmd.append("--onedir")
+		# Linux: onefile for portability
+		pyinstaller_cmd.append("--onefile")
 
 	# Add help file as bundled data if it exists
 	if help_file.exists():
@@ -344,15 +356,12 @@ def build_executable(venv_python: Path, script_path: Path) -> Path:
 
 	subprocess.run(pyinstaller_cmd, check=True)
 
-	# Determine executable path based on OS and mode
+	# Determine executable path based on OS (all use --onefile now)
 	if system == "Windows":
 		executable = Path("dist") / f"{script_path.stem}.exe"
-	elif system == "Darwin":
-		# macOS .app bundle - the actual executable is inside
-		executable = Path("dist") / f"{script_path.stem}.app"
 	else:
-		# Linux onedir
-		executable = Path("dist") / script_path.stem / script_path.stem
+		# macOS and Linux: onefile mode creates dist/name
+		executable = Path("dist") / script_path.stem
 
 	if not executable.exists():
 		print(f"{Colors.RED}Executable not found at {executable}{Colors.RESET}", file=sys.stderr)
@@ -389,11 +398,14 @@ Examples:
   %(prog)s --debug            # Run with debug logging enabled
   %(prog)s --no-opengl        # Disable OpenGL hardware acceleration
   %(prog)s --build            # Build standalone executable and run it
+  %(prog)s --build-only       # Build executable without launching (for CI)
   %(prog)s --venv-dir .venv   # Use custom venv directory
 		""")
 
 	parser.add_argument(
 	    "--build", action="store_true", help="Build standalone executable with PyInstaller before running")
+	parser.add_argument(
+	    "--build-only", action="store_true", help="Build standalone executable without launching (for CI use)")
 	parser.add_argument(
 	    "--venv-dir",
 	    type=Path,
@@ -451,7 +463,7 @@ Examples:
 	else:
 		print(f"{Emoji.WARNING} Minimal mode: scipy will not be installed (advanced smoothing unavailable)")
 
-	if args.build:
+	if args.build or args.build_only:
 		required_packages.append("pyinstaller")
 
 	# Install packages
@@ -470,23 +482,18 @@ Examples:
 		script_args.append("--no-opengl")
 
 	# Build or run
-	if args.build:
+	if args.build_only:
+		executable = build_executable(venv_python, args.script)
+		print(f"{Emoji.CHECK} Build complete: {executable}")
+	elif args.build:
 		executable = build_executable(venv_python, args.script)
 		print(f"{Emoji.ROCKET} Launching the standalone executable...")
-
-		# On macOS, use 'open' to launch .app bundles (needs absolute path)
-		if platform.system() == "Darwin" and str(executable).endswith(".app"):
-			cmd = ["open", str(executable.resolve())]
-			if script_args:
-				cmd.extend(["--args"] + script_args)
-		else:
-			cmd = [str(executable)] + script_args
-
+		cmd = [str(executable)] + script_args
 		subprocess.run(cmd, check=True)
+		print(f"{Emoji.CHECK} Complete")
 	else:
 		launch_script(venv_python, args.script, script_args)
-
-	print(f"{Emoji.CHECK} Complete")
+		print(f"{Emoji.CHECK} Complete")
 
 if __name__ == "__main__":
 	main()

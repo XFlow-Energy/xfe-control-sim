@@ -1,14 +1,28 @@
 import sys
 import os
+import logging
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
 from pathlib import Path
+
+# Setup file logging for frozen Windows builds (no console available)
+if getattr(sys, 'frozen', False) and sys.platform == 'win32':
+	log_path = Path(sys.executable).parent / "plot_viewer.log"
+	logging.basicConfig(
+	    filename=str(log_path),
+	    level=logging.DEBUG,
+	    format='%(asctime)s - %(levelname)s - %(message)s'
+	)
+	# Redirect stdout/stderr to log file
+	sys.stdout = open(log_path, 'a')
+	sys.stderr = sys.stdout
+	logging.info("Plot Viewer started (frozen Windows build)")
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QFileDialog, QVBoxLayout, QWidget, QLabel, QComboBox, QListWidget, QPushButton,
     QListWidgetItem, QHBoxLayout, QSplitter, QCheckBox, QFormLayout, QGroupBox, QTableWidget, QTableWidgetItem,
     QDockWidget, QSizePolicy, QMenuBar, QMenu, QAction, QToolBar, QSpinBox, QDoubleSpinBox, QScrollArea, QMessageBox,
-    QLineEdit, QDialog, QDialogButtonBox, QTabWidget, QSlider, QTextEdit, QInputDialog, QTextBrowser)
+    QLineEdit, QDialog, QDialogButtonBox, QTabWidget, QSlider, QTextEdit, QInputDialog, QTextBrowser, QProgressDialog)
 from PyQt5.QtCore import Qt, QTimer, QSettings, QVariant, QMimeData
 from PyQt5.QtGui import QKeySequence, QColor, QDragEnterEvent, QDropEvent, QClipboard, QPixmap, QCursor
 from PyQt5.QtWidgets import QShortcut
@@ -2461,8 +2475,39 @@ class CSVPlotter(QMainWindow):
 	def replace_plot_widget(self):
 		self.apply_theme()
 		zoom_x = zoom_y = None
+
+		# Save state from old plot before destroying it
+		saved_ref_lines = []
+		saved_regions = []
+
 		if hasattr(self, 'main_plot'):
 			zoom_x, zoom_y = self.main_plot.getViewBox().viewRange()
+
+			# Save reference line configurations before plot is destroyed
+			for line in self.reference_lines:
+				try:
+					saved_ref_lines.append({
+						'pos': line.value(),
+						'angle': line.angle,
+						'pen': line.pen,
+						'label': line.label.format if hasattr(line, 'label') and line.label else None
+					})
+				except RuntimeError:
+					pass  # Already deleted
+
+			# Save region configurations before plot is destroyed
+			for region in self.highlighted_regions:
+				try:
+					saved_regions.append({
+						'values': region.getRegion(),
+						'brush': region.brush
+					})
+				except RuntimeError:
+					pass  # Already deleted
+
+		# Clear old lists since items will be destroyed
+		self.reference_lines.clear()
+		self.highlighted_regions.clear()
 
 		if hasattr(self, 'plot_area'):
 			self.plot_area.setParent(None)
@@ -2508,18 +2553,33 @@ class CSVPlotter(QMainWindow):
 		self.vLine.setVisible(False)
 		self.hLine.setVisible(False)
 
-		# Restore reference lines
-		for line in self.reference_lines:
+		# Recreate reference lines from saved configurations
+		for line_config in saved_ref_lines:
+			line = pg.InfiniteLine(
+				pos=line_config['pos'],
+				angle=line_config['angle'],
+				movable=True,
+				pen=line_config['pen'],
+				label=line_config['label']
+			)
 			self.main_plot.addItem(line)
+			self.reference_lines.append(line)
 
-		# Restore highlighted regions
-		for region in self.highlighted_regions:
+		# Recreate highlighted regions from saved configurations
+		for region_config in saved_regions:
+			region = pg.LinearRegionItem(values=region_config['values'], brush=region_config['brush'], movable=True)
 			self.main_plot.addItem(region)
+			self.highlighted_regions.append(region)
 
-		# Restore tooltip if enabled
+		# Recreate tooltip if enabled (old one was destroyed with the plot widget)
 		if hasattr(self, 'tooltip_enabled') and self.tooltip_enabled.isChecked():
-			if self.data_tooltip is not None:
-				self.main_plot.addItem(self.data_tooltip, ignoreBounds=True)
+			self.data_tooltip = pg.TextItem(anchor=(0, 1), color='y')
+			self.data_tooltip.setVisible(False)
+			self.main_plot.addItem(self.data_tooltip, ignoreBounds=True)
+
+		# Remove stale tooltip_indicator_line reference so it gets recreated on next mouse move
+		if hasattr(self, 'tooltip_indicator_line'):
+			delattr(self, 'tooltip_indicator_line')
 
 		self.proxy = pg.SignalProxy(self.main_plot.scene().sigMouseMoved, rateLimit=60, slot=self.mouse_moved)
 
@@ -2651,11 +2711,22 @@ class CSVPlotter(QMainWindow):
 			self.load_csv(filename)
 
 	def load_csv(self, filename):
+		# Show loading dialog
+		progress = QProgressDialog("Loading CSV data...\nThis may take a moment for large files.", None, 0, 0, self)
+		progress.setWindowTitle("Loading")
+		progress.setWindowModality(Qt.WindowModal)
+		progress.setMinimumDuration(0)  # Show immediately
+		progress.setValue(0)
+		QApplication.processEvents()  # Force the dialog to display
+
 		try:
 			self.df = pd.read_csv(filename, on_bad_lines='warn')
 		except Exception as e:
+			progress.close()
 			QMessageBox.critical(self, "Error", f"Failed to read CSV: {e}")
 			return
+		finally:
+			progress.close()
 
 		# Clear numpy array cache when new data is loaded
 		self.clear_array_cache()
