@@ -13,7 +13,7 @@ from PyQt5.QtWidgets import (
     QDockWidget, QSizePolicy, QMenuBar, QMenu, QAction, QToolBar, QSpinBox, QDoubleSpinBox, QScrollArea, QMessageBox,
     QLineEdit, QDialog, QDialogButtonBox, QTabWidget, QSlider, QTextEdit, QInputDialog, QTextBrowser, QProgressDialog)
 from PyQt5.QtCore import Qt, QTimer, QSettings, QVariant, QMimeData
-from PyQt5.QtGui import QKeySequence, QColor, QDragEnterEvent, QDropEvent, QClipboard, QPixmap, QCursor
+from PyQt5.QtGui import QKeySequence, QColor, QDragEnterEvent, QDropEvent, QClipboard, QPixmap, QCursor, QImage, QPainter
 from PyQt5.QtWidgets import QShortcut
 import pyqtgraph.exporters
 
@@ -72,6 +72,9 @@ class DraggableAnnotation(pg.TextItem):
 		self.parent_plotter = parent_plotter
 		self._dragging = False
 		self._drag_start = None
+		# Enable mouse interaction
+		self.setAcceptHoverEvents(True)
+		self.setFlag(self.GraphicsItemFlag.ItemIsMovable, False)  # We handle movement ourselves
 		self.update_display()
 
 	def update_display(self):
@@ -88,17 +91,24 @@ class DraggableAnnotation(pg.TextItem):
 	def mousePressEvent(self, ev):
 		if ev.button() == Qt.LeftButton:
 			self._dragging = True
-			self._drag_start = ev.pos()
+			# Store the scene position where drag started
+			self._drag_start = ev.scenePos()
+			self._start_pos = self.pos()
+			self.setCursor(Qt.ClosedHandCursor)
 			ev.accept()
 		else:
 			super().mousePressEvent(ev)
 
 	def mouseMoveEvent(self, ev):
 		if self._dragging:
-			# Calculate new position
-			delta = ev.pos() - self._drag_start
-			new_pos = self.pos() + delta
-			self.setPos(new_pos)
+			# Convert scene coordinates to view coordinates for proper positioning
+			view = self.getViewBox()
+			if view:
+				current_view = view.mapSceneToView(ev.scenePos())
+				start_view = view.mapSceneToView(self._drag_start)
+				delta_view = current_view - start_view
+				new_pos = self._start_pos + delta_view
+				self.setPos(new_pos)
 			ev.accept()
 		else:
 			super().mouseMoveEvent(ev)
@@ -106,9 +116,20 @@ class DraggableAnnotation(pg.TextItem):
 	def mouseReleaseEvent(self, ev):
 		if ev.button() == Qt.LeftButton:
 			self._dragging = False
+			self.setCursor(Qt.OpenHandCursor)
 			ev.accept()
 		else:
 			super().mouseReleaseEvent(ev)
+
+	def hoverEnterEvent(self, ev):
+		"""Change cursor to indicate draggable."""
+		self.setCursor(Qt.OpenHandCursor)
+		super().hoverEnterEvent(ev)
+
+	def hoverLeaveEvent(self, ev):
+		"""Restore default cursor."""
+		self.unsetCursor()
+		super().hoverLeaveEvent(ev)
 
 	def mouseDoubleClickEvent(self, ev):
 		"""Show menu to edit or delete the annotation."""
@@ -1994,43 +2015,71 @@ class CSVPlotter(QMainWindow):
 		if not hasattr(self, 'plot_area') or not hasattr(self, 'main_plot'):
 			return
 
-		# Temporarily hide floating tooltip and indicator line (but keep pinned annotations)
+		# Save tooltip state before any operations
 		tooltip_was_visible = False
+		tooltip_text = None
+		tooltip_pos = None
 		indicator_was_visible = False
+		indicator_pos = None
 
-		if self.data_tooltip is not None:
+		if self.data_tooltip is not None and self.data_tooltip.isVisible():
 			tooltip_was_visible = True
+			tooltip_text = self.data_tooltip.toPlainText()
+			tooltip_pos = self.data_tooltip.pos()
 			self.data_tooltip.setVisible(False)
 
 		if hasattr(self, 'tooltip_indicator_line') and self.tooltip_indicator_line.isVisible():
 			indicator_was_visible = True
+			indicator_pos = self.tooltip_indicator_line.value()
 			self.tooltip_indicator_line.setVisible(False)
 
-		copied = False
+		QApplication.processEvents()
+
 		try:
-			# Try pyqtgraph's ImageExporter first
-			exporter = pg.exporters.ImageExporter(self.plot_area.scene())
-			exporter.parameters()['width'] = self.plot_area.width()
-			qimage = exporter.export(toBytes=False, copy=True)
+			was_opengl = self.opengl_enabled
+			if was_opengl:
+				# Disable OpenGL and recreate widget for software rendering
+				pg.setConfigOptions(useOpenGL=False, enableExperimental=False)
+				self.opengl_enabled = False
+				self.replace_plot_widget()
+				QApplication.processEvents()
 
-			if qimage is not None:
-				pixmap = QPixmap.fromImage(qimage)
-				QApplication.clipboard().setPixmap(pixmap)
-				self.statusBar().showMessage("Plot copied to clipboard", 3000)
-				copied = True
-		except Exception:
-			pass
+				# grab() works with software rendering
+				pixmap = self.plot_area.grab()
 
-		# Fallback to grab() if exporter fails or returns None
-		if not copied:
-			pixmap = self.plot_area.grab()
+				# Restore OpenGL
+				pg.setConfigOptions(useOpenGL=True, enableExperimental=True)
+				self.opengl_enabled = True
+				self.replace_plot_widget()
+			else:
+				# OpenGL already disabled, just grab directly
+				pixmap = self.plot_area.grab()
+
 			QApplication.clipboard().setPixmap(pixmap)
 			self.statusBar().showMessage("Plot copied to clipboard", 3000)
 
-		# Restore visibility
-		if tooltip_was_visible and self.data_tooltip is not None:
-			self.data_tooltip.setVisible(True)
-		if indicator_was_visible:
+		except Exception as e:
+			self.statusBar().showMessage(f"Failed to copy: {str(e)}", 3000)
+
+		# Restore tooltip state after widget replacement
+		if tooltip_was_visible and tooltip_text and tooltip_pos:
+			# Ensure tooltip exists (replace_plot_widget should have recreated it)
+			if self.data_tooltip is None and hasattr(self, 'tooltip_enabled') and self.tooltip_enabled.isChecked():
+				self.data_tooltip = pg.TextItem(anchor=(0, 1), color='y')
+				self.main_plot.addItem(self.data_tooltip, ignoreBounds=True)
+			if self.data_tooltip is not None:
+				self.data_tooltip.setText(tooltip_text)
+				self.data_tooltip.setPos(tooltip_pos)
+				self.data_tooltip.setVisible(True)
+
+		# Restore indicator line
+		if indicator_was_visible and indicator_pos is not None:
+			if not hasattr(self, 'tooltip_indicator_line'):
+				self.tooltip_indicator_line = pg.InfiniteLine(
+				    angle=90, movable=False,
+				    pen=pg.mkPen('g', width=1, style=Qt.DashLine))
+				self.main_plot.addItem(self.tooltip_indicator_line)
+			self.tooltip_indicator_line.setValue(indicator_pos)
 			self.tooltip_indicator_line.setVisible(True)
 
 	def pin_current_tooltip(self):
@@ -2045,6 +2094,7 @@ class CSVPlotter(QMainWindow):
 		pinned_line = pg.InfiniteLine(
 		    pos=x_pos, angle=90, movable=False,
 		    pen=pg.mkPen('#00ff00', width=1, style=Qt.DashLine))
+		pinned_line.setZValue(1000)  # Ensure line is above data curves
 		self.main_plot.addItem(pinned_line, ignoreBounds=True)
 
 		# Create a draggable annotation (can be moved and edited)
@@ -2054,6 +2104,7 @@ class CSVPlotter(QMainWindow):
 		    parent_plotter=self,
 		    anchor=(0, 1))
 		pinned_text.setPos(x_pos, y_pos)
+		pinned_text.setZValue(1001)  # Ensure text is above line and data curves
 		self.main_plot.addItem(pinned_text, ignoreBounds=True)
 
 		# Store both items as a tuple
@@ -2498,6 +2549,7 @@ class CSVPlotter(QMainWindow):
 		# Save state from old plot before destroying it
 		saved_ref_lines = []
 		saved_regions = []
+		saved_annotations = []
 
 		if hasattr(self, 'main_plot'):
 			zoom_x, zoom_y = self.main_plot.getViewBox().viewRange()
@@ -2524,9 +2576,22 @@ class CSVPlotter(QMainWindow):
 				except RuntimeError:
 					pass  # Already deleted
 
+			# Save pinned annotation configurations before plot is destroyed
+			for text_item, line_item in self.pinned_annotations:
+				try:
+					saved_annotations.append({
+						'data_text': text_item.data_text,
+						'label': text_item.label,
+						'pos': text_item.pos(),
+						'line_pos': line_item.value()
+					})
+				except RuntimeError:
+					pass  # Already deleted
+
 		# Clear old lists since items will be destroyed
 		self.reference_lines.clear()
 		self.highlighted_regions.clear()
+		self.pinned_annotations.clear()
 
 		if hasattr(self, 'plot_area'):
 			self.plot_area.setParent(None)
@@ -2589,6 +2654,25 @@ class CSVPlotter(QMainWindow):
 			region = pg.LinearRegionItem(values=region_config['values'], brush=region_config['brush'], movable=True)
 			self.main_plot.addItem(region)
 			self.highlighted_regions.append(region)
+
+		# Recreate pinned annotations from saved configurations
+		for ann_config in saved_annotations:
+			# Recreate the vertical line
+			pinned_line = pg.InfiniteLine(
+			    pos=ann_config['line_pos'], angle=90, movable=False,
+			    pen=pg.mkPen('#00ff00', width=1, style=Qt.DashLine))
+			pinned_line.setZValue(1000)  # Ensure line is above data curves
+			self.main_plot.addItem(pinned_line, ignoreBounds=True)
+			# Recreate the draggable annotation
+			pinned_text = DraggableAnnotation(
+			    data_text=ann_config['data_text'],
+			    label=ann_config['label'],
+			    parent_plotter=self,
+			    anchor=(0, 1))
+			pinned_text.setPos(ann_config['pos'])
+			pinned_text.setZValue(1001)  # Ensure text is above line and data curves
+			self.main_plot.addItem(pinned_text, ignoreBounds=True)
+			self.pinned_annotations.append((pinned_text, pinned_line))
 
 		# Recreate tooltip if enabled (old one was destroyed with the plot widget)
 		if hasattr(self, 'tooltip_enabled') and self.tooltip_enabled.isChecked():
