@@ -3,28 +3,6 @@ import os
 import logging
 from pathlib import Path
 
-# CRITICAL: Set OpenGL platform BEFORE any imports that might use OpenGL
-# This must happen before pyqtgraph import for frozen Windows builds
-if sys.platform == 'win32':
-	os.environ['PYOPENGL_PLATFORM'] = 'nt'
-	# Disable OpenGL accelerate in frozen builds (can cause ctypes issues)
-	if getattr(sys, 'frozen', False):
-		os.environ['PYOPENGL_ACCELERATE'] = 'False'
-
-# Setup file logging for frozen Windows builds (no console available)
-if getattr(sys, 'frozen', False) and sys.platform == 'win32':
-	log_path = Path(sys.executable).parent / "plot_viewer.log"
-	logging.basicConfig(
-	    filename=str(log_path),
-	    level=logging.DEBUG,
-	    format='%(asctime)s - %(levelname)s - %(message)s'
-	)
-	# Redirect stdout/stderr to log file
-	sys.stdout = open(log_path, 'a')
-	sys.stderr = sys.stdout
-	logging.info("Plot Viewer started (frozen Windows build)")
-	logging.info(f"PYOPENGL_PLATFORM={os.environ.get('PYOPENGL_PLATFORM', 'not set')}")
-	logging.info(f"PYOPENGL_ACCELERATE={os.environ.get('PYOPENGL_ACCELERATE', 'not set')}")
 
 import numpy as np
 import pandas as pd
@@ -195,8 +173,11 @@ class CSVPlotter(QMainWindow):
 		self.pinned_annotations = []  # List of pinned TextItem annotations
 		self._last_tooltip_data = None  # Store last tooltip data for pinning
 		self._array_cache = {}  # Cache for numpy arrays
-		# Track OpenGL state (get from pyqtgraph config, default True)
-		self.opengl_enabled = pg.getConfigOption('useOpenGL') if pg.getConfigOption('useOpenGL') is not None else True
+		# Track OpenGL state (default False on Windows, True elsewhere)
+		if sys.platform == 'win32':
+			self.opengl_enabled = False
+		else:
+			self.opengl_enabled = pg.getConfigOption('useOpenGL') if pg.getConfigOption('useOpenGL') is not None else True
 
 		# Debounced plot update timer - prevents redundant redraws
 		self._plot_update_timer = QTimer(self)
@@ -226,9 +207,33 @@ class CSVPlotter(QMainWindow):
 		control_width = 500
 		self.splitter.setSizes([total_width - control_width, control_width])
 
-		last_file = self.settings.value("last_csv_file", "", type=str)
-		if last_file and os.path.isfile(last_file):
-			self.load_csv(last_file)
+		# Defer loading last file until after window is shown
+		self._pending_file = self.settings.value("last_csv_file", "", type=str)
+		if self._pending_file and os.path.isfile(self._pending_file):
+			# Use a short timer to load after window is visible
+			QTimer.singleShot(100, self._load_pending_file)
+		else:
+			self._pending_file = None
+
+	def _load_pending_file(self):
+		"""Load the pending file, with confirmation for large files."""
+		if not self._pending_file or not os.path.isfile(self._pending_file):
+			return
+
+		file_size_mb = os.path.getsize(self._pending_file) / (1024 * 1024)
+		if file_size_mb > 100:
+			reply = QMessageBox.question(
+				self,
+				"Load Large File?",
+				f"The last opened file is {file_size_mb:.1f} MB:\n\n{os.path.basename(self._pending_file)}\n\nLoading large files may take a while. Load now?",
+				QMessageBox.Yes | QMessageBox.No,
+				QMessageBox.No
+			)
+			if reply == QMessageBox.Yes:
+				self.load_csv(self._pending_file)
+		else:
+			self.load_csv(self._pending_file)
+		self._pending_file = None
 
 	def schedule_plot_update(self):
 		"""Schedule a debounced plot update to avoid redundant redraws."""
@@ -2001,31 +2006,26 @@ class CSVPlotter(QMainWindow):
 			indicator_was_visible = True
 			self.tooltip_indicator_line.setVisible(False)
 
+		copied = False
 		try:
-			# Use pyqtgraph's ImageExporter which works with OpenGL
+			# Try pyqtgraph's ImageExporter first
 			exporter = pg.exporters.ImageExporter(self.plot_area.scene())
-
-			# Set the export size to match the widget size
 			exporter.parameters()['width'] = self.plot_area.width()
-
-			# Export to QImage then convert to QPixmap
-			# export() with copy=True returns a QImage
 			qimage = exporter.export(toBytes=False, copy=True)
 
 			if qimage is not None:
 				pixmap = QPixmap.fromImage(qimage)
-				clipboard = QApplication.clipboard()
-				clipboard.setPixmap(pixmap)
+				QApplication.clipboard().setPixmap(pixmap)
 				self.statusBar().showMessage("Plot copied to clipboard", 3000)
-			else:
-				self.statusBar().showMessage("Failed to export plot image", 3000)
-
+				copied = True
 		except Exception:
-			# Fallback to grab() if exporter fails
+			pass
+
+		# Fallback to grab() if exporter fails or returns None
+		if not copied:
 			pixmap = self.plot_area.grab()
-			clipboard = QApplication.clipboard()
-			clipboard.setPixmap(pixmap)
-			self.statusBar().showMessage("Plot copied (fallback method)", 3000)
+			QApplication.clipboard().setPixmap(pixmap)
+			self.statusBar().showMessage("Plot copied to clipboard", 3000)
 
 		# Restore visibility
 		if tooltip_was_visible and self.data_tooltip is not None:
@@ -3637,25 +3637,20 @@ if __name__ == "__main__":
 	parser.add_argument("--opengl", action="store_true", help="(Deprecated) OpenGL is now enabled by default")
 	args = parser.parse_args()
 
-	# Enable OpenGL by default for better performance
-	if not args.no_opengl:
+	# Determine if OpenGL should be enabled
+	# Disable by default on Windows (doesn't work reliably)
+	is_windows = sys.platform == 'win32'
+	enable_opengl = not args.no_opengl and not is_windows
+
+	if enable_opengl:
 		try:
 			pg.setConfigOptions(useOpenGL=True, enableExperimental=True)
-			logging.info("OpenGL hardware acceleration enabled")
 			if args.debug:
 				print("OpenGL hardware acceleration enabled")
-			# Verify OpenGL is actually available
-			try:
-				import OpenGL.GL as gl
-				logging.info(f"OpenGL module loaded successfully")
-			except ImportError as e:
-				logging.warning(f"OpenGL import failed: {e}")
 		except Exception as e:
-			logging.error(f"Failed to enable OpenGL: {e}")
 			if args.debug:
 				print(f"Warning: Failed to enable OpenGL: {e}")
 	else:
-		logging.info("OpenGL hardware acceleration disabled by user")
 		if args.debug:
 			print("OpenGL hardware acceleration disabled")
 

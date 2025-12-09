@@ -327,45 +327,7 @@ def build_executable(venv_python: Path, script_path: Path) -> Path:
 	elif system == "Windows":
 		pyinstaller_cmd.append("--onefile")
 		pyinstaller_cmd.append("--windowed")
-		# PyOpenGL hidden imports required for Windows (not auto-detected by PyInstaller)
-		# Comprehensive list to ensure OpenGL rendering works in frozen builds
-		opengl_hidden_imports = [
-		    # Platform detection and loading
-		    "OpenGL.platform.win32",
-		    "OpenGL.platform.ctypesloader",
-		    # Core GL modules used by pyqtgraph
-		    "OpenGL.GL",
-		    "OpenGL.GL.shaders",
-		    "OpenGL.GLU",
-		    # Raw GL bindings (version-specific)
-		    "OpenGL.raw.GL",
-		    "OpenGL.raw.GL._types",
-		    "OpenGL.raw.GL.VERSION.GL_1_1",
-		    "OpenGL.raw.GL.VERSION.GL_1_2",
-		    "OpenGL.raw.GL.VERSION.GL_1_3",
-		    "OpenGL.raw.GL.VERSION.GL_1_4",
-		    "OpenGL.raw.GL.VERSION.GL_1_5",
-		    "OpenGL.raw.GL.VERSION.GL_2_0",
-		    "OpenGL.raw.GL.VERSION.GL_2_1",
-		    "OpenGL.raw.GL.VERSION.GL_3_0",
-		    # Array handling (critical for numpy data transfer to GPU)
-		    "OpenGL.arrays",
-		    "OpenGL.arrays.ctypesarrays",
-		    "OpenGL.arrays.numpymodule",
-		    "OpenGL.arrays.lists",
-		    "OpenGL.arrays.numbers",
-		    "OpenGL.arrays.strings",
-		    "OpenGL.arrays.arraydatatype",
-		    "OpenGL.arrays.formathandler",
-		    "OpenGL.arrays.vbo",
-		    # Converters and error handling
-		    "OpenGL.converters",
-		    "OpenGL.error",
-		    # Plugins for array formats
-		    "OpenGL.plugins",
-		]
-		for module in opengl_hidden_imports:
-			pyinstaller_cmd.extend(["--hidden-import", module])
+		# OpenGL is disabled for Windows standalone builds (doesn't work reliably with PyInstaller)
 	else:
 		# Linux: onefile for portability
 		pyinstaller_cmd.append("--onefile")

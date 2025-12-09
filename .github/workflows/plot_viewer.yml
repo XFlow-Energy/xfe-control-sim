@@ -83,33 +83,6 @@ jobs:
           name: plot_viewer-macos-arm64
           path: misc/dist/plot_viewer-macos-arm64.tar.gz
 
-  build-macos-x64:
-    runs-on: macos-15  # Intel x86_64
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Build executable
-        working-directory: misc
-        run: python launch_install_plot_gui.py --build-only --skip-install-check
-
-      - name: Create archive
-        working-directory: misc
-        run: |
-          cd dist
-          tar -czvf plot_viewer-macos-x64.tar.gz plot_viewer
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: plot_viewer-macos-x64
-          path: misc/dist/plot_viewer-macos-x64.tar.gz
-
   build-windows-x64:
     runs-on: windows-latest
     timeout-minutes: 15
@@ -137,7 +110,6 @@ jobs:
     needs:
       - build-linux-x64
       - build-macos-arm64
-      - build-macos-x64
       - build-windows-x64
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -179,12 +151,11 @@ jobs:
           ### Downloads
           - **Windows (x64)**: \`plot_viewer-windows-x64.zip\` - Single executable
           - **macOS (Apple Silicon)**: \`plot_viewer-macos-arm64.tar.gz\` - Extract and run \`./plot_viewer\`
-          - **macOS (Intel)**: \`plot_viewer-macos-x64.tar.gz\` - Extract and run \`./plot_viewer\`
           - **Linux (x64)**: \`plot_viewer-linux-x64.tar.gz\` - Extract and run \`./plot_viewer\`
 
           ### Features
           - Dual Y-axis plotting
-          - OpenGL hardware acceleration (enabled by default)
+          - OpenGL hardware acceleration (macOS/Linux only)
           - Data transformations, smoothing, curve fitting
           - Pinned annotations, zoom history
           - Built-in help documentation
@@ -200,6 +171,5 @@ jobs:
           gh release upload "${TAG}" \
             artifacts/plot_viewer-linux-x64/plot_viewer-linux-x64.tar.gz \
             artifacts/plot_viewer-macos-arm64/plot_viewer-macos-arm64.tar.gz \
-            artifacts/plot_viewer-macos-x64/plot_viewer-macos-x64.tar.gz \
             artifacts/plot_viewer-windows-x64/plot_viewer-windows-x64.zip \
             --clobber
