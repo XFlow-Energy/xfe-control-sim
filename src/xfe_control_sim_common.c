@@ -781,7 +781,7 @@ int get_param_value(const param_array_t *data, const char *name, input_param_typ
 /**
  * @brief Checks if dynamic value logging is enabled.
  *
- * Caches the pointer to the "dynamic_val_logging" parameter on its first call
+ * Caches the pointer to the "simulation_dynamic_val_logging" parameter on its first call
  * for efficient subsequent checks.
  * @param fixed_data Pointer to the fixed data parameter array.
  * @return Returns true if logging is enabled, false otherwise.
@@ -795,7 +795,7 @@ static bool is_dynamic_logging_enabled(const param_array_t *fixed_data)
 	{
 		// On the first run, get the pointer to the parameter.
 		// get_param should return 0 on success.
-		get_param(fixed_data, "dynamic_val_logging", &dynamic_Val_Logging);
+		get_param(fixed_data, "simulation_dynamic_val_logging", &dynamic_Val_Logging);
 		first_Run = false;
 	}
 
@@ -890,7 +890,7 @@ void initialize_control_system(param_array_t **dynamic_data, param_array_t **fix
 		// If the output log file path exists, then we can save the output to a log file for later review.
 #ifdef OUTPUT_LOG_FILE_PATH
 		int *check_verbose = NULL;
-		get_param(*fixed_data, "verbose", &check_verbose);
+		get_param(*fixed_data, "simulation_verbose", &check_verbose);
 		if (*check_verbose > 0)
 		{
 

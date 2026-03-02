@@ -34,7 +34,7 @@ MAKE_STAGE_DEFINE(turbine_control, void, (TURBINE_CONTROL_PARAM_LIST), (TURBINE_
 void example_turbine_control(TURBINE_CONTROL_PARAM_LIST)
 {
 	static double *omega = NULL;
-	static double *tau_Flow_Extract = NULL;
+	static double *tau_Gen = NULL;
 	static double *k = NULL;
 	static double *time_Sec = NULL;
 	static int *total_Loop_Count = NULL;
@@ -49,7 +49,7 @@ void example_turbine_control(TURBINE_CONTROL_PARAM_LIST)
 
 	if (!first_Run)
 	{
-		get_param(dynamic_data, "tau_flow_extract", &tau_Flow_Extract);
+		get_param(dynamic_data, "tau_gen", &tau_Gen);
 		get_param(dynamic_data, "k", &k);
 
 		// Allocate space for 10 historical omega values
@@ -86,7 +86,7 @@ void example_turbine_control(TURBINE_CONTROL_PARAM_LIST)
 	// Use most recent value (index 0)
 	if (count > 0)
 	{
-		*tau_Flow_Extract = (*k) * omega[0] * omega[0];
+		*tau_Gen = (*k) * omega[0] * omega[0];
 	}
 }
 

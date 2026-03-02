@@ -31,8 +31,7 @@ data_processing_status,int,dynamic,0
 data_processing_single_run_only,int,fixed,1
 data_processing_first_run,int,fixed,1
 moment_of_inertia,double,dynamic,26.0
-tau_flow_extract,double,dynamic,0
-vfd_torque_command,double,dynamic,0
+tau_gen,double,dynamic,0
 enable_brake_signal,int,dynamic,0
 drivetrain_drag,double,dynamic,0
 R,double,fixed,2.2

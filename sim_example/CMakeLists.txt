@@ -58,6 +58,8 @@ target_sources(xfe-control-sim-lib PRIVATE
 	src/drivetrain.c
 	src/turbine_control.c
 	src/bus_interface.c
+	src/sensor.c
+	src/actuator.c
 )
 
 if(BUILD_XFE_CONTROL_SIM_EXECUTABLE OR BUILD_OTHER_PROJECT_INTEGRATION)

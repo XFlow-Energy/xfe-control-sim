@@ -34,8 +34,7 @@ MAKE_STAGE_DEFINE(drivetrain, void, (DRIVETRAIN_PARAM_LIST), (DRIVETRAIN_CALL_AR
 
 void example_drivetrain(DRIVETRAIN_PARAM_LIST)
 {
-	static double *vfd_Torque_Command = NULL;
-	static double *tau_Flow_Extract = NULL;
+	static double *tau_Gen = NULL;
 	static double *omega = NULL;
 	static double *drivetrain_Drag = NULL;
 	static int *enable_Brake_Signal = NULL;
@@ -44,19 +43,13 @@ void example_drivetrain(DRIVETRAIN_PARAM_LIST)
 	if (!first_Run)
 	{
 		// initialize variables since this is the first time the function is running.
-		get_param(dynamic_data, "vfd_torque_command", &vfd_Torque_Command);
-		get_param(dynamic_data, "tau_flow_extract", &tau_Flow_Extract);
+		get_param(dynamic_data, "tau_gen", &tau_Gen);
 		get_param(dynamic_data, "omega", &omega);
 		get_param(dynamic_data, "drivetrain_drag", &drivetrain_Drag);
 		get_param(dynamic_data, "enable_brake_signal", &enable_Brake_Signal);
 
-		// log_message("vfd_torque_command before: %f\n", *vfd_Torque_Command);
-		// log_message("tau_Flow_Extract before: %f\n", *tau_Flow_Extract);
-
 		first_Run = true;
 	}
-
-	// log_message("vfd_torque_command before: %f\n", *vfd_Torque_Command);
 
 	if (*enable_Brake_Signal != 0)
 	{

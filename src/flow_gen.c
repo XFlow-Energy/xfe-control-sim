@@ -50,9 +50,47 @@
 #include <sys/mman.h> // for shm_unlink, shm_open, mmap, MAP_FAILED
 #endif
 
-#include "logger.h" // for log_message, ERROR_MESSAGE
+#include "logger.h"            // for log_message, ERROR_MESSAGE
 #include "make_stage.h"
-#include "xflow_data_types.h" // for DATA_TYPE_DOUBLE
+#include "xflow_data_types.h"  // for DATA_TYPE_DOUBLE
+#include "xflow_file_socket.h" // for xflow_fopen_safe, xflow_file_mode_t
+
+/**
+ * If the CSV at src_path begins with a non-numeric line (text header), copies
+ * the remaining lines to a temp file and returns its path (caller must free()
+ * and remove() it). Returns NULL when the first line is already numeric.
+ */
+static char *csv_strip_header_to_tmp(const char *src_path)
+{
+    FILE *f = xflow_fopen_safe(src_path, XFLOW_FILE_READ_ONLY);
+    if (!f) return NULL;
+
+    char line[1024];
+    if (!fgets(line, sizeof(line), f)) { fclose(f); return NULL; }
+
+    char *end = line;
+    strtod(line, &end);
+    /* Skip trailing whitespace/newline */
+    while (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n') end++;
+
+    if (end == line || *end != '\0')
+    {
+        /* Non-numeric first line detected — write the rest to a temp file */
+        char *tmp = (char *)malloc(PATH_MAX);
+        if (!tmp) { fclose(f); return NULL; }
+        snprintf(tmp, PATH_MAX, "%s._noheader_tmp", src_path);
+        FILE *out = xflow_fopen_safe(tmp, XFLOW_FILE_WRITE_ONLY);
+        if (!out) { fclose(f); free(tmp); return NULL; }
+        while (fgets(line, sizeof(line), f))
+            fputs(line, out);
+        fclose(out);
+        fclose(f);
+        return tmp;
+    }
+
+    fclose(f);
+    return NULL;
+}
 
 // expand definitions once, using both the decl‐list and the call‐list
 MAKE_STAGE_DEFINE(flow_gen, void, (FLOW_GEN_PARAM_LIST), (FLOW_GEN_CALL_ARGS))
@@ -124,9 +162,9 @@ void bts_fixed_interp_flow_gen(FLOW_GEN_PARAM_LIST)
 
 		get_param(dynamic_data, "flow_speed", &flow_Speed);
 		get_param(dynamic_data, "time_sec", &time_Sec);
-		get_param(fixed_data, "dt_sec", &dt_Sec);
-		get_param(fixed_data, "dur_sec", &dur_Sec);
-		get_param(fixed_data, "flow_time_step_dt", &flow_Time_Step_Dt);
+		get_param(fixed_data, "simulation_dt_sec", &dt_Sec);
+		get_param(fixed_data, "simulation_dur_sec", &dur_Sec);
+		get_param(fixed_data, "simulation_flow_time_step_dt", &flow_Time_Step_Dt);
 		get_param(dynamic_data, "flow_total_time", &flow_Total_Time);
 
 		get_param(fixed_data, "data_processing_first_run", &data_Processing_First_Run);
@@ -356,9 +394,9 @@ void csv_fixed_interp_flow_gen(FLOW_GEN_PARAM_LIST)
 
 		get_param(dynamic_data, "flow_speed", &flow_Speed);
 		get_param(dynamic_data, "time_sec", &time_Sec);
-		get_param(fixed_data, "dt_sec", &dt_Sec);
-		get_param(fixed_data, "dur_sec", &dur_Sec);
-		get_param(fixed_data, "flow_time_step_dt", &flow_Time_Step_Dt);
+		get_param(fixed_data, "simulation_dt_sec", &dt_Sec);
+		get_param(fixed_data, "simulation_dur_sec", &dur_Sec);
+		get_param(fixed_data, "simulation_flow_time_step_dt", &flow_Time_Step_Dt);
 		get_param(dynamic_data, "flow_total_time", &flow_Total_Time);
 
 		get_param(fixed_data, "data_processing_first_run", &data_Processing_First_Run);
@@ -382,8 +420,11 @@ void csv_fixed_interp_flow_gen(FLOW_GEN_PARAM_LIST)
 
 		if (*data_Processing_First_Run || *data_Processing_Single_Run_Only)
 		{
-			// Example: call read_csv_generic to retrieve a single-column CSV as double**
-			vel_Data_Temp = (double **)read_csv_generic(flow_filename, &num_rows, 1, DATA_TYPE_DOUBLE);
+			// Strip text header if present (e.g. "WindSpeed_[m/s]"), then read
+			char *tmp_csv = csv_strip_header_to_tmp(flow_filename);
+			const char *csv_to_read = tmp_csv ? tmp_csv : flow_filename;
+			vel_Data_Temp = (double **)read_csv_generic(csv_to_read, &num_rows, 1, DATA_TYPE_DOUBLE);
+			if (tmp_csv) { remove(tmp_csv); free(tmp_csv); }
 			if (vel_Data_Temp == NULL)
 			{
 				ERROR_MESSAGE("Error: vel_Data_Temp is NULL, could not read CSV.\n");

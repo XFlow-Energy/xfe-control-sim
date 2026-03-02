@@ -33,6 +33,8 @@
 #include "make_stage.h"           // for DEFINE_STAGE_DISPATCHER, DISPATCH_...
 #include "numerical_integrator.h" // for numericalIntegratorMap, register...
 #include "turbine_controls.h"     // for turbineControlMap, register_turb...
+#include "sensors.h"              // for sensorMap, register_sensor
+#include "actuators.h"            // for actuatorMap, register_actuator
 #include <stdbool.h>              // IWYU pragma: keep
 #include <stddef.h>               // for NULL
 
@@ -43,6 +45,8 @@ DEFINE_STAGE_DISPATCHER(eom, eomMap)
 DEFINE_STAGE_DISPATCHER(drivetrain, drivetrainMap)
 DEFINE_STAGE_DISPATCHER(flow_sim_model, flowSimModelMap)
 DEFINE_STAGE_DISPATCHER(data_processing, dataProcessingMap)
+DEFINE_STAGE_DISPATCHER(sensor, sensorMap)
+DEFINE_STAGE_DISPATCHER(actuator, actuatorMap)
 
 void control_switch(CONTROL_SWITCH_PARAM_LIST)
 {
@@ -53,6 +57,8 @@ void control_switch(CONTROL_SWITCH_PARAM_LIST)
 	static const char *drivetrain_Function_Call = NULL;
 	static const char *flow_Sim_Model_Function_Call = NULL;
 	static const char *data_Processing_Function_Call = NULL;
+	static const char *sensor_Function_Call = NULL;
+	static const char *actuator_Function_Call = NULL;
 
 	static bool first_Run = false;
 	if (!first_Run)
@@ -64,6 +70,8 @@ void control_switch(CONTROL_SWITCH_PARAM_LIST)
 		get_param(fixed_data, "drivetrain_function_call", &drivetrain_Function_Call);
 		get_param(fixed_data, "flow_sim_model_function_call", &flow_Sim_Model_Function_Call);
 		get_param(fixed_data, "data_processing_function_call", &data_Processing_Function_Call);
+		try_get_param(fixed_data, "sensor_function_call", &sensor_Function_Call);
+		try_get_param(fixed_data, "actuator_function_call", &actuator_Function_Call);
 
 		// log_message("flow_Function_Call: %s\n", flow_Function_Call);
 
@@ -75,6 +83,10 @@ void control_switch(CONTROL_SWITCH_PARAM_LIST)
 		DISPATCH_STAGE_OR_ERROR(drivetrain, drivetrainMap, drivetrain_Function_Call);
 		DISPATCH_STAGE_OR_ERROR(flow_sim_model, flowSimModelMap, flow_Sim_Model_Function_Call);
 		DISPATCH_STAGE_OR_ERROR(data_processing, dataProcessingMap, data_Processing_Function_Call);
+		if (sensor_Function_Call)
+			DISPATCH_STAGE_OR_ERROR(sensor, sensorMap, sensor_Function_Call);
+		if (actuator_Function_Call)
+			DISPATCH_STAGE_OR_ERROR(actuator, actuatorMap, actuator_Function_Call);
 
 		first_Run = true;
 	}

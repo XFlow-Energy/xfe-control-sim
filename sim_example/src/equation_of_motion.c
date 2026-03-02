@@ -44,7 +44,7 @@ void eom_simple_ball_thrown_in_air(EOM_PARAM_LIST)
 	if (!first_Run)
 	{
 		// initialize variables since this is the first time the function is running.
-		get_param(fixed_data, "dt_sec", &dt_Sec);
+		get_param(fixed_data, "simulation_dt_sec", &dt_Sec);
 		get_param(fixed_data, "gravity_acc_g", &gravity_Acc_G);
 		get_param(dynamic_data, "time_sec", &time_Sec);
 
@@ -81,14 +81,14 @@ void example_turbine_eom(EOM_PARAM_LIST)
 	static int idx_Omega = -1;
 	static double *drivetrain_Drag = NULL;
 	static double *tau_Flow = NULL;
-	static double *tau_Flow_Extract = NULL;
+	static double *tau_Gen = NULL;
 
 	static bool first_Run = false;
 	if (!first_Run)
 	{
 		get_param(dynamic_data, "moment_of_inertia", &moment_Of_Inertia);
 		get_param(dynamic_data, "tau_flow", &tau_Flow);
-		get_param(dynamic_data, "tau_flow_extract", &tau_Flow_Extract);
+		get_param(dynamic_data, "tau_gen", &tau_Gen);
 		get_param(dynamic_data, "drivetrain_drag", &drivetrain_Drag);
 
 		// Identify indices of state variables
@@ -117,9 +117,9 @@ void example_turbine_eom(EOM_PARAM_LIST)
 	flow_sim_model(dynamic_data, fixed_data); // to get the updated tau_flow aero from the last timestep.
 
 	// update the drivetrain stuff.
-	drivetrain(dynamic_data, fixed_data); // to get the tau_Flow_Extract from the last timestep.
+	drivetrain(dynamic_data, fixed_data); // to get the tau_gen from the last timestep.
 
 	// Directly assign to known indices (no name matching)
-	dx[idx_Theta] = *state_vars[idx_Omega];                                                  // θ' = ω
-	dx[idx_Omega] = (*tau_Flow - *tau_Flow_Extract - *drivetrain_Drag) / *moment_Of_Inertia; // ω' = (τ - T)/I
+	dx[idx_Theta] = *state_vars[idx_Omega];                                          // θ' = ω
+	dx[idx_Omega] = (*tau_Flow - *tau_Gen - *drivetrain_Drag) / *moment_Of_Inertia; // ω' = (τ - T)/I
 }

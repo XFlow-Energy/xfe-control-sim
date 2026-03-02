@@ -450,7 +450,7 @@ void modify_abb_vfd_holding_registers(const param_array_t *dynamic_data, const p
 	static double *vfd_Torque_Command = NULL;
 	static double *omega = NULL;
 	static double *gearbox_Ratio = NULL;
-	static double *tau_Flow_Extract = NULL;
+	static double *tau_Gen = NULL;
 	static double *power_Extract = NULL;
 	static double *motor_Gen_Rated_Torque_Nm = NULL;
 	static double *time_Sec = NULL;
@@ -462,7 +462,7 @@ void modify_abb_vfd_holding_registers(const param_array_t *dynamic_data, const p
 		// Initialize pointers to simulation data
 		get_param(dynamic_data, "vfd_torque_command", &vfd_Torque_Command);
 		get_param(dynamic_data, "omega", &omega);
-		get_param(dynamic_data, "tau_flow_extract", &tau_Flow_Extract);
+		get_param(dynamic_data, "tau_gen", &tau_Gen);
 		get_param(dynamic_data, "power_extract", &power_Extract);
 		get_param(dynamic_data, "enable_brake_signal", &enable_Brake_Signal);
 		get_param(dynamic_data, "time_sec", &time_Sec);
@@ -484,9 +484,9 @@ void modify_abb_vfd_holding_registers(const param_array_t *dynamic_data, const p
 	}
 
 	// ABB_VFD_OUTPUT_POWER (address 10) - Output power in kW (scaled by 100)
-	if (power_Extract != NULL && tau_Flow_Extract != NULL && omega != NULL)
+	if (power_Extract != NULL && tau_Gen != NULL && omega != NULL)
 	{
-		*power_Extract = *tau_Flow_Extract * *omega;
+		*power_Extract = *tau_Gen * *omega;
 		const double power_kw = (*power_Extract / 10) * -1.0; // Convert to kW
 		uint16_t power_output[2] = {0};
 		invert_modbus_value(power_kw, DATA_TYPE_INT16, ABB_VFD_SCALE_FACTOR_100, power_output);
@@ -497,12 +497,12 @@ void modify_abb_vfd_holding_registers(const param_array_t *dynamic_data, const p
 	// Read command values FROM shared memory (VFD control registers -> simulation)
 
 	// ABB_VFD_TORQUE_COMMAND (address 2) - Torque command in % (scaled by 100)
-	if (vfd_Torque_Command != NULL && motor_Gen_Rated_Torque_Nm != NULL && tau_Flow_Extract != NULL && gearbox_Ratio != NULL)
+	if (vfd_Torque_Command != NULL && motor_Gen_Rated_Torque_Nm != NULL && tau_Gen != NULL && gearbox_Ratio != NULL)
 	{
 		uint16_t torque_command_received[2] = {0};
 		torque_command_received[0] = shm_reg_info->ptr[ABB_VFD_TORQUE_COMMAND - 1];
 		*vfd_Torque_Command = convert_modbus_value(torque_command_received, DATA_TYPE_INT16, ABB_VFD_SCALE_FACTOR_100);
-		*tau_Flow_Extract = torque_percent_to_nm(*vfd_Torque_Command, *motor_Gen_Rated_Torque_Nm, *gearbox_Ratio);
+		*tau_Gen = torque_percent_to_nm(*vfd_Torque_Command, *motor_Gen_Rated_Torque_Nm, *gearbox_Ratio);
 
 		uint16_t vfd_control_word[2] = {0};
 		vfd_control_word[0] = shm_reg_info->ptr[ABB_VFD_CONTROL_WORD - 1];
@@ -513,13 +513,13 @@ void modify_abb_vfd_holding_registers(const param_array_t *dynamic_data, const p
 			if (first_Run_Vfd_State == 0 && vfd_control_word[0] != 6)
 			{
 				*omega = 0;
-				*tau_Flow_Extract = 0;
+				*tau_Gen = 0;
 				*time_Sec = 0;
 			}
 			else if (first_Run_Vfd_State == 0 && vfd_control_word[0] == 6)
 			{
 				*omega = 0;
-				*tau_Flow_Extract = 0;
+				*tau_Gen = 0;
 				*time_Sec = 0;
 				first_Run_Vfd_State = 1;
 			}
@@ -545,11 +545,11 @@ void modify_abb_vfd_holding_registers(const param_array_t *dynamic_data, const p
 			{
 				if (*vfd_Torque_Command != old_Torque_Command)
 				{
-					log_message("time: %f, time_diff: %f, *omega: %f, old_rpm: %f, rpm new: %f, RPM OR ABB VFD Torque command changed from %.2f%% to %.2f%%, *tau_flow_extract : %f\n", *time_Sec, *time_Sec - old_Time, *omega, old_Rpm, rpm_vfd, old_Torque_Command, *vfd_Torque_Command, *tau_Flow_Extract);
+					log_message("time: %f, time_diff: %f, *omega: %f, old_rpm: %f, rpm new: %f, RPM OR ABB VFD Torque command changed from %.2f%% to %.2f%%, *tau_gen : %f\n", *time_Sec, *time_Sec - old_Time, *omega, old_Rpm, rpm_vfd, old_Torque_Command, *vfd_Torque_Command, *tau_Gen);
 				}
 				// else
 				// {
-				// 	log_message("time: %f, time_diff: %f, old_rpm: %f, rpm new: %f, RPM OR ABB VFD Torque command changed from %.2f%% to %.2f%%, *tau_flow_extract : %f      ---------------\n", *time_Sec, *time_Sec - old_Time, old_Rpm, rpm_vfd, old_Torque_Command, *vfd_Torque_Command, *tau_Flow_Extract);
+				// 	log_message("time: %f, time_diff: %f, old_rpm: %f, rpm new: %f, RPM OR ABB VFD Torque command changed from %.2f%% to %.2f%%, *tau_gen : %f      ---------------\n", *time_Sec, *time_Sec - old_Time, old_Rpm, rpm_vfd, old_Torque_Command, *vfd_Torque_Command, *tau_Gen);
 				// }
 				old_Torque_Command = *vfd_Torque_Command;
 				old_Time = *time_Sec;
@@ -572,21 +572,6 @@ void modify_input_register_information(const param_array_t *dynamic_data, const 
 
 void shared_memory_controls_update(const param_array_t *dynamic_data, MAYBE_UNUSED const param_array_t *fixed_data)
 {
-	static double *vfd_Torque_Command = NULL;
-	static double *omega = NULL;
-	static int *enable_Brake_Signal = NULL;
-
-	static bool first_Run = false;
-	if (!first_Run)
-	{
-		// Initialize variables since this is the first time the function is running.
-		get_param(dynamic_data, "vfd_torque_command", &vfd_Torque_Command);
-		get_param(dynamic_data, "omega", &omega);
-		get_param(dynamic_data, "enable_brake_signal", &enable_Brake_Signal);
-
-		first_Run = true;
-	}
-
 	// Update simulation sensor data for GPIO/PRU backends
 #ifndef _WIN32
 	update_simulation_sensor_data(dynamic_data);

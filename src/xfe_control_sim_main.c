@@ -40,6 +40,9 @@
 #include "maybe_unused.h"           // for MAYBE_UNUSED
 #include "numerical_integrator.h"   // for numerical_integrator
 #include "turbine_controls.h"       // for turbine_control
+#include "sensors.h"                // for sensor, sensor_inject
+#include "actuators.h"              // for actuator
+#include "sim_save_restore.h"       // for sim_save_truth, sim_record_and_restore
 #include "xfe_control_sim_common.h" // for continuous_logging_function
 #include "xfe_control_sim_version.h"
 #include "xflow_aero_sim.h"             // for get_param, update_csv_value
@@ -57,137 +60,73 @@
 
 void end_modbus_server(void)
 {
-	// log_message("in end_modbus_server\n");
-
-	// Handle multi-network mode: terminate all child processes
-	int num_children = (numActiveNetworks > 0) ? numActiveNetworks : 1;
-	for (int i = 0; i < num_children; i++)
+	pid_t pid = childPID;
+	if (pid <= 0)
 	{
-		pid_t pid = childPIDs[i];
-		if (pid <= 0)
-		{
-			continue; // Skip invalid PIDs
-		}
+		return;
+	}
 
-		log_message("Terminating modbus_server child %d (PID %d)\n", i, pid);
+	log_message("Terminating modbus_server (PID %d)\n", pid);
 
 #ifdef _WIN32
-		HANDLE process_handle = OpenProcess(PROCESS_TERMINATE | PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, pid);
-		if (process_handle == NULL)
-		{
-			ERROR_MESSAGE("Failed to open modbus_server process (PID %d): %lu\n", pid, GetLastError());
-			continue;
-		}
+	HANDLE process_handle = OpenProcess(PROCESS_TERMINATE | PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, pid);
+	if (process_handle == NULL)
+	{
+		ERROR_MESSAGE("Failed to open modbus_server process (PID %d): %lu\n", pid, GetLastError());
+		return;
+	}
 
-		// Try to gracefully terminate the process
-		if (TerminateProcess(process_handle, 0))
-		{
-			log_message("Sent termination request to modbus_server (PID %d).\n", pid);
-		}
-		else
-		{
-			ERROR_MESSAGE("Failed to terminate modbus_server (PID %d): %lu\n", pid, GetLastError());
-			CloseHandle(process_handle);
-			continue;
-		}
-
-		// Wait for the process to exit
-		DWORD wait_result = WaitForSingleObject(process_handle, 5000); // Wait for up to 5 seconds
-		if (wait_result == WAIT_OBJECT_0)
-		{
-			DWORD exit_code = 0;
-			if (GetExitCodeProcess(process_handle, &exit_code))
-			{
-				if (exit_code == 0)
-				{
-					log_message("modbus_server (PID %d) exited with status %lu.\n", pid, exit_code);
-				}
-				else
-				{
-					log_message("modbus_server (PID %d) exited with non-zero status %lu.\n", pid, exit_code);
-				}
-			}
-			else
-			{
-				ERROR_MESSAGE("Failed to get exit code for modbus_server (PID %d): %lu\n", pid, GetLastError());
-			}
-		}
-		else if (wait_result == WAIT_TIMEOUT)
-		{
-			log_message("modbus_server (PID %d) did not exit in time. Forcibly terminating.\n", pid);
-			TerminateProcess(process_handle, 1); // Forcefully terminate the process
-		}
-		else
-		{
-			ERROR_MESSAGE("Failed to wait for modbus_server (PID %d): %lu\n", pid, GetLastError());
-		}
-
+	if (TerminateProcess(process_handle, 0))
+	{
+		log_message("Sent termination request to modbus_server (PID %d).\n", pid);
+	}
+	else
+	{
+		ERROR_MESSAGE("Failed to terminate modbus_server (PID %d): %lu\n", pid, GetLastError());
 		CloseHandle(process_handle);
-
-#else
-		// POSIX-specific process termination and wait logic
-		if (kill(pid, SIGTERM) == 0)
-		{
-			log_message("Sent SIGTERM to modbus_server (PID %d).\n", pid);
-		}
-		else
-		{
-			ERROR_MESSAGE("Failed to send SIGTERM to modbus_server (PID %d): %s\n", pid, safe_strerror(errno));
-			continue;
-		}
-
-		int status = 0;
-		pid_t result = waitpid(pid, &status, 0);
-		if (result == -1)
-		{
-			ERROR_MESSAGE("Failed to wait for modbus_server (PID %d): %s\n", pid, safe_strerror(errno));
-		}
-		else if (WIFEXITED(status))
-		{
-			log_message("modbus_server (PID %d) exited with status %d.\n", pid, WEXITSTATUS(status));
-		}
-		else if (WIFSIGNALED(status))
-		{
-			log_message("modbus_server (PID %d) was terminated by signal %d.\n", pid, WTERMSIG(status));
-		}
-		else
-		{
-			log_message("modbus_server (PID %d) exited unexpectedly.\n", pid);
-		}
-
-		// If the process is still running, send SIGKILL to forcefully terminate it
-		if (kill(pid, 0) == 0)
-		{
-			log_message("modbus_server (PID %d) did not exit after SIGTERM. Sending SIGKILL.\n", pid);
-			if (kill(pid, SIGKILL) == 0)
-			{
-				log_message("Sent SIGKILL to modbus_server (PID %d).\n", pid);
-			}
-			else
-			{
-				ERROR_MESSAGE("Failed to send SIGKILL to modbus_server (PID %d): %s\n", pid, safe_strerror(errno));
-			}
-		}
-#endif
+		return;
 	}
 
-	// Backward compatibility: also check legacy childPID
-	if (childPID > 0 && (numActiveNetworks == 0 || childPID != childPIDs[0]))
+	DWORD wait_result = WaitForSingleObject(process_handle, 5000);
+	if (wait_result == WAIT_OBJECT_0)
 	{
-		log_message("Terminating legacy modbus_server (PID %d)\n", childPID);
-#ifdef _WIN32
-		HANDLE process_handle = OpenProcess(PROCESS_TERMINATE, FALSE, childPID);
-		if (process_handle != NULL)
+		DWORD exit_code = 0;
+		if (GetExitCodeProcess(process_handle, &exit_code))
 		{
-			TerminateProcess(process_handle, 0);
-			CloseHandle(process_handle);
+			log_message("modbus_server (PID %d) exited with status %lu.\n", pid, exit_code);
 		}
-#else
-		kill(childPID, SIGTERM);
-		usleep(100000);
-		kill(childPID, SIGKILL);
-#endif
 	}
+	else if (wait_result == WAIT_TIMEOUT)
+	{
+		log_message("modbus_server (PID %d) did not exit in time. Forcibly terminating.\n", pid);
+		TerminateProcess(process_handle, 1);
+	}
+
+	CloseHandle(process_handle);
+#else
+	if (kill(pid, SIGTERM) == 0)
+	{
+		log_message("Sent SIGTERM to modbus_server (PID %d).\n", pid);
+	}
+	else
+	{
+		ERROR_MESSAGE("Failed to send SIGTERM to modbus_server (PID %d): %s\n", pid, safe_strerror(errno));
+		return;
+	}
+
+	int status = 0;
+	pid_t result = waitpid(pid, &status, 0);
+	if (result == -1)
+	{
+		ERROR_MESSAGE("Failed to wait for modbus_server (PID %d): %s\n", pid, safe_strerror(errno));
+	}
+
+	if (kill(pid, 0) == 0)
+	{
+		log_message("modbus_server (PID %d) did not exit after SIGTERM. Sending SIGKILL.\n", pid);
+		kill(pid, SIGKILL);
+	}
+#endif
 }
 
 void cleanup_program(MAYBE_UNUSED int signum)
@@ -265,10 +204,10 @@ int main(const int argc, const char *argv[])
 
 	static int *parent_Pid = NULL;
 
-	get_param(fixed_Data, "dt_sec", &dt_Sec);
-	get_param(fixed_Data, "dur_sec", &dur_Sec);
+	get_param(fixed_Data, "simulation_dt_sec", &dt_Sec);
+	get_param(fixed_Data, "simulation_dur_sec", &dur_Sec);
 	get_param(dynamic_Data, "time_sec", &time_Sec);
-	get_param(fixed_Data, "control_dt_sec", &control_Dt_Sec);
+	get_param(fixed_Data, "simulation_control_dt_sec", &control_Dt_Sec);
 	get_param(dynamic_Data, "enable_brake_signal", &enable_Brake_Signal);
 	get_param(dynamic_Data, "omega", &omega);
 	get_param(dynamic_Data, "total_loop_count", &total_Loop_Count);
@@ -279,6 +218,12 @@ int main(const int argc, const char *argv[])
 
 	get_param(dynamic_Data, "parent_pid", &parent_Pid);
 	*parent_Pid = (int)parent_pid_initial;
+
+	// Optional stages — NULL means not configured, skip in main loop
+	static const char *sensor_configured = NULL;
+	static const char *actuator_configured = NULL;
+	try_get_param(fixed_Data, "sensor_function_call", &sensor_configured);
+	try_get_param(fixed_Data, "actuator_function_call", &actuator_configured);
 
 	// log_message("argv[0]: %s\n", argv[0]);
 
@@ -309,12 +254,18 @@ int main(const int argc, const char *argv[])
 	{
 		const struct timespec while_loop_start_time = get_monotonic_timestamp();
 		flow_gen(dynamic_Data, fixed_Data);
+		if (actuator_configured) actuator(dynamic_Data, fixed_Data);
 		numerical_integrator(state_Vars, state_Names, num_state_vars, *dt_Sec, dynamic_Data, fixed_Data);
 
 		// Advance time by physics timestep (deterministic, not wall-clock)
 		*time_Sec += *dt_Sec;
 
+		if (sensor_configured) sensor(dynamic_Data, fixed_Data);
+
+		sim_save_truth(dynamic_Data, fixed_Data);
+		if (sensor_configured) sensor_inject(dynamic_Data, fixed_Data);
 		turbine_control(dynamic_Data, fixed_Data);
+		sim_record_and_restore(dynamic_Data, fixed_Data);
 
 		continuous_logging_function(dynamic_Data, fixed_Data);
 
@@ -355,6 +306,7 @@ int main(const int argc, const char *argv[])
 	while (*time_Sec < *dur_Sec && !shutdownFlag && (!*data_Processing_First_Run || run_single_mode_only))
 	{
 		flow_gen(dynamic_Data, fixed_Data);
+		if (actuator_configured) actuator(dynamic_Data, fixed_Data);
 
 		numerical_integrator(state_Vars, state_Names, num_state_vars, *dt_Sec, dynamic_Data, fixed_Data);
 		if (*enable_Brake_Signal != 0 && *omega < 0.5)
@@ -368,11 +320,15 @@ int main(const int argc, const char *argv[])
 		// Update the history buffers, if needed
 		perform_history_updates(*time_Sec, history_Tasks);
 
+		if (sensor_configured) sensor(dynamic_Data, fixed_Data);
+
 		// Check if the accumulated time has reached or exceeded control_dt_sec
 		if (accumulated_Time >= *control_Dt_Sec)
 		{
-			// call the turbine control every control_dt_sec timestep.
-			turbine_control(dynamic_Data, fixed_Data); // update the vfd torque command
+			sim_save_truth(dynamic_Data, fixed_Data);
+			if (sensor_configured) sensor_inject(dynamic_Data, fixed_Data);
+			turbine_control(dynamic_Data, fixed_Data);
+			sim_record_and_restore(dynamic_Data, fixed_Data);
 			accumulated_Time -= *control_Dt_Sec;       // Reset accumulated_Time, preserve any leftover time
 		}
 

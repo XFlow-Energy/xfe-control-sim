@@ -27,6 +27,8 @@ target_sources(xfe-control-sim-include INTERFACE
 		equation_of_motion.h
 		qblade_interface.h
 		discon.h
+		sensors.h
+		actuators.h
 )
 
 # Also add this folder to the include path (so #include "drivetrains.h" works).
