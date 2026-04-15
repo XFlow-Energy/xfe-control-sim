@@ -1239,6 +1239,12 @@ double *get_shared_interp(const char *name, int num_sim_steps)
  * @note
  * - The array must have at least `(sim_points_count + 1) * final_dp_index` elements.
  * - The value is written at `array[sim_points_count * final_dp_index + index]`.
+ *
+ * TODO: Likely dead code. As of 2026-04-15 this function has no callers in any
+ * known repo (xfe-control-sim, XFE-CONTROL-SIM_OLD, bens_aero_working) and has
+ * had none since it was first introduced on 2025-06-03. The original tests for
+ * it were broken on day one and silently disabled. Delete on next cleanup pass
+ * if still unused.
  */
 void add_data_to_array(double *array, const long sim_points_count, const int index, const int final_dp_index, const double *value_ptr)
 {

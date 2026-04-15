@@ -251,16 +251,42 @@ def run_all_tests(repo_root: Path, rebuild: bool, verbose: bool = False, debug_b
 	build_project(
 	    repo_root, build_dir, rebuild, verbose, build_shared_libs=False, build_executable=True, debug_build=debug_build)
 
+	run_clang_tidy_enabled = os.environ.get("RUN_CLANG_TIDY", "1")
+	is_ci = is_ci_environment()
+
+	if is_ci or run_clang_tidy_enabled == "1":
+		run_clang_tidy(repo_root, build_dir)
+	else:
+		print(f"{Colors.YELLOW}[INFO] RUN_CLANG_TIDY not set; skipping clang-tidy step.{Colors.RESET}")
+
 	print()
 
-	# List of all test executables
+	# List of all test executables.
+	# test_numerical_integrator is split into one binary per test function so
+	# that stateful integrators (AB2) start fresh in each process. See
+	# tests/CMakeLists.txt.
 	test_executables = [
-	    "test_pulse_generator",
-	    "test_numerical_integrator",
 	    "test_flow_gen",
 	    "test_param_array",
 	    "test_common_utils",
 	    "test_control_switch",
+	    # Numerical integrator: per-test binaries (process isolation)
+	    "test_euler_integrator_exists",
+	    "test_rk4_integrator_exists",
+	    "test_ab2_integrator_exists",
+	    "test_numerical_integrator_map_has_entries",
+	    "test_integrator_map_contains_expected_functions",
+	    "test_integrators_handle_zero_timestep",
+	    "test_integrators_handle_multiple_state_vars",
+	    "test_integrators_handle_single_state_var",
+	    "test_integrators_handle_negative_timestep",
+	    "test_integrators_repeated_calls",
+	    "test_euler_vs_rk4_different_results",
+	    "test_euler_accuracy_decay",
+	    "test_rk4_accuracy_decay",
+	    "test_ab2_accuracy_decay",
+	    "test_integrator_accuracy_ordering",
+	    "test_euler_convergence_order",
 	]
 
 	bin_dir = build_dir / "executables-out"
