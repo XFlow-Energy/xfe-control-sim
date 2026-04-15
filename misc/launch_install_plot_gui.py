@@ -314,7 +314,9 @@ def build_executable(venv_python: Path, script_path: Path) -> Path:
 
 	# Build PyInstaller command
 	pyinstaller_cmd = [
-	    str(venv_python), "-m", "PyInstaller",
+	    str(venv_python),
+	    "-m",
+	    "PyInstaller",
 	    "--noconfirm",
 	]
 
@@ -423,8 +425,7 @@ Examples:
 	    "--minimal", action="store_true", help="Install minimal dependencies (skip scipy for faster installation)")
 
 	# Plot viewer options (passed through to the script)
-	parser.add_argument(
-	    "-d", "--debug", action="store_true", help="Enable debug logging in plot viewer")
+	parser.add_argument("-d", "--debug", action="store_true", help="Enable debug logging in plot viewer")
 	parser.add_argument(
 	    "--no-opengl", action="store_true", help="Disable OpenGL hardware acceleration (enabled by default)")
 
