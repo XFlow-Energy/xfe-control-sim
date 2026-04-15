@@ -162,19 +162,18 @@ static inline const char *get_param_string(const param_array_t *data, const char
 	return NULL;
 }
 
-// Override get_param macro from xflow_aero_sim.h with our mock version
+// Override get_param macro from xflow_aero_sim.h with our mock version.
 #ifdef get_param
 #undef get_param
 #endif
 
-// Generic get_param: looks up by name, dispatches on the stored type, and
-// writes a pointer of the matching type into *value. Mirrors the real
-// get_param_impl in xflow-utils, which is invoked via a macro that casts the
-// caller's typed out-pointer to void *.
+// Implementation: looks up by name, dispatches on the stored type, and writes
+// a pointer of the matching type into *value. Mirrors the real
+// get_param_impl in xflow-utils.
 //   double param  -> *(const double **)value  = &stored.value.d   (mutable)
 //   int    param  -> *(const int    **)value  = &stored.value.i   (mutable)
 //   string param  -> *(const char   **)value  =  stored.value.s   (the char *)
-static inline void get_param_mock(const param_array_t *data, const char *name, void *value)
+static inline void get_param_mock_impl(const param_array_t *data, const char *name, void *value)
 {
 	if (!value)
 	{
@@ -202,6 +201,10 @@ static inline void get_param_mock(const param_array_t *data, const char *name, v
 		}
 	}
 }
-#define get_param get_param_mock
+
+// Wrap as a macro with an explicit (void *) cast of the caller's typed
+// out-pointer. This mirrors xflow-utils's real get_param macro and lets
+// callers pass `&typed_ptr` without a multi-level pointer conversion warning.
+#define get_param(pa, name, out_ptr) get_param_mock_impl((pa), (name), (void *)(out_ptr)) // NOLINT(readability-identifier-naming)
 
 #endif // TEST_PARAM_ARRAY_MOCK_H

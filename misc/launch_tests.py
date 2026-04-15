@@ -249,6 +249,14 @@ def run_all_tests(repo_root: Path, rebuild: bool, verbose: bool = False, debug_b
 	build_project(
 	    repo_root, build_dir, rebuild, verbose, build_shared_libs=False, build_executable=True, debug_build=debug_build)
 
+	run_clang_tidy_enabled = os.environ.get("RUN_CLANG_TIDY", "1")
+	is_ci = is_ci_environment()
+
+	if is_ci or run_clang_tidy_enabled == "1":
+		run_clang_tidy(repo_root, build_dir)
+	else:
+		print(f"{Colors.YELLOW}[INFO] RUN_CLANG_TIDY not set; skipping clang-tidy step.{Colors.RESET}")
+
 	print()
 
 	# List of all test executables.

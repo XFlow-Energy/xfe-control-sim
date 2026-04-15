@@ -57,6 +57,21 @@ static int verbose_mode = 0;
 		}                                                      \
 	} while (0)
 
+// Variant that runs `cleanup_expr` before bailing on failure. Used inside
+// tests that have allocated a param_array and need to free it before any
+// early-return so resources don't leak across test invocations.
+#define TEST_ASSERT_CLEANUP(condition, msg, cleanup_expr)      \
+	do                                                         \
+	{                                                          \
+		if (!(condition))                                      \
+		{                                                      \
+			printf(COLOR_RED "  FAIL: %s\n" COLOR_RESET, msg); \
+			tests_failed++;                                    \
+			cleanup_expr;                                      \
+			return 0;                                          \
+		}                                                      \
+	} while (0)
+
 #define RUN_TEST(test_func)                           \
 	do                                                \
 	{                                                 \
@@ -69,13 +84,16 @@ static int verbose_mode = 0;
 		}                                             \
 	} while (0)
 
-#define TEST_PASS 1
+enum
+{
+	TEST_PASS = 1
+};
 
 // ====================================================================================
 // Test Cases: Stage Map Validation
 // ====================================================================================
 
-int test_flow_gen_map_has_entries()
+static int test_flow_gen_map_has_entries()
 {
 	// Test that flowMap has at least some entries
 	int num_entries = sizeof(flowMap) / sizeof(flowMap[0]);
@@ -87,7 +105,7 @@ int test_flow_gen_map_has_entries()
 	return TEST_PASS;
 }
 
-int test_numerical_integrator_map_has_entries()
+static int test_numerical_integrator_map_has_entries()
 {
 	int num_entries = sizeof(numericalIntegratorMap) / sizeof(numericalIntegratorMap[0]);
 
@@ -98,7 +116,7 @@ int test_numerical_integrator_map_has_entries()
 	return TEST_PASS;
 }
 
-int test_stage_map_names_are_not_null()
+static int test_stage_map_names_are_not_null()
 {
 	// Verify that all stage map entries have non-NULL names
 
@@ -123,7 +141,7 @@ int test_stage_map_names_are_not_null()
 	return TEST_PASS;
 }
 
-int test_integrator_map_contains_expected_functions()
+static int test_integrator_map_contains_expected_functions()
 {
 	// Verify specific known integrators are in the map
 	int num_entries = sizeof(numericalIntegratorMap) / sizeof(numericalIntegratorMap[0]);
@@ -160,7 +178,7 @@ int test_integrator_map_contains_expected_functions()
 	return TEST_PASS;
 }
 
-int test_flow_gen_map_contains_expected_functions()
+static int test_flow_gen_map_contains_expected_functions()
 {
 	int num_entries = sizeof(flowMap) / sizeof(flowMap[0]);
 
@@ -192,7 +210,7 @@ int test_flow_gen_map_contains_expected_functions()
 // Test Cases: Stage Dispatcher (function lookup)
 // ====================================================================================
 
-int test_stage_dispatcher_lookup()
+static int test_stage_dispatcher_lookup()
 {
 	// Test that we can look up functions from the map
 	// This tests the DISPATCH_STAGE macro logic
@@ -220,7 +238,7 @@ int test_stage_dispatcher_lookup()
 	return TEST_PASS;
 }
 
-int test_stage_dispatcher_unknown_function()
+static int test_stage_dispatcher_unknown_function()
 {
 	// Test lookup of non-existent function
 	int num_entries = sizeof(numericalIntegratorMap) / sizeof(numericalIntegratorMap[0]);
@@ -248,7 +266,7 @@ int test_stage_dispatcher_unknown_function()
 // Test Cases: Control Switch Parameter Loading
 // ====================================================================================
 
-int test_control_switch_parameter_retrieval()
+static int test_control_switch_parameter_retrieval()
 {
 	// Test that control_switch can retrieve function names from parameter array
 	param_array_t fixed_data;
@@ -265,11 +283,11 @@ int test_control_switch_parameter_retrieval()
 	get_param(&fixed_data, "flow_function_call", &flow_func);
 	get_param(&fixed_data, "numerical_integrator_function_call", &integrator_func);
 
-	TEST_ASSERT(flow_func != NULL, "flow_function_call should be retrievable");
-	TEST_ASSERT(integrator_func != NULL, "numerical_integrator_function_call should be retrievable");
+	TEST_ASSERT_CLEANUP(flow_func != NULL, "flow_function_call should be retrievable", free_param_array(&fixed_data));
+	TEST_ASSERT_CLEANUP(integrator_func != NULL, "numerical_integrator_function_call should be retrievable", free_param_array(&fixed_data));
 
-	TEST_ASSERT(strcmp(flow_func, "csv_fixed_interp_flow_gen") == 0, "flow_function_call value correct");
-	TEST_ASSERT(strcmp(integrator_func, "rk4_numerical_integrator") == 0, "integrator_function_call value correct");
+	TEST_ASSERT_CLEANUP(strcmp(flow_func, "csv_fixed_interp_flow_gen") == 0, "flow_function_call value correct", free_param_array(&fixed_data));
+	TEST_ASSERT_CLEANUP(strcmp(integrator_func, "rk4_numerical_integrator") == 0, "integrator_function_call value correct", free_param_array(&fixed_data));
 
 	VERBOSE_PRINT("  Retrieved: flow='%s', integrator='%s'\n", flow_func, integrator_func);
 
@@ -277,7 +295,7 @@ int test_control_switch_parameter_retrieval()
 	return TEST_PASS;
 }
 
-int test_control_switch_missing_parameter()
+static int test_control_switch_missing_parameter()
 {
 	// Test handling of missing parameters
 	param_array_t fixed_data;
@@ -300,7 +318,7 @@ int test_control_switch_missing_parameter()
 // Test Cases: Case Sensitivity and Exact Matching
 // ====================================================================================
 
-int test_function_name_exact_match()
+static int test_function_name_exact_match()
 {
 	// Test that function names must match exactly (case-sensitive)
 	int num_entries = sizeof(numericalIntegratorMap) / sizeof(numericalIntegratorMap[0]);
@@ -325,7 +343,7 @@ int test_function_name_exact_match()
 	return TEST_PASS;
 }
 
-int test_function_name_with_spaces()
+static int test_function_name_with_spaces()
 {
 	// Test that names with extra spaces don't match
 	int num_entries = sizeof(numericalIntegratorMap) / sizeof(numericalIntegratorMap[0]);
@@ -405,9 +423,6 @@ int main(int argc, char *argv[])
 		printf(COLOR_GREEN "All tests passed!\n" COLOR_RESET);
 		return 0;
 	}
-	else
-	{
-		printf(COLOR_RED "Some tests failed.\n" COLOR_RESET);
-		return 1;
-	}
+	printf(COLOR_RED "Some tests failed.\n" COLOR_RESET);
+	return 1;
 }

@@ -92,7 +92,10 @@ static int verbose_mode = 0;
 	} while (0)
 
 // Test return value for successful tests
-#define TEST_PASS 1
+enum
+{
+	TEST_PASS = 1
+};
 
 // Helper function to convert RPM to rad/s
 static double rpm_to_rads(double rpm)
@@ -109,7 +112,7 @@ static double rads_to_rpm(double rads)
 /**
  * @brief Test pulse period calculation at various RPMs
  */
-int test_pulse_period_calculation(void)
+static int test_pulse_period_calculation(void)
 {
 	const int pulses_per_rev = 60;
 
@@ -153,7 +156,7 @@ int test_pulse_period_calculation(void)
 /**
  * @brief Test pulse duty cycle calculation
  */
-int test_pulse_duty_cycle(void)
+static int test_pulse_duty_cycle(void)
 {
 	const int pulses_per_rev = 60;
 	const double ring_diameter_mm = 500.0; // 500mm diameter ring
@@ -192,7 +195,7 @@ int test_pulse_duty_cycle(void)
 /**
  * @brief Test bidirectional conversion (omega -> period -> omega)
  */
-int test_bidirectional_conversion(void)
+static int test_bidirectional_conversion(void)
 {
 	const int pulses_per_rev = 60;
 	const double test_rpms[] = {30.0, 60.0, 120.0, 300.0, 600.0};
@@ -224,7 +227,7 @@ int test_bidirectional_conversion(void)
 /**
  * @brief Test frequency to omega conversion
  */
-int test_frequency_conversion(void)
+static int test_frequency_conversion(void)
 {
 	const int pulses_per_rev = 60;
 
@@ -252,7 +255,7 @@ int test_frequency_conversion(void)
 /**
  * @brief Test pulse state generation over several revolutions
  */
-int test_pulse_state_generation(void)
+static int test_pulse_state_generation(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -305,7 +308,7 @@ int test_pulse_state_generation(void)
 /**
  * @brief Test edge timing accuracy
  */
-int test_edge_detection(void)
+static int test_edge_detection(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -366,7 +369,7 @@ int test_edge_detection(void)
 /**
  * @brief Test handling of zero omega (stopped turbine)
  */
-int test_zero_omega(void)
+static int test_zero_omega(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -395,7 +398,7 @@ int test_zero_omega(void)
 /**
  * @brief Test at high speed (extreme case)
  */
-int test_high_speed(void)
+static int test_high_speed(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -451,7 +454,7 @@ int test_high_speed(void)
 /**
  * @brief Test different pulse counts per revolution
  */
-int test_different_pulse_counts(void)
+static int test_different_pulse_counts(void)
 {
 	const double omega = rpm_to_rads(60.0); // 60 RPM
 
@@ -484,7 +487,7 @@ int test_different_pulse_counts(void)
 /**
  * @brief Test pulse generator initialization
  */
-int test_pulse_generator_init(void)
+static int test_pulse_generator_init(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -520,7 +523,7 @@ int test_pulse_generator_init(void)
  * Measures omega using edge timestamps (simulating real controller behavior).
  * Verifies that measured omega lags behind actual omega during acceleration.
  */
-int test_acceleration_ramp_with_measurement_lag(void)
+static int test_acceleration_ramp_with_measurement_lag(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -623,7 +626,7 @@ int test_acceleration_ramp_with_measurement_lag(void)
  * Runs at constant 60 RPM, then instantly steps to 120 RPM.
  * Verifies pulse frequency transitions smoothly and measures detection delay.
  */
-int test_step_change_omega(void)
+static int test_step_change_omega(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -696,7 +699,7 @@ int test_step_change_omega(void)
  * Simulates turbine decelerating from 120 RPM to 30 RPM.
  * Verifies measured omega tracks correctly and pulses remain consistent.
  */
-int test_deceleration_ramp(void)
+static int test_deceleration_ramp(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -770,7 +773,7 @@ int test_deceleration_ramp(void)
  * Simulates aggressive acceleration at 500 RPM/s.
  * Verifies pulse generation remains stable and lag is quantified.
  */
-int test_rapid_acceleration(void)
+static int test_rapid_acceleration(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -841,7 +844,7 @@ int test_rapid_acceleration(void)
  * Measures omega over N consecutive periods and calculates rolling average.
  * Verifies averaging improves stability at steady state.
  */
-int test_multi_period_averaging(void)
+static int test_multi_period_averaging(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -922,7 +925,7 @@ int test_multi_period_averaging(void)
  * Measures the lag between actual and measured omega at different acceleration rates.
  * Verifies lag scales appropriately with acceleration.
  */
-int test_measurement_lag_quantification(void)
+static int test_measurement_lag_quantification(void)
 {
 	const int pulses_per_rev = 60;
 	const double ring_diameter_mm = 500.0;
@@ -1024,7 +1027,7 @@ int test_measurement_lag_quantification(void)
  * During acceleration, measures omega using both period and frequency methods.
  * Verifies both methods give equivalent results.
  */
-int test_frequency_vs_period_measurement(void)
+static int test_frequency_vs_period_measurement(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -1104,7 +1107,7 @@ int test_frequency_vs_period_measurement(void)
  * Note: Current implementation treats negative omega as stopped (returns 0).
  * This test verifies the behavior when omega changes direction.
  */
-int test_zero_crossing(void)
+static int test_zero_crossing(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -1177,7 +1180,7 @@ int test_zero_crossing(void)
  * Verifies that angular position wrapping at 2π doesn't accumulate errors
  * over many complete revolutions.
  */
-int test_angular_position_wrapping(void)
+static int test_angular_position_wrapping(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -1233,7 +1236,7 @@ int test_angular_position_wrapping(void)
  * Verifies that falling edge timestamps are accurate and the pulse ON duration
  * matches the calculated value based on geometry.
  */
-int test_falling_edge_timing(void)
+static int test_falling_edge_timing(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -1302,7 +1305,7 @@ int test_falling_edge_timing(void)
  *
  * Verifies numerical stability with extremely small timesteps (0.1 us)
  */
-int test_very_small_timestep(void)
+static int test_very_small_timestep(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -1356,7 +1359,7 @@ int test_very_small_timestep(void)
  * This tests the limits of discrete-time simulation.
  * Note: Very large timesteps (>period/4) will cause missed pulses.
  */
-int test_very_large_timestep(void)
+static int test_very_large_timestep(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -1411,7 +1414,7 @@ int test_very_large_timestep(void)
  * Tests with varying timesteps to simulate adaptive solvers or
  * irregular update rates.
  */
-int test_variable_timestep(void)
+static int test_variable_timestep(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -1468,7 +1471,7 @@ int test_variable_timestep(void)
  * Tests extreme geometries: very small rings, very large rings,
  * narrow bolts, wide bolts.
  */
-int test_different_geometries(void)
+static int test_different_geometries(void)
 {
 	const double rpm = 60.0;
 	const double omega = rpm_to_rads(rpm);
@@ -1516,7 +1519,7 @@ int test_different_geometries(void)
  *
  * Verifies correct behavior at very low RPM (0.1 - 1 RPM)
  */
-int test_extremely_low_speed(void)
+static int test_extremely_low_speed(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -1575,7 +1578,7 @@ int test_extremely_low_speed(void)
  *
  * Verifies correct behavior at very high RPM (10,000 RPM)
  */
-int test_extremely_high_speed(void)
+static int test_extremely_high_speed(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -1626,7 +1629,7 @@ int test_extremely_high_speed(void)
  *
  * Verifies proper state reset when turbine stops and restarts
  */
-int test_stop_restart_sequence(void)
+static int test_stop_restart_sequence(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -1699,7 +1702,7 @@ int test_stop_restart_sequence(void)
  *
  * Simulates realistic speed variations around nominal value
  */
-int test_omega_with_jitter(void)
+static int test_omega_with_jitter(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -1758,7 +1761,7 @@ int test_omega_with_jitter(void)
  *
  * Tests with very high pulse counts (360, 1000) and prime numbers
  */
-int test_many_pulses_per_rev(void)
+static int test_many_pulses_per_rev(void)
 {
 	const double rpm = 60.0;
 	const double omega = rpm_to_rads(rpm);
@@ -1792,7 +1795,7 @@ int test_many_pulses_per_rev(void)
  *
  * Verifies numerical stability over long simulation times (1 hour simulated)
  */
-int test_long_duration_simulation(void)
+static int test_long_duration_simulation(void)
 {
 	pulse_generator_t gen;
 	const int pulses_per_rev = 60;
@@ -1843,7 +1846,7 @@ int test_long_duration_simulation(void)
 /**
  * @brief Test fault injector initialization
  */
-int test_fault_injector_init(void)
+static int test_fault_injector_init(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init(&injector, 12345);
@@ -1873,7 +1876,7 @@ int test_fault_injector_init(void)
 /**
  * @brief Test CLEAN profile (no faults)
  */
-int test_fault_profile_clean(void)
+static int test_fault_profile_clean(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init_from_profile(&injector, PULSE_PROFILE_CLEAN, 54321);
@@ -1913,7 +1916,7 @@ int test_fault_profile_clean(void)
 /**
  * @brief Test DIRTY_SENSOR profile
  */
-int test_fault_profile_dirty_sensor(void)
+static int test_fault_profile_dirty_sensor(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init_from_profile(&injector, PULSE_PROFILE_DIRTY_SENSOR, 99999);
@@ -1933,7 +1936,7 @@ int test_fault_profile_dirty_sensor(void)
 /**
  * @brief Test EMI_ENVIRONMENT profile
  */
-int test_fault_profile_emi_environment(void)
+static int test_fault_profile_emi_environment(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init_from_profile(&injector, PULSE_PROFILE_EMI_ENVIRONMENT, 11111);
@@ -1954,7 +1957,7 @@ int test_fault_profile_emi_environment(void)
 /**
  * @brief Test LOOSE_CONNECTION profile
  */
-int test_fault_profile_loose_connection(void)
+static int test_fault_profile_loose_connection(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init_from_profile(&injector, PULSE_PROFILE_LOOSE_CONNECTION, 22222);
@@ -1974,7 +1977,7 @@ int test_fault_profile_loose_connection(void)
 /**
  * @brief Test DAMAGED_BOLT profile
  */
-int test_fault_profile_damaged_bolt(void)
+static int test_fault_profile_damaged_bolt(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init_from_profile(&injector, PULSE_PROFILE_DAMAGED_BOLT, 33333);
@@ -1995,7 +1998,7 @@ int test_fault_profile_damaged_bolt(void)
 /**
  * @brief Test WORST_CASE profile (all faults enabled)
  */
-int test_fault_profile_worst_case(void)
+static int test_fault_profile_worst_case(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init_from_profile(&injector, PULSE_PROFILE_WORST_CASE, 44444);
@@ -2018,7 +2021,7 @@ int test_fault_profile_worst_case(void)
 /**
  * @brief Test random noise injection
  */
-int test_fault_random_noise(void)
+static int test_fault_random_noise(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init(&injector, 55555);
@@ -2051,7 +2054,7 @@ int test_fault_random_noise(void)
 /**
  * @brief Test missed pulse injection
  */
-int test_fault_missed_pulses(void)
+static int test_fault_missed_pulses(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init(&injector, 66666);
@@ -2102,7 +2105,7 @@ int test_fault_missed_pulses(void)
 /**
  * @brief Test EMI burst injection
  */
-int test_fault_emi_bursts(void)
+static int test_fault_emi_bursts(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init(&injector, 77777);
@@ -2128,7 +2131,7 @@ int test_fault_emi_bursts(void)
 /**
  * @brief Test edge ringing injection
  */
-int test_fault_edge_ringing(void)
+static int test_fault_edge_ringing(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init(&injector, 88888);
@@ -2152,7 +2155,7 @@ int test_fault_edge_ringing(void)
 /**
  * @brief Test attenuation with dropout
  */
-int test_fault_attenuation(void)
+static int test_fault_attenuation(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init(&injector, 99999);
@@ -2186,7 +2189,7 @@ int test_fault_attenuation(void)
 /**
  * @brief Test intermittent dropout
  */
-int test_fault_intermittent_dropout(void)
+static int test_fault_intermittent_dropout(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init(&injector, 10101);
@@ -2210,7 +2213,7 @@ int test_fault_intermittent_dropout(void)
 /**
  * @brief Test power sag injection
  */
-int test_fault_power_sag(void)
+static int test_fault_power_sag(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init(&injector, 20202);
@@ -2242,7 +2245,7 @@ int test_fault_power_sag(void)
 /**
  * @brief Test burst error injection
  */
-int test_fault_burst_errors(void)
+static int test_fault_burst_errors(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init(&injector, 30303);
@@ -2266,7 +2269,7 @@ int test_fault_burst_errors(void)
 /**
  * @brief Test damaged bolt fault (specific pulse missing)
  */
-int test_fault_damaged_bolt(void)
+static int test_fault_damaged_bolt(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init(&injector, 40404);
@@ -2336,7 +2339,7 @@ int test_fault_damaged_bolt(void)
 /**
  * @brief Test statistics tracking
  */
-int test_fault_statistics(void)
+static int test_fault_statistics(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init(&injector, 50505);
@@ -2382,7 +2385,7 @@ int test_fault_statistics(void)
 /**
  * @brief Test reproducibility with same RNG seed
  */
-int test_fault_reproducibility(void)
+static int test_fault_reproducibility(void)
 {
 	pulse_fault_injector_t injector1, injector2;
 	pulse_fault_injector_init(&injector1, 12345);
@@ -2412,7 +2415,7 @@ int test_fault_reproducibility(void)
 /**
  * @brief Test multiple simultaneous faults
  */
-int test_fault_multiple_simultaneous(void)
+static int test_fault_multiple_simultaneous(void)
 {
 	pulse_fault_injector_t injector;
 	pulse_fault_injector_init_from_profile(&injector, PULSE_PROFILE_WORST_CASE, 60606);

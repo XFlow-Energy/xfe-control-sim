@@ -45,27 +45,33 @@ static int verbose_mode = 0;
 		}                        \
 	} while (0)
 
-// Test assertions
-#define TEST_ASSERT(condition, msg)                            \
+// Test assertions. Every test in this file has a local variable named
+// `param_array` that gets allocated by add_param_*() and must be freed before
+// any early-return on failure -- otherwise the leaks accumulate across tests
+// in the same process. The _PA suffix means "param_array aware": the macro
+// frees param_array before returning.
+#define TEST_ASSERT_PA(condition, msg)                         \
 	do                                                         \
 	{                                                          \
 		if (!(condition))                                      \
 		{                                                      \
 			printf(COLOR_RED "  FAIL: %s\n" COLOR_RESET, msg); \
 			tests_failed++;                                    \
+			free_param_array(&param_array);                    \
 			return 0;                                          \
 		}                                                      \
 	} while (0)
 
-#define TEST_ASSERT_DOUBLE_EQ(actual, expected, tolerance, msg)                                                                                        \
-	do                                                                                                                                                 \
-	{                                                                                                                                                  \
-		if (fabs((actual) - (expected)) > (tolerance))                                                                                                 \
-		{                                                                                                                                              \
-			printf(COLOR_RED "  FAIL: %s (expected %.10f, got %.10f, error %.10e)\n" COLOR_RESET, msg, expected, actual, fabs((actual) - (expected))); \
-			tests_failed++;                                                                                                                            \
-			return 0;                                                                                                                                  \
-		}                                                                                                                                              \
+#define TEST_ASSERT_DOUBLE_EQ_PA(actual, expected, tolerance, msg)                                                                                         \
+	do                                                                                                                                                     \
+	{                                                                                                                                                      \
+		if (fabs((actual) - (expected)) > (tolerance))                                                                                                     \
+		{                                                                                                                                                  \
+			printf(COLOR_RED "  FAIL: %s (expected %.10f, got %.10f, error %.10e)\n" COLOR_RESET, msg, (expected), (actual), fabs((actual) - (expected))); \
+			tests_failed++;                                                                                                                                \
+			free_param_array(&param_array);                                                                                                                \
+			return 0;                                                                                                                                      \
+		}                                                                                                                                                  \
 	} while (0)
 
 #define RUN_TEST(test_func)                           \
@@ -80,13 +86,16 @@ static int verbose_mode = 0;
 		}                                             \
 	} while (0)
 
-#define TEST_PASS 1
+enum
+{
+	TEST_PASS = 1
+};
 
 // ====================================================================================
 // Test Cases: Basic Parameter Operations
 // ====================================================================================
 
-int test_param_array_init_and_free()
+static int test_param_array_init_and_free()
 {
 	// Test initialization and cleanup
 	param_array_t param_array;
@@ -98,7 +107,7 @@ int test_param_array_init_and_free()
 	return TEST_PASS;
 }
 
-int test_add_and_get_double()
+static int test_add_and_get_double()
 {
 	// Test adding and retrieving double parameters
 	param_array_t param_array;
@@ -108,8 +117,8 @@ int test_add_and_get_double()
 	add_param_double(&param_array, "pi", test_value, false);
 
 	const double *retrieved = get_param_double(&param_array, "pi");
-	TEST_ASSERT(retrieved != NULL, "Double parameter should be found");
-	TEST_ASSERT_DOUBLE_EQ(*retrieved, test_value, EPSILON, "Double value should match");
+	TEST_ASSERT_PA(retrieved != NULL, "Double parameter should be found");
+	TEST_ASSERT_DOUBLE_EQ_PA(*retrieved, test_value, EPSILON, "Double value should match");
 
 	VERBOSE_PRINT("  Added: %.6f, Retrieved: %.6f\n", test_value, *retrieved);
 
@@ -117,7 +126,7 @@ int test_add_and_get_double()
 	return TEST_PASS;
 }
 
-int test_add_and_get_int()
+static int test_add_and_get_int()
 {
 	// Test adding and retrieving int parameters
 	param_array_t param_array;
@@ -127,8 +136,8 @@ int test_add_and_get_int()
 	add_param_int(&param_array, "answer", test_value, false);
 
 	const int *retrieved = get_param_int(&param_array, "answer");
-	TEST_ASSERT(retrieved != NULL, "Int parameter should be found");
-	TEST_ASSERT(*retrieved == test_value, "Int value should match");
+	TEST_ASSERT_PA(retrieved != NULL, "Int parameter should be found");
+	TEST_ASSERT_PA(*retrieved == test_value, "Int value should match");
 
 	VERBOSE_PRINT("  Added: %d, Retrieved: %d\n", test_value, *retrieved);
 
@@ -136,7 +145,7 @@ int test_add_and_get_int()
 	return TEST_PASS;
 }
 
-int test_add_and_get_string()
+static int test_add_and_get_string()
 {
 	// Test adding and retrieving string parameters
 	param_array_t param_array;
@@ -148,8 +157,8 @@ int test_add_and_get_string()
 	const char *retrieved = NULL;
 	get_param(&param_array, "greeting", &retrieved);
 
-	TEST_ASSERT(retrieved != NULL, "String parameter should be found");
-	TEST_ASSERT(strcmp(retrieved, test_value) == 0, "String value should match");
+	TEST_ASSERT_PA(retrieved != NULL, "String parameter should be found");
+	TEST_ASSERT_PA(strcmp(retrieved, test_value) == 0, "String value should match");
 
 	VERBOSE_PRINT("  Added: '%s', Retrieved: '%s'\n", test_value, retrieved);
 
@@ -157,7 +166,7 @@ int test_add_and_get_string()
 	return TEST_PASS;
 }
 
-int test_get_nonexistent_parameter()
+static int test_get_nonexistent_parameter()
 {
 	// Test retrieving a parameter that doesn't exist
 	param_array_t param_array;
@@ -166,13 +175,13 @@ int test_get_nonexistent_parameter()
 	add_param_double(&param_array, "existing", 1.0, false);
 
 	const double *retrieved = get_param_double(&param_array, "nonexistent");
-	TEST_ASSERT(retrieved == NULL, "Nonexistent parameter should return NULL");
+	TEST_ASSERT_PA(retrieved == NULL, "Nonexistent parameter should return NULL");
 
 	free_param_array(&param_array);
 	return TEST_PASS;
 }
 
-int test_add_multiple_parameters()
+static int test_add_multiple_parameters()
 {
 	// Test adding multiple parameters of different types
 	param_array_t param_array;
@@ -195,10 +204,10 @@ int test_add_multiple_parameters()
 	const char *file_ptr = NULL;
 	get_param(&param_array, "filename", &file_ptr);
 
-	TEST_ASSERT(dt_ptr != NULL && fabs(*dt_ptr - dt) < EPSILON, "dt parameter correct");
-	TEST_ASSERT(dur_ptr != NULL && fabs(*dur_ptr - duration) < EPSILON, "duration parameter correct");
-	TEST_ASSERT(steps_ptr != NULL && *steps_ptr == num_steps, "num_steps parameter correct");
-	TEST_ASSERT(file_ptr != NULL && strcmp(file_ptr, filename) == 0, "filename parameter correct");
+	TEST_ASSERT_PA(dt_ptr != NULL && fabs(*dt_ptr - dt) < EPSILON, "dt parameter correct");
+	TEST_ASSERT_PA(dur_ptr != NULL && fabs(*dur_ptr - duration) < EPSILON, "duration parameter correct");
+	TEST_ASSERT_PA(steps_ptr != NULL && *steps_ptr == num_steps, "num_steps parameter correct");
+	TEST_ASSERT_PA(file_ptr != NULL && strcmp(file_ptr, filename) == 0, "filename parameter correct");
 
 	free_param_array(&param_array);
 	return TEST_PASS;
@@ -208,7 +217,7 @@ int test_add_multiple_parameters()
 // Test Cases: State Variables
 // ====================================================================================
 
-int test_state_variable_marking()
+static int test_state_variable_marking()
 {
 	// Test marking parameters as state variables vs fixed
 	param_array_t param_array;
@@ -233,16 +242,16 @@ int test_state_variable_marking()
 	const double *mass_ptr = get_param_double(&param_array, "mass");
 	const double *dt_ptr = get_param_double(&param_array, "dt");
 
-	TEST_ASSERT(pos_ptr != NULL, "position found");
-	TEST_ASSERT(vel_ptr != NULL, "velocity found");
-	TEST_ASSERT(mass_ptr != NULL, "mass found");
-	TEST_ASSERT(dt_ptr != NULL, "dt found");
+	TEST_ASSERT_PA(pos_ptr != NULL, "position found");
+	TEST_ASSERT_PA(vel_ptr != NULL, "velocity found");
+	TEST_ASSERT_PA(mass_ptr != NULL, "mass found");
+	TEST_ASSERT_PA(dt_ptr != NULL, "dt found");
 
 	free_param_array(&param_array);
 	return TEST_PASS;
 }
 
-int test_state_variable_update()
+static int test_state_variable_update()
 {
 	// Test that state variables can be updated through pointers
 	param_array_t param_array;
@@ -254,14 +263,14 @@ int test_state_variable_update()
 	// Get pointer
 	double *time_ptr = NULL;
 	get_param(&param_array, "time", &time_ptr);
-	TEST_ASSERT(time_ptr != NULL, "time pointer retrieved");
+	TEST_ASSERT_PA(time_ptr != NULL, "time pointer retrieved");
 
 	// Update through pointer
 	*time_ptr = 1.5;
 
 	// Retrieve again and verify
 	const double *time_ptr2 = get_param_double(&param_array, "time");
-	TEST_ASSERT_DOUBLE_EQ(*time_ptr2, 1.5, EPSILON, "State variable updated correctly");
+	TEST_ASSERT_DOUBLE_EQ_PA(*time_ptr2, 1.5, EPSILON, "State variable updated correctly");
 
 	VERBOSE_PRINT("  Updated time to: %.2f\n", *time_ptr2);
 
@@ -273,20 +282,20 @@ int test_state_variable_update()
 // Test Cases: Edge Cases and Error Handling
 // ====================================================================================
 
-int test_empty_parameter_array()
+static int test_empty_parameter_array()
 {
 	// Test operations on empty parameter array
 	param_array_t param_array;
 	init_param_array(&param_array);
 
 	const double *ptr = get_param_double(&param_array, "anything");
-	TEST_ASSERT(ptr == NULL, "Empty array should return NULL for any parameter");
+	TEST_ASSERT_PA(ptr == NULL, "Empty array should return NULL for any parameter");
 
 	free_param_array(&param_array);
 	return TEST_PASS;
 }
 
-int test_duplicate_parameter_names()
+static int test_duplicate_parameter_names()
 {
 	// Test adding parameters with duplicate names (should update or error)
 	param_array_t param_array;
@@ -297,7 +306,7 @@ int test_duplicate_parameter_names()
 
 	// The behavior depends on implementation - either last wins or first wins
 	const double *ptr = get_param_double(&param_array, "value");
-	TEST_ASSERT(ptr != NULL, "Parameter with duplicate name should still be accessible");
+	TEST_ASSERT_PA(ptr != NULL, "Parameter with duplicate name should still be accessible");
 
 	VERBOSE_PRINT("  Duplicate name result: %.2f\n", *ptr);
 
@@ -305,7 +314,7 @@ int test_duplicate_parameter_names()
 	return TEST_PASS;
 }
 
-int test_parameter_with_empty_name()
+static int test_parameter_with_empty_name()
 {
 	// Test adding parameter with empty name
 	param_array_t param_array;
@@ -322,7 +331,7 @@ int test_parameter_with_empty_name()
 	return TEST_PASS;
 }
 
-int test_large_number_of_parameters()
+static int test_large_number_of_parameters()
 {
 	// Stress test with many parameters
 	param_array_t param_array;
@@ -341,9 +350,9 @@ int test_large_number_of_parameters()
 	const double *p500 = get_param_double(&param_array, "param_500");
 	const double *p999 = get_param_double(&param_array, "param_999");
 
-	TEST_ASSERT(p0 != NULL && fabs(*p0 - 0.0) < EPSILON, "First parameter correct");
-	TEST_ASSERT(p500 != NULL && fabs(*p500 - 500.0) < EPSILON, "Middle parameter correct");
-	TEST_ASSERT(p999 != NULL && fabs(*p999 - 999.0) < EPSILON, "Last parameter correct");
+	TEST_ASSERT_PA(p0 != NULL && fabs(*p0 - 0.0) < EPSILON, "First parameter correct");
+	TEST_ASSERT_PA(p500 != NULL && fabs(*p500 - 500.0) < EPSILON, "Middle parameter correct");
+	TEST_ASSERT_PA(p999 != NULL && fabs(*p999 - 999.0) < EPSILON, "Last parameter correct");
 
 	VERBOSE_PRINT("  Added %d parameters successfully\n", num_params);
 
@@ -351,7 +360,7 @@ int test_large_number_of_parameters()
 	return TEST_PASS;
 }
 
-int test_very_long_parameter_name()
+static int test_very_long_parameter_name()
 {
 	// Test with very long parameter name
 	param_array_t param_array;
@@ -364,14 +373,14 @@ int test_very_long_parameter_name()
 	add_param_double(&param_array, long_name, 42.0, false);
 
 	const double *ptr = get_param_double(&param_array, long_name);
-	TEST_ASSERT(ptr != NULL, "Long parameter name should be accessible");
-	TEST_ASSERT_DOUBLE_EQ(*ptr, 42.0, EPSILON, "Long name parameter value correct");
+	TEST_ASSERT_PA(ptr != NULL, "Long parameter name should be accessible");
+	TEST_ASSERT_DOUBLE_EQ_PA(*ptr, 42.0, EPSILON, "Long name parameter value correct");
 
 	free_param_array(&param_array);
 	return TEST_PASS;
 }
 
-int test_special_characters_in_name()
+static int test_special_characters_in_name()
 {
 	// Test parameter names with special characters
 	param_array_t param_array;
@@ -387,10 +396,10 @@ int test_special_characters_in_name()
 	const double *p3 = get_param_double(&param_array, "param.with.dots");
 	const double *p4 = get_param_double(&param_array, "param123");
 
-	TEST_ASSERT(p1 != NULL && fabs(*p1 - 1.0) < EPSILON, "Dashes in name");
-	TEST_ASSERT(p2 != NULL && fabs(*p2 - 2.0) < EPSILON, "Underscores in name");
-	TEST_ASSERT(p3 != NULL && fabs(*p3 - 3.0) < EPSILON, "Dots in name");
-	TEST_ASSERT(p4 != NULL && fabs(*p4 - 4.0) < EPSILON, "Numbers in name");
+	TEST_ASSERT_PA(p1 != NULL && fabs(*p1 - 1.0) < EPSILON, "Dashes in name");
+	TEST_ASSERT_PA(p2 != NULL && fabs(*p2 - 2.0) < EPSILON, "Underscores in name");
+	TEST_ASSERT_PA(p3 != NULL && fabs(*p3 - 3.0) < EPSILON, "Dots in name");
+	TEST_ASSERT_PA(p4 != NULL && fabs(*p4 - 4.0) < EPSILON, "Numbers in name");
 
 	free_param_array(&param_array);
 	return TEST_PASS;
@@ -400,7 +409,7 @@ int test_special_characters_in_name()
 // Test Cases: Extreme Values
 // ====================================================================================
 
-int test_extreme_double_values()
+static int test_extreme_double_values()
 {
 	// Test with very large and very small double values
 	param_array_t param_array;
@@ -421,16 +430,16 @@ int test_extreme_double_values()
 	const double *p3 = get_param_double(&param_array, "negative_large");
 	const double *p4 = get_param_double(&param_array, "zero");
 
-	TEST_ASSERT(p1 != NULL && fabs(*p1 - very_large) < very_large * 1e-10, "Very large value");
-	TEST_ASSERT(p2 != NULL && fabs(*p2 - very_small) < very_small * 1e-10, "Very small value");
-	TEST_ASSERT(p3 != NULL && fabs(*p3 - negative_large) < fabs(negative_large) * 1e-10, "Negative large value");
-	TEST_ASSERT(p4 != NULL && fabs(*p4 - zero) < EPSILON, "Zero value");
+	TEST_ASSERT_PA(p1 != NULL && fabs(*p1 - very_large) < very_large * 1e-10, "Very large value");
+	TEST_ASSERT_PA(p2 != NULL && fabs(*p2 - very_small) < very_small * 1e-10, "Very small value");
+	TEST_ASSERT_PA(p3 != NULL && fabs(*p3 - negative_large) < fabs(negative_large) * 1e-10, "Negative large value");
+	TEST_ASSERT_PA(p4 != NULL && fabs(*p4 - zero) < EPSILON, "Zero value");
 
 	free_param_array(&param_array);
 	return TEST_PASS;
 }
 
-int test_nan_and_inf_values()
+static int test_nan_and_inf_values()
 {
 	// Test with NaN and infinity
 	param_array_t param_array;
@@ -448,9 +457,9 @@ int test_nan_and_inf_values()
 	const double *p2 = get_param_double(&param_array, "inf");
 	const double *p3 = get_param_double(&param_array, "neg_inf");
 
-	TEST_ASSERT(p1 != NULL && isnan(*p1), "NaN value preserved");
-	TEST_ASSERT(p2 != NULL && isinf(*p2) && *p2 > 0, "Infinity value preserved");
-	TEST_ASSERT(p3 != NULL && isinf(*p3) && *p3 < 0, "Negative infinity value preserved");
+	TEST_ASSERT_PA(p1 != NULL && isnan(*p1), "NaN value preserved");
+	TEST_ASSERT_PA(p2 != NULL && isinf(*p2) && *p2 > 0, "Infinity value preserved");
+	TEST_ASSERT_PA(p3 != NULL && isinf(*p3) && *p3 < 0, "Negative infinity value preserved");
 
 	VERBOSE_PRINT("  NaN/Inf values handled correctly\n");
 
@@ -458,7 +467,7 @@ int test_nan_and_inf_values()
 	return TEST_PASS;
 }
 
-int test_extreme_int_values()
+static int test_extreme_int_values()
 {
 	// Test with extreme integer values
 	param_array_t param_array;
@@ -476,9 +485,9 @@ int test_extreme_int_values()
 	const int *p2 = get_param_int(&param_array, "min_int");
 	const int *p3 = get_param_int(&param_array, "zero");
 
-	TEST_ASSERT(p1 != NULL && *p1 == max_int, "Max int value");
-	TEST_ASSERT(p2 != NULL && *p2 == min_int, "Min int value");
-	TEST_ASSERT(p3 != NULL && *p3 == zero, "Zero int value");
+	TEST_ASSERT_PA(p1 != NULL && *p1 == max_int, "Max int value");
+	TEST_ASSERT_PA(p2 != NULL && *p2 == min_int, "Min int value");
+	TEST_ASSERT_PA(p3 != NULL && *p3 == zero, "Zero int value");
 
 	free_param_array(&param_array);
 	return TEST_PASS;
@@ -488,7 +497,7 @@ int test_extreme_int_values()
 // Test Cases: Type Safety
 // ====================================================================================
 
-int test_type_mismatch_double_as_int()
+static int test_type_mismatch_double_as_int()
 {
 	// Test retrieving double parameter as int (type mismatch)
 	param_array_t param_array;
@@ -506,7 +515,7 @@ int test_type_mismatch_double_as_int()
 	return TEST_PASS;
 }
 
-int test_type_mismatch_int_as_double()
+static int test_type_mismatch_int_as_double()
 {
 	// Test retrieving int parameter as double (type mismatch)
 	param_array_t param_array;
@@ -527,7 +536,7 @@ int test_type_mismatch_int_as_double()
 // Test Cases: Memory Safety
 // ====================================================================================
 
-int test_multiple_init_free_cycles()
+static int test_multiple_init_free_cycles()
 {
 	// Test multiple init/free cycles
 	param_array_t param_array;
@@ -538,7 +547,7 @@ int test_multiple_init_free_cycles()
 		add_param_double(&param_array, "value", (double)i, false);
 
 		const double *ptr = get_param_double(&param_array, "value");
-		TEST_ASSERT(ptr != NULL && fabs(*ptr - (double)i) < EPSILON, "Init/free cycle correct");
+		TEST_ASSERT_PA(ptr != NULL && fabs(*ptr - (double)i) < EPSILON, "Init/free cycle correct");
 
 		free_param_array(&param_array);
 	}
@@ -548,7 +557,7 @@ int test_multiple_init_free_cycles()
 	return TEST_PASS;
 }
 
-int test_parameter_persistence()
+static int test_parameter_persistence()
 {
 	// Test that parameters persist after retrieval
 	param_array_t param_array;
@@ -561,13 +570,13 @@ int test_parameter_persistence()
 	const double *ptr2 = get_param_double(&param_array, "value");
 	const double *ptr3 = get_param_double(&param_array, "value");
 
-	TEST_ASSERT(ptr1 != NULL, "First retrieval succeeds");
-	TEST_ASSERT(ptr2 != NULL, "Second retrieval succeeds");
-	TEST_ASSERT(ptr3 != NULL, "Third retrieval succeeds");
+	TEST_ASSERT_PA(ptr1 != NULL, "First retrieval succeeds");
+	TEST_ASSERT_PA(ptr2 != NULL, "Second retrieval succeeds");
+	TEST_ASSERT_PA(ptr3 != NULL, "Third retrieval succeeds");
 
 	// All should point to same value
-	TEST_ASSERT_DOUBLE_EQ(*ptr1, *ptr2, EPSILON, "Retrievals point to same value");
-	TEST_ASSERT_DOUBLE_EQ(*ptr2, *ptr3, EPSILON, "Retrievals point to same value");
+	TEST_ASSERT_DOUBLE_EQ_PA(*ptr1, *ptr2, EPSILON, "Retrievals point to same value");
+	TEST_ASSERT_DOUBLE_EQ_PA(*ptr2, *ptr3, EPSILON, "Retrievals point to same value");
 
 	free_param_array(&param_array);
 	return TEST_PASS;
@@ -602,7 +611,7 @@ int main(int argc, char *argv[])
 	// State variables
 	printf(COLOR_YELLOW "\n--- State Variables ---\n" COLOR_RESET);
 	RUN_TEST(test_state_variable_marking);
-	// RUN_TEST(test_state_variable_update); // SKIPPED - requires xflow-utils get_param_impl for mutable pointers
+	RUN_TEST(test_state_variable_update);
 
 	// Edge cases
 	printf(COLOR_YELLOW "\n--- Edge Cases ---\n" COLOR_RESET);
@@ -645,9 +654,6 @@ int main(int argc, char *argv[])
 		printf(COLOR_GREEN "All tests passed!\n" COLOR_RESET);
 		return 0;
 	}
-	else
-	{
-		printf(COLOR_RED "Some tests failed.\n" COLOR_RESET);
-		return 1;
-	}
+	printf(COLOR_RED "Some tests failed.\n" COLOR_RESET);
+	return 1;
 }

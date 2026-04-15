@@ -78,13 +78,16 @@ static int verbose_mode = 0;
 		}                                             \
 	} while (0)
 
-#define TEST_PASS 1
+enum
+{
+	TEST_PASS = 1
+};
 
 // ====================================================================================
 // Test Cases: interpolate_umag function
 // ====================================================================================
 
-int test_interpolate_umag_exact_match()
+static int test_interpolate_umag_exact_match()
 {
 	// Test interpolation at exact data points
 	double vel_data[] = {1.0, 2.0, 3.0, 4.0, 5.0};
@@ -104,7 +107,7 @@ int test_interpolate_umag_exact_match()
 	return TEST_PASS;
 }
 
-int test_interpolate_umag_linear_interpolation()
+static int test_interpolate_umag_linear_interpolation()
 {
 	// Test linear interpolation between points
 	double vel_data[] = {0.0, 10.0, 20.0, 30.0};
@@ -130,7 +133,7 @@ int test_interpolate_umag_linear_interpolation()
 	return TEST_PASS;
 }
 
-int test_interpolate_umag_boundary_conditions()
+static int test_interpolate_umag_boundary_conditions()
 {
 	// Test at time=0 and beyond last time point
 	double vel_data[] = {5.0, 10.0, 15.0};
@@ -156,7 +159,7 @@ int test_interpolate_umag_boundary_conditions()
 	return TEST_PASS;
 }
 
-int test_interpolate_umag_negative_time()
+static int test_interpolate_umag_negative_time()
 {
 	// Test with negative time (should clamp to 0 or handle gracefully)
 	double vel_data[] = {100.0, 200.0};
@@ -171,7 +174,7 @@ int test_interpolate_umag_negative_time()
 	return TEST_PASS;
 }
 
-int test_interpolate_umag_small_timestep()
+static int test_interpolate_umag_small_timestep()
 {
 	// Test with small timestep (high frequency data)
 	double vel_data[] = {1.0, 1.1, 1.2, 1.3, 1.4};
@@ -188,7 +191,7 @@ int test_interpolate_umag_small_timestep()
 	return TEST_PASS;
 }
 
-int test_interpolate_umag_large_array()
+static int test_interpolate_umag_large_array()
 {
 	// Test with large array (stress test)
 	int num_time_steps = 10000;
@@ -214,7 +217,7 @@ int test_interpolate_umag_large_array()
 	return TEST_PASS;
 }
 
-int test_interpolate_umag_constant_data()
+static int test_interpolate_umag_constant_data()
 {
 	// Test with constant velocity data
 	double vel_data[] = {42.0, 42.0, 42.0, 42.0, 42.0};
@@ -222,8 +225,9 @@ int test_interpolate_umag_constant_data()
 	double dt = 0.5;
 
 	// Should always return 42.0 regardless of time
-	for (double t = 0.0; t < 3.0; t += 0.3)
+	for (int step = 0; step < 10; ++step)
 	{
+		double t = step * 0.3;
 		double result = interpolate_umag(vel_data, num_time_steps, t, dt);
 		VERBOSE_PRINT("  Constant data: t=%.2f, result=%.2f\n", t, result);
 		TEST_ASSERT_DOUBLE_EQ(result, 42.0, EPSILON, "Constant data interpolation");
@@ -232,7 +236,7 @@ int test_interpolate_umag_constant_data()
 	return TEST_PASS;
 }
 
-int test_interpolate_umag_zero_values()
+static int test_interpolate_umag_zero_values()
 {
 	// Test with zero velocities
 	double vel_data[] = {0.0, 0.0, 0.0};
@@ -245,7 +249,7 @@ int test_interpolate_umag_zero_values()
 	return TEST_PASS;
 }
 
-int test_interpolate_umag_alternating_values()
+static int test_interpolate_umag_alternating_values()
 {
 	// Test with alternating high/low values
 	double vel_data[] = {0.0, 10.0, 0.0, 10.0, 0.0};
@@ -269,7 +273,7 @@ int test_interpolate_umag_alternating_values()
 // Test Cases: get_closest_umag function
 // ====================================================================================
 
-int test_get_closest_umag_exact_match()
+static int test_get_closest_umag_exact_match()
 {
 	// Test getting closest value at exact time points
 	double vel_data[] = {1.0, 2.0, 3.0, 4.0, 5.0};
@@ -288,7 +292,7 @@ int test_get_closest_umag_exact_match()
 	return TEST_PASS;
 }
 
-int test_get_closest_umag_rounding()
+static int test_get_closest_umag_rounding()
 {
 	// Test rounding behavior for closest value
 	double vel_data[] = {10.0, 20.0, 30.0};
@@ -308,7 +312,7 @@ int test_get_closest_umag_rounding()
 	return TEST_PASS;
 }
 
-int test_get_closest_umag_boundary()
+static int test_get_closest_umag_boundary()
 {
 	// Test boundary conditions
 	double vel_data[] = {100.0, 200.0, 300.0};
@@ -379,9 +383,6 @@ int main(int argc, char *argv[])
 		printf(COLOR_GREEN "All tests passed!\n" COLOR_RESET);
 		return 0;
 	}
-	else
-	{
-		printf(COLOR_RED "Some tests failed.\n" COLOR_RESET);
-		return 1;
-	}
+	printf(COLOR_RED "Some tests failed.\n" COLOR_RESET);
+	return 1;
 }

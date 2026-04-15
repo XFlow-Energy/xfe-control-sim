@@ -81,13 +81,16 @@ static int verbose_mode = 0;
 		}                                             \
 	} while (0)
 
-#define TEST_PASS 1
+enum
+{
+	TEST_PASS = 1
+};
 
 // ====================================================================================
 // Test Cases: compare_doubles
 // ====================================================================================
 
-int test_compare_doubles_less_than()
+static int test_compare_doubles_less_than()
 {
 	double a = 1.0;
 	double b = 2.0;
@@ -100,7 +103,7 @@ int test_compare_doubles_less_than()
 	return TEST_PASS;
 }
 
-int test_compare_doubles_greater_than()
+static int test_compare_doubles_greater_than()
 {
 	double a = 5.0;
 	double b = 3.0;
@@ -113,7 +116,7 @@ int test_compare_doubles_greater_than()
 	return TEST_PASS;
 }
 
-int test_compare_doubles_equal()
+static int test_compare_doubles_equal()
 {
 	double a = 4.0;
 	double b = 4.0;
@@ -126,7 +129,7 @@ int test_compare_doubles_equal()
 	return TEST_PASS;
 }
 
-int test_compare_doubles_negative()
+static int test_compare_doubles_negative()
 {
 	double a = -5.0;
 	double b = -2.0;
@@ -139,7 +142,7 @@ int test_compare_doubles_negative()
 	return TEST_PASS;
 }
 
-int test_compare_doubles_zero()
+static int test_compare_doubles_zero()
 {
 	double a = 0.0;
 	double b = 0.0;
@@ -150,7 +153,7 @@ int test_compare_doubles_zero()
 	return TEST_PASS;
 }
 
-int test_compare_doubles_inf()
+static int test_compare_doubles_inf()
 {
 	// +Inf is greater than any finite, -Inf is less than any finite.
 	double pos_inf = INFINITY;
@@ -167,7 +170,7 @@ int test_compare_doubles_inf()
 	return TEST_PASS;
 }
 
-int test_compare_doubles_nan()
+static int test_compare_doubles_nan()
 {
 	// IEEE 754: NaN is unordered against everything, so both `<` and `>` are
 	// false. The current implementation falls through to return 0 ("equal")
@@ -187,7 +190,7 @@ int test_compare_doubles_nan()
 // Test Cases: get_num_cores
 // ====================================================================================
 
-int test_get_num_cores()
+static int test_get_num_cores()
 {
 	int num_cores = get_num_cores();
 
@@ -203,7 +206,7 @@ int test_get_num_cores()
 // Test Cases: check_parent_status
 // ====================================================================================
 
-int test_check_parent_status_self()
+static int test_check_parent_status_self()
 {
 	// Test with our own PID (should be running)
 	int my_pid = getpid();
@@ -219,7 +222,7 @@ int test_check_parent_status_self()
 	return TEST_PASS;
 }
 
-int test_check_parent_status_invalid_pid()
+static int test_check_parent_status_invalid_pid()
 {
 	// Test with invalid PID
 	int invalid_pid = 999999;
@@ -238,7 +241,7 @@ int test_check_parent_status_invalid_pid()
 // Test Cases: CPU Usage (platform-dependent)
 // ====================================================================================
 
-int test_update_cpu_usage()
+static int test_update_cpu_usage()
 {
 	// Test CPU usage calculation
 	double cpu_usage = update_cpu_usage();
@@ -316,9 +319,6 @@ int main(int argc, char *argv[])
 		printf(COLOR_GREEN "All tests passed!\n" COLOR_RESET);
 		return 0;
 	}
-	else
-	{
-		printf(COLOR_RED "Some tests failed.\n" COLOR_RESET);
-		return 1;
-	}
+	printf(COLOR_RED "Some tests failed.\n" COLOR_RESET);
+	return 1;
 }

@@ -74,7 +74,10 @@ static int verbose_mode = 0;
 		}                                             \
 	} while (0)
 
-#define TEST_PASS 1
+enum
+{
+	TEST_PASS = 1
+};
 
 // ====================================================================================
 // Test Cases: Basic Integrator Function Existence and Signatures
@@ -85,7 +88,7 @@ static int verbose_mode = 0;
 // stepped in the right direction with the right rough magnitude — the dedicated
 // accuracy tests at the bottom of this file pin down the precise error orders.
 
-int test_euler_integrator_exists()
+static int test_euler_integrator_exists()
 {
 	double x = 1.0;
 	double *state_vars[] = {&x};
@@ -102,7 +105,7 @@ int test_euler_integrator_exists()
 	return TEST_PASS;
 }
 
-int test_rk4_integrator_exists()
+static int test_rk4_integrator_exists()
 {
 	double x = 1.0;
 	double *state_vars[] = {&x};
@@ -119,7 +122,7 @@ int test_rk4_integrator_exists()
 	return TEST_PASS;
 }
 
-int test_ab2_integrator_exists()
+static int test_ab2_integrator_exists()
 {
 	double x = 1.0;
 	double *state_vars[] = {&x};
@@ -144,7 +147,7 @@ int test_ab2_integrator_exists()
 // Test Cases: Edge Cases
 // ====================================================================================
 
-int test_integrators_handle_zero_timestep()
+static int test_integrators_handle_zero_timestep()
 {
 	// dt=0 multiplies dx by 0, so state must be bitwise-unchanged.
 	double x = 5.0;
@@ -159,7 +162,7 @@ int test_integrators_handle_zero_timestep()
 	return TEST_PASS;
 }
 
-int test_integrators_handle_multiple_state_vars()
+static int test_integrators_handle_multiple_state_vars()
 {
 	// dx/dt = -x  =>  after dt, x_i → x_i * e^(-dt). RK4 nails this at dt=0.01.
 	double x[5] = {1.0, 2.0, 3.0, 4.0, 5.0};
@@ -181,7 +184,7 @@ int test_integrators_handle_multiple_state_vars()
 	return TEST_PASS;
 }
 
-int test_integrators_handle_single_state_var()
+static int test_integrators_handle_single_state_var()
 {
 	double x = 10.0;
 	double *state_vars[] = {&x};
@@ -197,7 +200,7 @@ int test_integrators_handle_single_state_var()
 	return TEST_PASS;
 }
 
-int test_integrators_handle_negative_timestep()
+static int test_integrators_handle_negative_timestep()
 {
 	// Negative dt integrates backwards in time. With dx/dt=-x, going backwards
 	// makes x grow toward x*e^(+|dt|).
@@ -220,7 +223,7 @@ int test_integrators_handle_negative_timestep()
 // Test Cases: Stability Tests
 // ====================================================================================
 
-int test_integrators_repeated_calls()
+static int test_integrators_repeated_calls()
 {
 	// Test that integrators can be called multiple times in sequence
 	double x = 1.0;
@@ -248,7 +251,7 @@ int test_integrators_repeated_calls()
 	return TEST_PASS;
 }
 
-int test_euler_vs_rk4_different_results()
+static int test_euler_vs_rk4_different_results()
 {
 	// Euler and RK4 should generally produce different results (different order methods)
 	// This tests that they're actually different implementations
@@ -280,7 +283,7 @@ int test_euler_vs_rk4_different_results()
 // Test Cases: Map Validation
 // ====================================================================================
 
-int test_numerical_integrator_map_has_entries()
+static int test_numerical_integrator_map_has_entries()
 {
 	int num_entries = sizeof(numericalIntegratorMap) / sizeof(numericalIntegratorMap[0]);
 
@@ -291,7 +294,7 @@ int test_numerical_integrator_map_has_entries()
 	return TEST_PASS;
 }
 
-int test_integrator_map_contains_expected_functions()
+static int test_integrator_map_contains_expected_functions()
 {
 	// Verify specific known integrators are in the map
 	int num_entries = sizeof(numericalIntegratorMap) / sizeof(numericalIntegratorMap[0]);
@@ -355,7 +358,7 @@ static double integrate_decay(integrator_fn integrator, double x0, double dt, in
 	return x;
 }
 
-int test_euler_accuracy_decay()
+static int test_euler_accuracy_decay()
 {
 	const double dt = 0.001;
 	const int n_steps = 1000; // t_final = 1.0
@@ -371,7 +374,7 @@ int test_euler_accuracy_decay()
 	return TEST_PASS;
 }
 
-int test_rk4_accuracy_decay()
+static int test_rk4_accuracy_decay()
 {
 	const double dt = 0.001;
 	const int n_steps = 1000;
@@ -387,7 +390,7 @@ int test_rk4_accuracy_decay()
 	return TEST_PASS;
 }
 
-int test_ab2_accuracy_decay()
+static int test_ab2_accuracy_decay()
 {
 	const double dt = 0.001;
 	const int n_steps = 1000;
@@ -403,7 +406,7 @@ int test_ab2_accuracy_decay()
 	return TEST_PASS;
 }
 
-int test_integrator_accuracy_ordering()
+static int test_integrator_accuracy_ordering()
 {
 	const double dt = 0.001;
 	const int n_steps = 1000;
@@ -424,7 +427,7 @@ int test_integrator_accuracy_ordering()
 	return TEST_PASS;
 }
 
-int test_euler_convergence_order()
+static int test_euler_convergence_order()
 {
 	// Halving dt should roughly halve the error for a 1st-order method.
 	const double analytic = exp(-1.0);
@@ -462,21 +465,18 @@ int main(int argc, char *argv[])
 	// CMake builds one binary per test function with -DRUN_ONLY_TEST=<name>
 	// so that stateful integrators (AB2 holds f(x_{n-1}) in function-static
 	// storage) start fresh each binary invocation.
-#define _STR(x) #x
-#define _STR2(x) _STR(x)
+#define STRINGIFY(x) #x
+#define STRINGIFY_EXPAND(x) STRINGIFY(x)
 	tests_run = 1;
 	if (RUN_ONLY_TEST())
 	{
 		tests_passed = 1;
-		printf(COLOR_GREEN "PASS: %s\n" COLOR_RESET, _STR2(RUN_ONLY_TEST));
+		printf(COLOR_GREEN "PASS: %s\n" COLOR_RESET, STRINGIFY_EXPAND(RUN_ONLY_TEST));
 		return 0;
 	}
-	else
-	{
-		tests_failed = 1;
-		printf(COLOR_RED "FAIL: %s\n" COLOR_RESET, _STR2(RUN_ONLY_TEST));
-		return 1;
-	}
+	tests_failed = 1;
+	printf(COLOR_RED "FAIL: %s\n" COLOR_RESET, STRINGIFY_EXPAND(RUN_ONLY_TEST));
+	return 1;
 #endif
 
 	printf(COLOR_CYAN "\n");
@@ -532,9 +532,6 @@ int main(int argc, char *argv[])
 		printf(COLOR_GREEN "All tests passed!\n" COLOR_RESET);
 		return 0;
 	}
-	else
-	{
-		printf(COLOR_RED "Some tests failed.\n" COLOR_RESET);
-		return 1;
-	}
+	printf(COLOR_RED "Some tests failed.\n" COLOR_RESET);
+	return 1;
 }
