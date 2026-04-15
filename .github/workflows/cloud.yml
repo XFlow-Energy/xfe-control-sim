@@ -156,6 +156,18 @@ jobs:
             exit $RESULT
           fi
 
+      - name: Run unit tests via launch script
+        shell: bash
+        run: |
+          python3 ./misc/launch_tests.py run_tests 1
+          RESULT=$?
+          if [[ $RESULT -eq 0 ]]; then
+            echo "✅ unit tests completed successfully (exit code $RESULT)."
+          else
+            echo "❌ launch_tests.py run_tests exited with code $RESULT" >&2
+            exit $RESULT
+          fi
+
   build-macos:
     runs-on: macos-latest
     env:
@@ -253,6 +265,18 @@ jobs:
             echo "✅ sim_example completed successfully (exit code $RESULT)."
           else
             echo "❌ launch_tests.py sim_example_copy_test exited with code $RESULT" >&2
+            exit $RESULT
+          fi
+
+      - name: Run unit tests via launch script
+        shell: bash
+        run: |
+          python3 ./misc/launch_tests.py run_tests 1
+          RESULT=$?
+          if [[ $RESULT -eq 0 ]]; then
+            echo "✅ unit tests completed successfully (exit code $RESULT)."
+          else
+            echo "❌ launch_tests.py run_tests exited with code $RESULT" >&2
             exit $RESULT
           fi
 
@@ -446,6 +470,18 @@ jobs:
             echo "✅ sim_example completed successfully (exit code $RESULT)."
           else
             echo "❌ launch_tests.py sim_example_copy_test exited with code $RESULT" >&2
+            exit $RESULT
+          fi
+
+      - name: Run unit tests via launch script
+        shell: bash
+        run: |
+          python ./misc/launch_tests.py run_tests 1
+          RESULT=$?
+          if [[ $RESULT -eq 0 ]]; then
+            echo "✅ unit tests completed successfully (exit code $RESULT)."
+          else
+            echo "❌ launch_tests.py run_tests exited with code $RESULT" >&2
             exit $RESULT
           fi
 
