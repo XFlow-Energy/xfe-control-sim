@@ -1,0 +1,73 @@
+Getting Started with CSV Plot Viewer
+
+
+Hi,
+
+Here is a quick overview of the Plot Viewer to get you up and running.
+
+
+QUICK START
+
+Open a file: Ctrl+O or drag and drop a CSV file
+Select columns: Choose X-axis, then select Y-axis columns (Ctrl+click for multiple)
+Plot: Ctrl+P or click the Plot button
+
+
+ESSENTIAL KEYBOARD SHORTCUTS
+
+Navigation
+    R               Reset zoom (fit all data)
+    Ctrl+Z          Zoom back (undo zoom)
+    Space           Toggle box zoom mode
+    C               Toggle crosshair
+
+Plotting
+    Ctrl+P          Update/refresh plot
+    Ctrl+D          Clear all column selections
+    Ctrl+C          Copy plot to clipboard
+
+Annotations
+    P               Pin current data tooltip as permanent label
+    Shift+P         Remove last pinned annotation
+    Ctrl+Shift+P    Clear all annotations
+
+Other
+    Ctrl+O          Open file
+    Ctrl+S          Save plot as image
+    Ctrl+M          Add comparison CSV file
+    F1              Show all shortcuts
+
+
+KEY PLOTTING FEATURES
+
+Dual Y-axes: Plot data with different scales on left and right axes
+Data tooltip: Hover over plot to see exact values for all series
+Pinned annotations: Press P to pin tooltips as draggable labels
+Reference lines: Add vertical/horizontal markers (draggable)
+Region highlighting: Shade areas of interest with custom colors
+Auto downsampling: Enabled by default for smooth performance
+
+
+STYLE OPTIONS
+
+Each plotted series can be customized in the Style tab:
+    Line style (solid, dashed, dotted)
+    Markers (circles, squares, triangles, etc.)
+    18 color options
+    Line width and opacity
+
+
+OTHER TOOLS
+
+Processing tab: Smoothing, decimation, data transformations
+Analysis tab: Curve fitting, peak detection, derivatives, FFT
+Multi-file comparison: Load multiple CSVs to overlay data
+
+
+TIPS
+
+The app auto-saves your settings and column selections.
+Files are auto-monitored so if the CSV updates, the plot refreshes.
+Press F1 anytime for the full keyboard shortcut reference.
+
+Let me know if you have questions!
