@@ -3,7 +3,6 @@ import os
 import logging
 from pathlib import Path
 
-
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
@@ -43,8 +42,8 @@ try:
 	ASTEVAL_AVAILABLE = True
 except ImportError:
 	ASTEVAL_AVAILABLE = False
-	print("Warning: asteval not available. Custom equations will use restricted eval. Install with: pip install asteval")
-
+	print(
+	    "Warning: asteval not available. Custom equations will use restricted eval. Install with: pip install asteval")
 
 def get_resource_path(relative_path):
 	"""
@@ -60,7 +59,6 @@ def get_resource_path(relative_path):
 		# Running as normal Python script
 		base_path = Path(__file__).parent
 	return base_path / relative_path
-
 
 class DraggableAnnotation(pg.TextItem):
 	"""A draggable text annotation that can be edited."""
@@ -82,10 +80,11 @@ class DraggableAnnotation(pg.TextItem):
 		# Convert newlines to <br> for HTML
 		data_html = self.data_text.replace('\n', '<br>')
 		label_html = f'<b>{self.label}</b><br>' if self.label else ''
-		html = (f'<div style="background-color: rgba(0,0,0,0.7); padding: 3px; '
-		        f'border-radius: 3px; cursor: move;">'
-		        f'<span style="color: #00ff00; font-size: 9pt;">'
-		        f'{label_html}{data_html}</span></div>')
+		html = (
+		    f'<div style="background-color: rgba(0,0,0,0.7); padding: 3px; '
+		    f'border-radius: 3px; cursor: move;">'
+		    f'<span style="color: #00ff00; font-size: 9pt;">'
+		    f'{label_html}{data_html}</span></div>')
 		self.setHtml(html)
 
 	def mousePressEvent(self, ev):
@@ -137,7 +136,6 @@ class DraggableAnnotation(pg.TextItem):
 			self.parent_plotter.show_annotation_menu(self)
 		ev.accept()
 
-
 class CSVPlotter(QMainWindow):
 	# Class-level constants to avoid recreating on every call
 	PEN_STYLES = {"Solid": Qt.SolidLine, "Dashed": Qt.DashLine, "Dotted": Qt.DotLine}
@@ -173,7 +171,7 @@ class CSVPlotter(QMainWindow):
 		self.df = None
 		self.csv_path = None
 		self.csv_mtime = None
-		self.zoom_mode = False
+		self.zoom_mode = True
 		self.zoom_history = []  # Stack of previous zoom states (max 20)
 		self._last_view_range = None  # Track last view range for history
 		self._restoring_zoom = False  # Flag to prevent saving when going back
@@ -198,7 +196,8 @@ class CSVPlotter(QMainWindow):
 		if sys.platform == 'win32':
 			self.opengl_enabled = False
 		else:
-			self.opengl_enabled = pg.getConfigOption('useOpenGL') if pg.getConfigOption('useOpenGL') is not None else True
+			self.opengl_enabled = pg.getConfigOption('useOpenGL') if pg.getConfigOption(
+			    'useOpenGL') is not None else True
 
 		# Debounced plot update timer - prevents redundant redraws
 		self._plot_update_timer = QTimer(self)
@@ -244,12 +243,9 @@ class CSVPlotter(QMainWindow):
 		file_size_mb = os.path.getsize(self._pending_file) / (1024 * 1024)
 		if file_size_mb > 100:
 			reply = QMessageBox.question(
-				self,
-				"Load Large File?",
-				f"The last opened file is {file_size_mb:.1f} MB:\n\n{os.path.basename(self._pending_file)}\n\nLoading large files may take a while. Load now?",
-				QMessageBox.Yes | QMessageBox.No,
-				QMessageBox.No
-			)
+			    self, "Load Large File?",
+			    f"The last opened file is {file_size_mb:.1f} MB:\n\n{os.path.basename(self._pending_file)}\n\nLoading large files may take a while. Load now?",
+			    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 			if reply == QMessageBox.Yes:
 				self.load_csv(self._pending_file)
 		else:
@@ -1127,7 +1123,8 @@ class CSVPlotter(QMainWindow):
 		self.marker_size = QSpinBox()
 		self.marker_size.setRange(3, 30)
 		self.marker_size.setValue(8)
-		self.marker_size.valueChanged.connect(lambda: self.schedule_plot_update() if hasattr(self, 'schedule_plot_update') else None)
+		self.marker_size.valueChanged.connect(
+		    lambda: self.schedule_plot_update() if hasattr(self, 'schedule_plot_update') else None)
 		marker_layout.addRow("Size (px):", self.marker_size)
 		marker_group.setLayout(marker_layout)
 		self.viz_layout.addWidget(marker_group)
@@ -1271,7 +1268,8 @@ class CSVPlotter(QMainWindow):
 		transform_layout.addRow(self.transform_enabled)
 
 		self.transform_method = QComboBox()
-		self.transform_method.addItems(["None", "Log10", "Ln (Natural Log)", "Sqrt", "Abs", "Normalize (0-1)", "Z-score"])
+		self.transform_method.addItems(
+		    ["None", "Log10", "Ln (Natural Log)", "Sqrt", "Abs", "Normalize (0-1)", "Z-score"])
 		self.transform_method.currentIndexChanged.connect(self.schedule_plot_update)
 		transform_layout.addRow("Method:", self.transform_method)
 
@@ -1827,7 +1825,8 @@ class CSVPlotter(QMainWindow):
 
 		self.opengl_action = QAction("&OpenGL Acceleration", self, checkable=True)
 		self.opengl_action.setChecked(self.opengl_enabled)
-		self.opengl_action.setToolTip("Enable OpenGL hardware acceleration (faster for large datasets, may cause issues on some systems)")
+		self.opengl_action.setToolTip(
+		    "Enable OpenGL hardware acceleration (faster for large datasets, may cause issues on some systems)")
 		self.opengl_action.triggered.connect(self.toggle_opengl)
 		view_menu.addAction(self.opengl_action)
 
@@ -1931,7 +1930,8 @@ class CSVPlotter(QMainWindow):
 
 		toolbar.addSeparator()
 
-		self.zoom_action = QAction("🔍 Box Zoom", self, checkable=True)
+		self.zoom_action = QAction("🔍 Zoom ON", self, checkable=True)
+		self.zoom_action.setChecked(True)
 		self.zoom_action.triggered.connect(self.toggle_zoom_mode)
 		toolbar.addAction(self.zoom_action)
 
@@ -2076,8 +2076,7 @@ class CSVPlotter(QMainWindow):
 		if indicator_was_visible and indicator_pos is not None:
 			if not hasattr(self, 'tooltip_indicator_line'):
 				self.tooltip_indicator_line = pg.InfiniteLine(
-				    angle=90, movable=False,
-				    pen=pg.mkPen('g', width=1, style=Qt.DashLine))
+				    angle=90, movable=False, pen=pg.mkPen('g', width=1, style=Qt.DashLine))
 				self.main_plot.addItem(self.tooltip_indicator_line)
 			self.tooltip_indicator_line.setValue(indicator_pos)
 			self.tooltip_indicator_line.setVisible(True)
@@ -2092,17 +2091,12 @@ class CSVPlotter(QMainWindow):
 
 		# Create a vertical line at the data point
 		pinned_line = pg.InfiniteLine(
-		    pos=x_pos, angle=90, movable=False,
-		    pen=pg.mkPen('#00ff00', width=1, style=Qt.DashLine))
+		    pos=x_pos, angle=90, movable=False, pen=pg.mkPen('#00ff00', width=1, style=Qt.DashLine))
 		pinned_line.setZValue(1000)  # Ensure line is above data curves
 		self.main_plot.addItem(pinned_line, ignoreBounds=True)
 
 		# Create a draggable annotation (can be moved and edited)
-		pinned_text = DraggableAnnotation(
-		    data_text=text,
-		    label="",
-		    parent_plotter=self,
-		    anchor=(0, 1))
+		pinned_text = DraggableAnnotation(data_text=text, label="", parent_plotter=self, anchor=(0, 1))
 		pinned_text.setPos(x_pos, y_pos)
 		pinned_text.setZValue(1001)  # Ensure text is above line and data curves
 		self.main_plot.addItem(pinned_text, ignoreBounds=True)
@@ -2131,8 +2125,7 @@ class CSVPlotter(QMainWindow):
 		"""Open dialog to edit an annotation's label."""
 		current_label = annotation.label
 		new_label, ok = QInputDialog.getText(
-		    self, "Edit Annotation Label",
-		    "Enter a label for this annotation (leave empty for none):",
+		    self, "Edit Annotation Label", "Enter a label for this annotation (leave empty for none):",
 		    QLineEdit.Normal, current_label)
 		if ok:
 			annotation.label = new_label
@@ -2145,8 +2138,7 @@ class CSVPlotter(QMainWindow):
 				self.main_plot.removeItem(text_item)
 				self.main_plot.removeItem(line_item)
 				self.pinned_annotations.pop(i)
-				self.statusBar().showMessage(
-				    f"Annotation deleted ({len(self.pinned_annotations)} remaining)", 2000)
+				self.statusBar().showMessage(f"Annotation deleted ({len(self.pinned_annotations)} remaining)", 2000)
 				return
 		self.statusBar().showMessage("Annotation not found", 2000)
 
@@ -2557,34 +2549,33 @@ class CSVPlotter(QMainWindow):
 			# Save reference line configurations before plot is destroyed
 			for line in self.reference_lines:
 				try:
-					saved_ref_lines.append({
-						'pos': line.value(),
-						'angle': line.angle,
-						'pen': line.pen,
-						'label': line.label.format if hasattr(line, 'label') and line.label else None
-					})
+					saved_ref_lines.append(
+					    {
+					        'pos': line.value(),
+					        'angle': line.angle,
+					        'pen': line.pen,
+					        'label': line.label.format if hasattr(line, 'label') and line.label else None
+					    })
 				except RuntimeError:
 					pass  # Already deleted
 
 			# Save region configurations before plot is destroyed
 			for region in self.highlighted_regions:
 				try:
-					saved_regions.append({
-						'values': region.getRegion(),
-						'brush': region.brush
-					})
+					saved_regions.append({'values': region.getRegion(), 'brush': region.brush})
 				except RuntimeError:
 					pass  # Already deleted
 
 			# Save pinned annotation configurations before plot is destroyed
 			for text_item, line_item in self.pinned_annotations:
 				try:
-					saved_annotations.append({
-						'data_text': text_item.data_text,
-						'label': text_item.label,
-						'pos': text_item.pos(),
-						'line_pos': line_item.value()
-					})
+					saved_annotations.append(
+					    {
+					        'data_text': text_item.data_text,
+					        'label': text_item.label,
+					        'pos': text_item.pos(),
+					        'line_pos': line_item.value()
+					    })
 				except RuntimeError:
 					pass  # Already deleted
 
@@ -2599,6 +2590,9 @@ class CSVPlotter(QMainWindow):
 		self.plot_area = pg.GraphicsLayoutWidget()
 		self.main_plot = self.plot_area.addPlot()
 		self.main_plot.showGrid(x=True, y=True, alpha=0.3)
+		# Set zoom mode based on default
+		if self.zoom_mode:
+			self.main_plot.getViewBox().setMouseMode(pg.ViewBox.RectMode)
 		self.main_plot.setLabel('bottom', '')
 		self.main_plot.setLabel('left', '')
 
@@ -2640,12 +2634,11 @@ class CSVPlotter(QMainWindow):
 		# Recreate reference lines from saved configurations
 		for line_config in saved_ref_lines:
 			line = pg.InfiniteLine(
-				pos=line_config['pos'],
-				angle=line_config['angle'],
-				movable=True,
-				pen=line_config['pen'],
-				label=line_config['label']
-			)
+			    pos=line_config['pos'],
+			    angle=line_config['angle'],
+			    movable=True,
+			    pen=line_config['pen'],
+			    label=line_config['label'])
 			self.main_plot.addItem(line)
 			self.reference_lines.append(line)
 
@@ -2659,16 +2652,15 @@ class CSVPlotter(QMainWindow):
 		for ann_config in saved_annotations:
 			# Recreate the vertical line
 			pinned_line = pg.InfiniteLine(
-			    pos=ann_config['line_pos'], angle=90, movable=False,
+			    pos=ann_config['line_pos'],
+			    angle=90,
+			    movable=False,
 			    pen=pg.mkPen('#00ff00', width=1, style=Qt.DashLine))
 			pinned_line.setZValue(1000)  # Ensure line is above data curves
 			self.main_plot.addItem(pinned_line, ignoreBounds=True)
 			# Recreate the draggable annotation
 			pinned_text = DraggableAnnotation(
-			    data_text=ann_config['data_text'],
-			    label=ann_config['label'],
-			    parent_plotter=self,
-			    anchor=(0, 1))
+			    data_text=ann_config['data_text'], label=ann_config['label'], parent_plotter=self, anchor=(0, 1))
 			pinned_text.setPos(ann_config['pos'])
 			pinned_text.setZValue(1001)  # Ensure text is above line and data curves
 			self.main_plot.addItem(pinned_text, ignoreBounds=True)
@@ -2724,7 +2716,8 @@ class CSVPlotter(QMainWindow):
 		self.opengl_enabled = self.opengl_action.isChecked()
 		pg.setConfigOptions(useOpenGL=self.opengl_enabled, enableExperimental=self.opengl_enabled)
 		logging.info(f"OpenGL acceleration {'enabled' if self.opengl_enabled else 'disabled'}")
-		self.statusBar().showMessage(f"OpenGL acceleration {'enabled' if self.opengl_enabled else 'disabled'} - recreating plot...", 3000)
+		self.statusBar().showMessage(
+		    f"OpenGL acceleration {'enabled' if self.opengl_enabled else 'disabled'} - recreating plot...", 3000)
 		self.replace_plot_widget()
 
 	def format_value(self, val):
@@ -2775,8 +2768,7 @@ class CSVPlotter(QMainWindow):
 					# Show tooltip indicator line (dashed vertical line at data point)
 					if not hasattr(self, 'tooltip_indicator_line'):
 						self.tooltip_indicator_line = pg.InfiniteLine(
-						    angle=90, movable=False,
-						    pen=pg.mkPen('g', width=1, style=Qt.DashLine))
+						    angle=90, movable=False, pen=pg.mkPen('g', width=1, style=Qt.DashLine))
 						self.main_plot.addItem(self.tooltip_indicator_line, ignoreBounds=True)
 					self.tooltip_indicator_line.setPos(x_val)
 					self.tooltip_indicator_line.setVisible(True)
@@ -2891,11 +2883,15 @@ class CSVPlotter(QMainWindow):
 		"""Get the next color that isn't already in use by other series."""
 		# Preferred color order (good contrast, avoiding white/black first)
 		if self.theme_dark:
-			color_order = ["White", "Cyan", "Yellow", "Magenta", "Green", "Orange", "Red", "Blue",
-			               "Pink", "Lime", "Purple", "Teal", "Brown", "Navy", "Maroon", "Olive", "Gray"]
+			color_order = [
+			    "White", "Cyan", "Yellow", "Magenta", "Green", "Orange", "Red", "Blue", "Pink", "Lime", "Purple",
+			    "Teal", "Brown", "Navy", "Maroon", "Olive", "Gray"
+			]
 		else:
-			color_order = ["Black", "Blue", "Red", "Green", "Magenta", "Orange", "Purple", "Cyan",
-			               "Brown", "Navy", "Teal", "Maroon", "Olive", "Pink", "Gray", "Yellow", "Lime"]
+			color_order = [
+			    "Black", "Blue", "Red", "Green", "Magenta", "Orange", "Purple", "Cyan", "Brown", "Navy", "Teal",
+			    "Maroon", "Olive", "Pink", "Gray", "Yellow", "Lime"
+			]
 
 		# Get colors already in use from active style widgets
 		used_colors = set()
@@ -2951,12 +2947,7 @@ class CSVPlotter(QMainWindow):
 		pen = self.get_pen(line_style, color, width, alpha)
 		brush = self.get_brush(color, alpha) if symbol else None
 
-		return {
-		    'pen': pen,
-		    'brush': brush,
-		    'symbol': symbol,
-		    'marker_size': marker_size
-		}
+		return {'pen': pen, 'brush': brush, 'symbol': symbol, 'marker_size': marker_size}
 
 	def get_pen(self, style_name, color_name, width=2.0, alpha=100):
 		# Return None if line style is "None" - this prevents line drawing
@@ -3130,7 +3121,8 @@ class CSVPlotter(QMainWindow):
 			x_plot, y_plot = self.apply_processing(x_plot_orig.copy(), y_data)
 
 			curve = self.main_plot.plot(
-			    x_plot, y_plot,
+			    x_plot,
+			    y_plot,
 			    pen=style_info['pen'],
 			    symbol=style_info['symbol'],
 			    symbolSize=style_info['marker_size'],
@@ -3162,18 +3154,21 @@ class CSVPlotter(QMainWindow):
 			x_plot, y_plot = self.apply_processing(x_plot_orig.copy(), y_data)
 
 			curve = pg.PlotDataItem(
-			    x_plot, y_plot,
+			    x_plot,
+			    y_plot,
 			    pen=style_info['pen'],
 			    symbol=style_info['symbol'],
 			    symbolSize=style_info['marker_size'],
 			    symbolBrush=style_info['brush'])
 			# Store curve with full data for manual clipToView (makes right axis as efficient as left)
-			self._right_curves.append((curve, x_plot.copy(), y_plot.copy(), {
-				'pen': style_info['pen'],
-				'symbol': style_info['symbol'],
-				'symbolSize': style_info['marker_size'],
-				'symbolBrush': style_info['brush']
-			}))
+			self._right_curves.append(
+			    (
+			        curve, x_plot.copy(), y_plot.copy(), {
+			            'pen': style_info['pen'],
+			            'symbol': style_info['symbol'],
+			            'symbolSize': style_info['marker_size'],
+			            'symbolBrush': style_info['brush']
+			        }))
 			# Initial downsampling for large datasets
 			if len(x_plot) > 10000 and self.downsample_action.isChecked():
 				ds_ratio = max(1, len(x_plot) // 10000)
@@ -3197,18 +3192,26 @@ class CSVPlotter(QMainWindow):
 		if right_labels:
 			y2_label = self.y2_axis_label if self.y2_axis_label else ', '.join(right_labels)
 			self.main_plot.getAxis('right').setLabel(y2_label, **{'font-size': '11pt'})
+			# Auto-range right Y axis to fit new data
+			self.right_view.enableAutoRange(axis=pg.ViewBox.YAxis)
 		else:
 			self.main_plot.getAxis('right').setLabel('')
 
 		# Update analysis overlays (only if any analysis feature is enabled)
 		if hasattr(self, 'update_analysis') and hasattr(self, 'fit_enabled'):
-			if (self.fit_enabled.isChecked() or
-			    self.peaks_enabled.isChecked() or
-			    self.deriv_enabled.isChecked()):
+			if (self.fit_enabled.isChecked() or self.peaks_enabled.isChecked() or self.deriv_enabled.isChecked()):
 				self.update_analysis()
 
 		# Update the legend bar
 		self.update_legend(left_cols, right_cols)
+
+		# Force downsampling recalculation based on current view (fixes issue when
+		# adding lines while zoomed in or when data reloads)
+		self._update_right_axis_view()
+		# Nudge left axis curves to recalculate auto-downsampling for current view
+		for item in self.main_plot.items:
+			if isinstance(item, pg.PlotDataItem):
+				item.viewRangeChanged()
 
 	def _update_legend_position(self):
 		"""Update legend position to top-left of plot area."""
@@ -3229,18 +3232,10 @@ class CSVPlotter(QMainWindow):
 			return
 
 		# Map pyqtgraph marker symbols to unicode characters for display
-		marker_symbols = {
-			'o': '●', 's': '■', 't': '▲', 'd': '◆',
-			'+': '+', 'x': '×', 'None': '', None: ''
-		}
+		marker_symbols = {'o': '●', 's': '■', 't': '▲', 'd': '◆', '+': '+', 'x': '×', 'None': '', None: ''}
 
 		# Map line styles to unicode representations
-		line_symbols = {
-			'Solid': '—',
-			'Dashed': '╌╌',
-			'Dotted': '···',
-			'None': ''
-		}
+		line_symbols = {'Solid': '—', 'Dashed': '╌╌', 'Dotted': '···', 'None': ''}
 
 		html_parts = []
 
@@ -3326,8 +3321,8 @@ class CSVPlotter(QMainWindow):
 			# Check if range actually changed significantly
 			last_x, last_y = self._last_view_range
 			curr_x, curr_y = current_range
-			if (abs(last_x[0] - curr_x[0]) > 0.001 or abs(last_x[1] - curr_x[1]) > 0.001 or
-			    abs(last_y[0] - curr_y[0]) > 0.001 or abs(last_y[1] - curr_y[1]) > 0.001):
+			if (abs(last_x[0] - curr_x[0]) > 0.001 or abs(last_x[1] - curr_x[1]) > 0.001
+			    or abs(last_y[0] - curr_y[0]) > 0.001 or abs(last_y[1] - curr_y[1]) > 0.001):
 				# Save the previous state
 				self.zoom_history.append(self._last_view_range)
 				# Keep only last 20 states
@@ -3717,7 +3712,8 @@ if __name__ == "__main__":
 	import argparse
 	parser = argparse.ArgumentParser(description="CSV Dual-Axis Plot Viewer Pro")
 	parser.add_argument("-d", "--debug", action="store_true", help="Enable debug logging")
-	parser.add_argument("--no-opengl", action="store_true", help="Disable OpenGL hardware acceleration (enabled by default)")
+	parser.add_argument(
+	    "--no-opengl", action="store_true", help="Disable OpenGL hardware acceleration (enabled by default)")
 	parser.add_argument("--opengl", action="store_true", help="(Deprecated) OpenGL is now enabled by default")
 	args = parser.parse_args()
 
