@@ -68,11 +68,13 @@ typedef enum
 } gpio_off_on_t;
 
 // Network configuration column indices for modbus_networks.csv
+// Format: network_id,type,ip_or_device,port_or_baud,timeout_us,device_csv_filename
 typedef enum
 {
 	NETWORK_ID_IDX = 0,
-	IP_ADDRESS_IDX,
-	TCP_PORT_IDX,
+	NETWORK_TYPE_IDX, // "TCP" or "RTU"
+	IP_OR_DEVICE_IDX, // IP address for TCP, serial device path for RTU
+	PORT_OR_BAUD_IDX, // TCP port for TCP, baud rate for RTU
 	TIMEOUT_US_IDX,
 	DEVICE_CSV_FILENAME_IDX,
 	MAX_NETWORK_COLUMNS
@@ -151,8 +153,7 @@ void launch_shared_mem_and_hardware_interface(void)
 	for (int net_idx = 0; net_idx < num_networks; net_idx++)
 	{
 		int network_id = safe_atoi(networks_config_data[net_idx][NETWORK_ID_IDX]);
-		char *ip_address = networks_config_data[net_idx][IP_ADDRESS_IDX];
-		char *tcp_port = networks_config_data[net_idx][TCP_PORT_IDX];
+		char *network_type = networks_config_data[net_idx][NETWORK_TYPE_IDX];
 		char *timeout_us = networks_config_data[net_idx][TIMEOUT_US_IDX];
 		char device_csv_filename[PATH_MAX];
 		create_dynamic_file_path(device_csv_filename, sizeof(device_csv_filename), "%s/%s", csvFileLocation, networks_config_data[net_idx][DEVICE_CSV_FILENAME_IDX]);
@@ -160,13 +161,40 @@ void launch_shared_mem_and_hardware_interface(void)
 		char network_id_str[32];
 		safe_snprintf(network_id_str, sizeof(network_id_str), "%d", network_id);
 
-		log_message("Launching modbus_server for network %d (IP: %s, Port: %s)\n", network_id, ip_address, tcp_port);
+		pid_t pid = 0;
+
+		if (strcmp(network_type, "RTU") == 0)
+		{
+			// RTU network - use serial device parameters
+			char *device_location = networks_config_data[net_idx][IP_OR_DEVICE_IDX];
+			char *baud_rate = networks_config_data[net_idx][PORT_OR_BAUD_IDX];
+			char *parity = "N";
+			char *data_bits = "8";
+			char *stop_bits = "1";
+
+			log_message("Launching modbus_server (RTU) for network %d (Device: %s, Baud: %s, %s%s%s)\n", network_id, device_location, baud_rate, data_bits, parity, stop_bits);
 
 #ifdef _WIN32
-		pid_t pid = launch_modbus_server_windows(modbus_server_executable_location_program_name, network_id_str, device_csv_filename, ip_address, tcp_port, timeout_us);
+			pid = launch_modbus_server_rtu_windows(modbus_server_executable_location_program_name, network_id_str, device_csv_filename, device_location, baud_rate, parity, data_bits, stop_bits, timeout_us);
 #else
-		pid_t pid = launch_modbus_server_unix(modbus_server_executable_location_program_name, network_id_str, device_csv_filename, ip_address, tcp_port, timeout_us);
+			pid = launch_modbus_server_rtu_unix(modbus_server_executable_location_program_name, network_id_str, device_csv_filename, device_location, baud_rate, parity, data_bits, stop_bits, timeout_us);
 #endif
+		}
+		else
+		{
+			// TCP network - use IP address and port
+			char *ip_address = networks_config_data[net_idx][IP_OR_DEVICE_IDX];
+			char *tcp_port = networks_config_data[net_idx][PORT_OR_BAUD_IDX];
+
+			log_message("Launching modbus_server (TCP) for network %d (IP: %s, Port: %s)\n", network_id, ip_address, tcp_port);
+
+#ifdef _WIN32
+			pid = launch_modbus_server_windows(modbus_server_executable_location_program_name, network_id_str, device_csv_filename, ip_address, tcp_port, timeout_us);
+#else
+			pid = launch_modbus_server_unix(modbus_server_executable_location_program_name, network_id_str, device_csv_filename, ip_address, tcp_port, timeout_us);
+#endif
+		}
+
 		childPIDs[net_idx] = pid;
 		log_message("Network %d: modbus_server PID %d\n", network_id, pid);
 	}
@@ -231,6 +259,56 @@ pid_t launch_modbus_server_windows(char *modbus_server_executable_location_progr
 	Sleep(2000); // Sleep for 2000 milliseconds (2 seconds).
 	return pid;
 }
+
+// Platform-specific implementation for Windows - RTU
+pid_t launch_modbus_server_rtu_windows(char *modbus_server_executable_location_program_name, char *network_id_str, char *device_csv_file, char *device_location, char *baud_rate, char *parity, char *data_bits, char *stop_bits, char *timeout_us)
+{
+	STARTUPINFO si;
+	PROCESS_INFORMATION pi;
+	safe_memset(&si, 0, sizeof(si));
+	si.cb = sizeof(si);
+	safe_memset(&pi, 0, sizeof(pi));
+
+	// Create the command line string with network-specific RTU parameters
+	char command_line[2048];
+	safe_snprintf(command_line, sizeof(command_line), "\"%s\" --modbus_device_type \"1\" --dev_num \"%s\" --device_config_csv_file \"%s\" --csv_file_location \"%s\" --device_location \"%s\" --baud_rate \"%s\" --parity \"%s\" --data_bit \"%s\" --stop_bit \"%s\" --timeout_us \"%s\" --network_id \"%s\"", modbus_server_executable_location_program_name, network_id_str, device_csv_file, csvFileLocation, device_location, baud_rate, parity, data_bits, stop_bits, timeout_us, network_id_str);
+
+	log_message("launch child command (RTU): %s\n", command_line);
+
+#ifdef OUTPUT_LOG_FILE_PATH
+	// Create the child process in new process group to prevent receiving Ctrl+C signals
+	// CREATE_NEW_PROCESS_GROUP is Windows equivalent of Unix setpgid(0, 0)
+	if (!CreateProcess(NULL, command_line, NULL, NULL, FALSE, CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP, NULL, NULL, &si, &pi))
+#else
+	// Use CREATE_NEW_CONSOLE and CREATE_NEW_PROCESS_GROUP to launch the child process
+	if (!CreateProcess(
+			NULL,                                          // No module name (use command line)
+			command_line,                                  // Command line
+			NULL,                                          // Process handle not inheritable
+			NULL,                                          // Thread handle not inheritable
+			FALSE,                                         // Set handle inheritance to FALSE
+			CREATE_NEW_CONSOLE | CREATE_NEW_PROCESS_GROUP, // New console + new process group
+			NULL,                                          // Use parent's environment block
+			NULL,                                          // Use parent's starting directory
+			&si,                                           // Pointer to STARTUPINFO structure
+			&pi
+		) // Pointer to PROCESS_INFORMATION structure
+	)
+#endif
+	{
+		DWORD error = GetLastError();
+		ERROR_MESSAGE("CreateProcess failed with error: %lu\n", error);
+		exit(1);
+	}
+
+	pid_t pid = pi.dwProcessId;
+	CloseHandle(pi.hThread);
+	CloseHandle(pi.hProcess);
+
+	log_message("modbus_server (RTU) started successfully with PID %d.\n", pid);
+	Sleep(2000); // Sleep for 2000 milliseconds (2 seconds).
+	return pid;
+}
 #else
 // Platform-specific implementation for Unix-like systems (Linux/macOS)
 pid_t launch_modbus_server_unix(char *modbus_server_executable_location_program_name, char *network_id_str, char *device_csv_file, char *server_ip, char *tcp_port, char *timeout_us)
@@ -264,6 +342,51 @@ pid_t launch_modbus_server_unix(char *modbus_server_executable_location_program_
 	else if (pid > 0)
 	{
 		log_message("modbus_server started successfully with PID %d.\n", pid);
+		usleep_now(2000000);
+		return pid;
+	}
+	else
+	{
+		ERROR_MESSAGE("Failed to fork: %s\n", safe_strerror(errno));
+		exit(1);
+	}
+}
+
+// Platform-specific implementation for Unix-like systems (Linux/macOS) - RTU
+pid_t launch_modbus_server_rtu_unix(char *modbus_server_executable_location_program_name, char *network_id_str, char *device_csv_file, char *device_location, char *baud_rate, char *parity, char *data_bits, char *stop_bits, char *timeout_us)
+{
+	pid_t pid = fork();
+
+	if (pid == 0) // Child process
+	{
+		// Put child in its own process group to prevent receiving terminal signals (SIGINT from Ctrl+C)
+		// This allows parent to have full control over child lifecycle
+		setpgid(0, 0);
+
+		char *argv[] = {
+			modbus_server_executable_location_program_name,
+			"--modbus_device_type", "1", // RTU = 1
+			"--dev_num", network_id_str,
+			"--device_config_csv_file", device_csv_file,
+			"--csv_file_location", csvFileLocation,
+			"--device_location", device_location,
+			"--baud_rate", baud_rate,
+			"--parity", parity,
+			"--data_bit", data_bits,
+			"--stop_bit", stop_bits,
+			"--timeout_us", timeout_us,
+			"--network_id", network_id_str,
+			NULL
+		};
+		char *envp[] = {NULL};
+
+		execve(modbus_server_executable_location_program_name, argv, envp);
+		ERROR_MESSAGE("Failed to launch modbus_server (RTU): %s\n", safe_strerror(errno));
+		exit(1);
+	}
+	else if (pid > 0)
+	{
+		log_message("modbus_server (RTU) started successfully with PID %d.\n", pid);
 		usleep_now(2000000);
 		return pid;
 	}

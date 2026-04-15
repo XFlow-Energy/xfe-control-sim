@@ -107,8 +107,10 @@ typedef enum
 void shared_memory_controls_update(const param_array_t *dynamic_data, const param_array_t *fixed_data);
 #ifdef _WIN32
 pid_t launch_modbus_server_windows(char *modbus_server_executable_location_program_name, char *network_id_str, char *device_csv_file, char *server_ip, char *tcp_port, char *timeout_us);
+pid_t launch_modbus_server_rtu_windows(char *modbus_server_executable_location_program_name, char *network_id_str, char *device_csv_file, char *device_location, char *baud_rate, char *parity, char *data_bits, char *stop_bits, char *timeout_us);
 #else
 pid_t launch_modbus_server_unix(char *modbus_server_executable_location_program_name, char *network_id_str, char *device_csv_file, char *server_ip, char *tcp_port, char *timeout_us);
+pid_t launch_modbus_server_rtu_unix(char *modbus_server_executable_location_program_name, char *network_id_str, char *device_csv_file, char *device_location, char *baud_rate, char *parity, char *data_bits, char *stop_bits, char *timeout_us);
 #endif
 
 void launch_shared_mem_and_hardware_interface(void);
