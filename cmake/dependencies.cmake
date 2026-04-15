@@ -22,3 +22,18 @@ find_package(jansson REQUIRED)
 find_package(libmodbus REQUIRED)
 find_package(GSL REQUIRED)
 find_package(xflowutils REQUIRED)
+
+# Threading support (portable pthread linking)
+find_package(Threads REQUIRED)
+
+# Platform-specific libraries for shared memory and dynamic loading
+if(UNIX AND NOT APPLE)
+    # Linux needs rt for shm_open/shm_unlink
+    find_library(RT_LIBRARY rt)
+    if(RT_LIBRARY)
+        set(PLATFORM_LIBS ${RT_LIBRARY})
+    endif()
+endif()
+
+# dl library (CMAKE_DL_LIBS is empty on platforms that don't need it)
+list(APPEND PLATFORM_LIBS ${CMAKE_DL_LIBS})
