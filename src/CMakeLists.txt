@@ -141,7 +141,7 @@ if(BUILD_XFE_CONTROL_SIM_EXECUTABLE)
 	# 	${XFE_CONTROL_SIM_PROJECT_DIR}/include
 	# )
 
-	target_link_libraries(xfe_control_sim PRIVATE xfe-control-sim-lib)
+	target_link_libraries(xfe_control_sim PRIVATE Threads::Threads xfe-control-sim-lib)
 
 	if(WIN32)
 		set(XFLOW_UTILS_DLL_DIR "${CMAKE_BINARY_DIR}/xflow-utils-windows")
