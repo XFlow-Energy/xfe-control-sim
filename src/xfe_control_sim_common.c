@@ -703,32 +703,40 @@ void close_dynamic_data_csv_logger(void)
 	}
 }
 
+// NOLINTBEGIN(readability-identifier-naming)
+// DllMain and its parameter names (hinstDLL, fdwReason, lpvReserved) are
+// Windows ABI / Microsoft SDK conventions: the Windows loader looks up
+// "DllMain" by exact name, and the parameter names match the official
+// DllMain documentation so the code is recognizable against MS docs.
+// These cannot be renamed to lower_case without breaking the ABI or
+// diverging from Microsoft's own references.
 BOOL WINAPI DllMain(MAYBE_UNUSED HINSTANCE hinstDLL, DWORD fdwReason, MAYBE_UNUSED LPVOID lpvReserved)
 {
-	// This switch statement checks why DllMain was called.
 	switch (fdwReason)
 	{
 	case DLL_PROCESS_DETACH:
-		// This case is triggered when the DLL is about to be unloaded.
-		// Check if our pointers were ever initialized before trying to use them.
-		// log_message("DLL_PROCESS_DETACH\n");
+		// Triggered when the DLL is about to be unloaded. Flush pending
+		// log output and release file handles before the process exits.
 		close_dynamic_data_csv_logger();
 		close_log_file();
 		break;
 
+	// DLL_PROCESS_ATTACH / DLL_THREAD_ATTACH / DLL_THREAD_DETACH: nothing
+	// to do, but we list them explicitly so clang-tidy knows all DllMain
+	// reason codes are handled.
 	case DLL_PROCESS_ATTACH:
-		// log_message("DLL_PROCESS_ATTACH\n");
-		break;
 	case DLL_THREAD_ATTACH:
-		// log_message("DLL_THREAD_ATTACH\n");
-		break;
 	case DLL_THREAD_DETACH:
-		// log_message("DLL_THREAD_DETACH\n");
-		// We don't need to do anything for these other cases.
+		break;
+
+	default:
+		// Defensive: unreachable per the Windows DllMain contract, but
+		// added so the switch is exhaustive.
 		break;
 	}
-	return TRUE; // Signal success
+	return TRUE;
 }
+// NOLINTEND(readability-identifier-naming)
 #endif
 
 /**

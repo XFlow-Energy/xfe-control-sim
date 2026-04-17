@@ -341,7 +341,9 @@ static int test_large_number_of_parameters()
 	for (int i = 0; i < num_params; i++)
 	{
 		char name[64];
-		snprintf(name, sizeof(name), "param_%d", i);
+		// Max output "param_999" (9 chars) into 64-char buffer; no truncation possible.
+		// NOLINT: glibc does not provide Annex K snprintf_s; standard snprintf is portable.
+		(void)snprintf(name, sizeof(name), "param_%d", i); // NOLINT(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
 		add_param_double(&param_array, name, (double)i, false);
 	}
 
@@ -367,7 +369,8 @@ static int test_very_long_parameter_name()
 	init_param_array(&param_array);
 
 	char long_name[256];
-	memset(long_name, 'a', sizeof(long_name) - 1);
+	// NOLINT: glibc does not provide Annex K memset_s; standard memset is portable.
+	memset(long_name, 'a', sizeof(long_name) - 1); // NOLINT(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
 	long_name[sizeof(long_name) - 1] = '\0';
 
 	add_param_double(&param_array, long_name, 42.0, false);

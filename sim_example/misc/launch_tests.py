@@ -33,6 +33,7 @@ def build_project(
 	is_github_actions = os.environ.get("GITHUB_ACTIONS") == "true"
 	is_ci = is_github_actions or os.environ.get("CI") is not None
 
+	# Only delete build directory and caches when rebuild=True
 	if rebuild:
 		if build_dir.exists():
 			print(f"{Emoji.INFO} Removing {build_dir}")
@@ -42,88 +43,89 @@ def build_project(
 		if cache_dir.exists():
 			shutil.rmtree(cache_dir)
 
-		build_dir.mkdir(parents=True, exist_ok=True)
+	# Always ensure build directory exists and run cmake/build
+	build_dir.mkdir(parents=True, exist_ok=True)
 
-		nproc = get_nproc()
+	nproc = get_nproc()
 
-		if check_command_exists("ninja"):
-			generator = ["-G", "Ninja"]
-			if verbose:
-				build_cmd = ["ninja", "-v", "-j", str(nproc)]
-			else:
-				build_cmd = ["ninja", "-j", str(nproc)]
+	if check_command_exists("ninja"):
+		generator = ["-G", "Ninja"]
+		if verbose:
+			build_cmd = ["ninja", "-v", "-j", str(nproc)]
 		else:
-			generator = []
-			if verbose:
-				build_cmd = ["make", f"-j{nproc}", "VERBOSE=1"]
-			else:
-				build_cmd = ["make", f"-j{nproc}"]
-
-		if is_github_actions:
-			os_name = os.environ.get("RUNNER_OS", platform.system())
+			build_cmd = ["ninja", "-j", str(nproc)]
+	else:
+		generator = []
+		if verbose:
+			build_cmd = ["make", f"-j{nproc}", "VERBOSE=1"]
 		else:
-			os_name = platform.system()
+			build_cmd = ["make", f"-j{nproc}"]
 
-		if is_github_actions:
-			if os_name == "Windows":
-				cc = "C:/deps/llvm-mingw/bin/clang.exe"
-				cxx = "C:/deps/llvm-mingw/bin/clang++.exe"
-			elif os_name in ["macOS", "Darwin"]:
-				cc = "/opt/homebrew/opt/llvm/bin/clang"
-				cxx = "/opt/homebrew/opt/llvm/bin/clang++"
-			elif os_name == "Linux":
-				cc = "/usr/bin/clang"
-				cxx = "/usr/bin/clang++"
-			else:
-				print(f"{Colors.RED}Unsupported OS: {os_name}{Colors.RESET}", file=sys.stderr)
-				sys.exit(1)
+	if is_github_actions:
+		os_name = os.environ.get("RUNNER_OS", platform.system())
+	else:
+		os_name = platform.system()
+
+	if is_github_actions:
+		if os_name == "Windows":
+			cc = "C:/deps/llvm-mingw/bin/clang.exe"
+			cxx = "C:/deps/llvm-mingw/bin/clang++.exe"
+		elif os_name in ["macOS", "Darwin"]:
+			cc = "/opt/homebrew/opt/llvm/bin/clang"
+			cxx = "/opt/homebrew/opt/llvm/bin/clang++"
+		elif os_name == "Linux":
+			cc = "/usr/bin/clang"
+			cxx = "/usr/bin/clang++"
 		else:
-			if platform.system() == "Darwin":
-				cc = "/opt/homebrew/opt/llvm/bin/clang"
-				cxx = "/opt/homebrew/opt/llvm/bin/clang++"
-			else:
-				cc = "clang"
-				cxx = "clang++"
+			print(f"{Colors.RED}Unsupported OS: {os_name}{Colors.RESET}", file=sys.stderr)
+			sys.exit(1)
+	else:
+		if platform.system() == "Darwin":
+			cc = "/opt/homebrew/opt/llvm/bin/clang"
+			cxx = "/opt/homebrew/opt/llvm/bin/clang++"
+		else:
+			cc = "clang"
+			cxx = "clang++"
 
-		cmake_verbose = "ON" if verbose else "OFF"
+	cmake_verbose = "ON" if verbose else "OFF"
 
-		cmake_prefix_path = ""
-		if is_github_actions and os_name == "Windows":
-			cmake_prefix_path = "C:/deps/gsl-install;C:/deps/jansson-install;C:/deps/libmodbus"
+	cmake_prefix_path = ""
+	if is_github_actions and os_name == "Windows":
+		cmake_prefix_path = "C:/deps/gsl-install;C:/deps/jansson-install;C:/deps/libmodbus"
 
-		# Default to Release for performance, use Debug only when explicitly requested
-		build_type = "Debug" if debug_build else "Release"
+	# Default to Release for performance, use Debug only when explicitly requested
+	build_type = "Debug" if debug_build else "Release"
 
-		cmake_cmd = [
-		    "cmake",
-		    *generator,
-		    "-B",
-		    str(build_dir),
-		    "-S",
-		    str(source_dir),
-		    f"-DCMAKE_BUILD_TYPE={build_type}",
-		    f"-DCMAKE_VERBOSE_MAKEFILE={cmake_verbose}",
-		    f"-DCMAKE_C_COMPILER={cc}",
-		    f"-DCMAKE_CXX_COMPILER={cxx}",
-		    "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-		    f"-DBUILD_XFE_CONTROL_SIM_EXECUTABLE={'ON' if build_executable else 'OFF'}",
-		    f"-DBUILD_SHARED_LIBS={'ON' if build_shared_libs else 'OFF'}",
-		]
+	cmake_cmd = [
+	    "cmake",
+	    *generator,
+	    "-B",
+	    str(build_dir),
+	    "-S",
+	    str(source_dir),
+	    f"-DCMAKE_BUILD_TYPE={build_type}",
+	    f"-DCMAKE_VERBOSE_MAKEFILE={cmake_verbose}",
+	    f"-DCMAKE_C_COMPILER={cc}",
+	    f"-DCMAKE_CXX_COMPILER={cxx}",
+	    "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+	    f"-DBUILD_XFE_CONTROL_SIM_EXECUTABLE={'ON' if build_executable else 'OFF'}",
+	    f"-DBUILD_SHARED_LIBS={'ON' if build_shared_libs else 'OFF'}",
+	]
 
-		# Allow overriding config file via environment variable
-		config_file_override = os.environ.get("XFE_CONTROL_SIM_CONFIG_FILE")
-		if config_file_override:
-			cmake_cmd.append(f"-DXFE_CONTROL_SIM_CONFIG_FILE={config_file_override}")
-			print(f"{Emoji.INFO} Using config file: {config_file_override}")
+	# Allow overriding config file via environment variable
+	config_file_override = os.environ.get("XFE_CONTROL_SIM_CONFIG_FILE")
+	if config_file_override:
+		cmake_cmd.append(f"-DXFE_CONTROL_SIM_CONFIG_FILE={config_file_override}")
+		print(f"{Emoji.INFO} Using config file: {config_file_override}")
 
-		if cmake_prefix_path:
-			cmake_cmd.append(f"-DCMAKE_PREFIX_PATH={cmake_prefix_path}")
+	if cmake_prefix_path:
+		cmake_cmd.append(f"-DCMAKE_PREFIX_PATH={cmake_prefix_path}")
 
-		print(f"{Emoji.INFO} Configuring with CMake...")
-		subprocess.run(cmake_cmd, check=True, cwd=source_dir)
+	print(f"{Emoji.INFO} Configuring with CMake...")
+	subprocess.run(cmake_cmd, check=True, cwd=source_dir)
 
-		print(f"{Emoji.INFO} Building with {nproc} processors...")
-		subprocess.run(build_cmd, check=True, cwd=build_dir)
+	print(f"{Emoji.INFO} Building with {nproc} processors...")
+	subprocess.run(build_cmd, check=True, cwd=build_dir)
 
 def get_nproc() -> int:
 	"""Get number of processor cores."""
@@ -252,7 +254,10 @@ def run_all_tests(repo_root: Path, rebuild: bool, verbose: bool = False, debug_b
 	run_clang_tidy_enabled = os.environ.get("RUN_CLANG_TIDY", "1")
 	is_ci = is_ci_environment()
 
-	if is_ci or run_clang_tidy_enabled == "1":
+	if platform.system() == "Windows":
+		print(
+		    f"{Colors.YELLOW}[INFO] Skipping clang-tidy on Windows (too slow; Linux/macOS CI covers it){Colors.RESET}")
+	elif is_ci or run_clang_tidy_enabled == "1":
 		run_clang_tidy(repo_root, build_dir)
 	else:
 		print(f"{Colors.YELLOW}[INFO] RUN_CLANG_TIDY not set; skipping clang-tidy step.{Colors.RESET}")
@@ -350,13 +355,19 @@ def run_main_repo_build(repo_root: Path, rebuild: bool, verbose: bool = False, d
 	build_project(
 	    repo_root, build_dir, rebuild, verbose, build_shared_libs=False, build_executable=True, debug_build=debug_build)
 
-	run_clang_tidy_enabled = os.environ.get("RUN_CLANG_TIDY", "1")
+	# Only run clang-tidy on full rebuild (rebuild=1) or in CI.
+	# Skip on Windows: llvm-mingw system headers generate ~144K suppressed warnings
+	# per file (vs ~10K on Linux/macOS), making clang-tidy take 15-20s per file and
+	# sometimes hang when __attribute__((constructor)) hooks run during analysis.
+	# Linux and macOS CI already catch all the same issues much faster.
 	is_ci = is_ci_environment()
-
-	if is_ci or run_clang_tidy_enabled == "1":
+	if platform.system() == "Windows":
+		print(
+		    f"{Colors.YELLOW}[INFO] Skipping clang-tidy on Windows (too slow; Linux/macOS CI covers it){Colors.RESET}")
+	elif rebuild or is_ci:
 		run_clang_tidy(repo_root, build_dir)
 	else:
-		print(f"{Colors.YELLOW}[INFO] RUN_CLANG_TIDY not set; skipping clang-tidy step.{Colors.RESET}")
+		print(f"{Colors.YELLOW}[INFO] Skipping clang-tidy (only runs with rebuild=1){Colors.RESET}")
 
 	print()
 
@@ -413,12 +424,14 @@ def run_standalone_build(
 
 	build_project(source_dir, build_dir, rebuild, verbose, build_shared_libs, build_executable, debug_build)
 
-	run_clang_tidy_enabled = os.environ.get("RUN_CLANG_TIDY", "1")
-
-	if is_ci or run_clang_tidy_enabled == "1":
+	# Only run clang-tidy on full rebuild (rebuild=1) or in CI (skip Windows)
+	if platform.system() == "Windows":
+		print(
+		    f"{Colors.YELLOW}[INFO] Skipping clang-tidy on Windows (too slow; Linux/macOS CI covers it){Colors.RESET}")
+	elif rebuild or is_ci:
 		run_clang_tidy(repo_root, build_dir)
 	else:
-		print(f"{Colors.YELLOW}[INFO] RUN_CLANG_TIDY not set; skipping clang-tidy step.{Colors.RESET}")
+		print(f"{Colors.YELLOW}[INFO] Skipping clang-tidy (only runs with rebuild=1){Colors.RESET}")
 
 	print()
 

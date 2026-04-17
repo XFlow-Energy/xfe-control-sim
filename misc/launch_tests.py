@@ -254,7 +254,10 @@ def run_all_tests(repo_root: Path, rebuild: bool, verbose: bool = False, debug_b
 	run_clang_tidy_enabled = os.environ.get("RUN_CLANG_TIDY", "1")
 	is_ci = is_ci_environment()
 
-	if is_ci or run_clang_tidy_enabled == "1":
+	if platform.system() == "Windows":
+		print(
+		    f"{Colors.YELLOW}[INFO] Skipping clang-tidy on Windows (too slow; Linux/macOS CI covers it){Colors.RESET}")
+	elif is_ci or run_clang_tidy_enabled == "1":
 		run_clang_tidy(repo_root, build_dir)
 	else:
 		print(f"{Colors.YELLOW}[INFO] RUN_CLANG_TIDY not set; skipping clang-tidy step.{Colors.RESET}")
@@ -352,9 +355,16 @@ def run_main_repo_build(repo_root: Path, rebuild: bool, verbose: bool = False, d
 	build_project(
 	    repo_root, build_dir, rebuild, verbose, build_shared_libs=False, build_executable=True, debug_build=debug_build)
 
-	# Only run clang-tidy on full rebuild (rebuild=1) or in CI
+	# Only run clang-tidy on full rebuild (rebuild=1) or in CI.
+	# Skip on Windows: llvm-mingw system headers generate ~144K suppressed warnings
+	# per file (vs ~10K on Linux/macOS), making clang-tidy take 15-20s per file and
+	# sometimes hang when __attribute__((constructor)) hooks run during analysis.
+	# Linux and macOS CI already catch all the same issues much faster.
 	is_ci = is_ci_environment()
-	if rebuild or is_ci:
+	if platform.system() == "Windows":
+		print(
+		    f"{Colors.YELLOW}[INFO] Skipping clang-tidy on Windows (too slow; Linux/macOS CI covers it){Colors.RESET}")
+	elif rebuild or is_ci:
 		run_clang_tidy(repo_root, build_dir)
 	else:
 		print(f"{Colors.YELLOW}[INFO] Skipping clang-tidy (only runs with rebuild=1){Colors.RESET}")
@@ -414,8 +424,11 @@ def run_standalone_build(
 
 	build_project(source_dir, build_dir, rebuild, verbose, build_shared_libs, build_executable, debug_build)
 
-	# Only run clang-tidy on full rebuild (rebuild=1) or in CI
-	if rebuild or is_ci:
+	# Only run clang-tidy on full rebuild (rebuild=1) or in CI (skip Windows)
+	if platform.system() == "Windows":
+		print(
+		    f"{Colors.YELLOW}[INFO] Skipping clang-tidy on Windows (too slow; Linux/macOS CI covers it){Colors.RESET}")
+	elif rebuild or is_ci:
 		run_clang_tidy(repo_root, build_dir)
 	else:
 		print(f"{Colors.YELLOW}[INFO] Skipping clang-tidy (only runs with rebuild=1){Colors.RESET}")

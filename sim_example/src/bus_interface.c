@@ -80,22 +80,16 @@ typedef enum
 	MAX_NETWORK_COLUMNS
 } network_config_index_t;
 
-void launch_shared_mem_and_hardware_interface(void)
-{
-	char *modbus_server_executable_location_program_name = NULL;
-#ifdef MODBUS_SERVER_EXECUTABLE_FULL_PATH
-	modbus_server_executable_location_program_name = MODBUS_SERVER_EXECUTABLE_FULL_PATH;
-#else
-	ERROR_MESSAGE("MODBUS_SERVER_EXECUTABLE_FULL_PATH is not defined. Exiting...\n");
-	exit(1);
+#ifndef MODBUS_SERVER_EXECUTABLE_FULL_PATH
+#error "MODBUS_SERVER_EXECUTABLE_FULL_PATH must be defined at build time"
+#endif
+#ifndef MODBUS_DEVICE_FULL_PATH
+#error "MODBUS_DEVICE_FULL_PATH must be defined at build time"
 #endif
 
-#ifdef MODBUS_DEVICE_FULL_PATH
+void launch_shared_mem_and_hardware_interface(void)
+{
 	csvFileLocation = MODBUS_DEVICE_FULL_PATH;
-#else
-	ERROR_MESSAGE("MODBUS_DEVICE_FULL_PATH is not defined. Exiting...\n");
-	exit(1);
-#endif
 
 	// Read network configuration
 	char ***networks_config_data = NULL;
@@ -175,9 +169,9 @@ void launch_shared_mem_and_hardware_interface(void)
 			log_message("Launching modbus_server (RTU) for network %d (Device: %s, Baud: %s, %s%s%s)\n", network_id, device_location, baud_rate, data_bits, parity, stop_bits);
 
 #ifdef _WIN32
-			pid = launch_modbus_server_rtu_windows(modbus_server_executable_location_program_name, network_id_str, device_csv_filename, device_location, baud_rate, parity, data_bits, stop_bits, timeout_us);
+			pid = launch_modbus_server_rtu_windows(MODBUS_SERVER_EXECUTABLE_FULL_PATH, network_id_str, device_csv_filename, device_location, baud_rate, parity, data_bits, stop_bits, timeout_us);
 #else
-			pid = launch_modbus_server_rtu_unix(modbus_server_executable_location_program_name, network_id_str, device_csv_filename, device_location, baud_rate, parity, data_bits, stop_bits, timeout_us);
+			pid = launch_modbus_server_rtu_unix(MODBUS_SERVER_EXECUTABLE_FULL_PATH, network_id_str, device_csv_filename, device_location, baud_rate, parity, data_bits, stop_bits, timeout_us);
 #endif
 		}
 		else
@@ -189,9 +183,9 @@ void launch_shared_mem_and_hardware_interface(void)
 			log_message("Launching modbus_server (TCP) for network %d (IP: %s, Port: %s)\n", network_id, ip_address, tcp_port);
 
 #ifdef _WIN32
-			pid = launch_modbus_server_windows(modbus_server_executable_location_program_name, network_id_str, device_csv_filename, ip_address, tcp_port, timeout_us);
+			pid = launch_modbus_server_windows(MODBUS_SERVER_EXECUTABLE_FULL_PATH, network_id_str, device_csv_filename, ip_address, tcp_port, timeout_us);
 #else
-			pid = launch_modbus_server_unix(modbus_server_executable_location_program_name, network_id_str, device_csv_filename, ip_address, tcp_port, timeout_us);
+			pid = launch_modbus_server_unix(MODBUS_SERVER_EXECUTABLE_FULL_PATH, network_id_str, device_csv_filename, ip_address, tcp_port, timeout_us);
 #endif
 		}
 
@@ -715,7 +709,7 @@ void shared_memory_controls_update(const param_array_t *dynamic_data, MAYBE_UNUS
 	update_simulation_sensor_data(dynamic_data);
 #endif
 
-	check_status_of_child(childPID);
+	check_status_of_child((int)childPID);
 	// log_message("We are in shared_memory_controls_update, nextDeviceSlot: %d\n", nextDeviceSlot);
 	for (int bus_num = 0; bus_num < nextDeviceSlot; bus_num++)
 	{
