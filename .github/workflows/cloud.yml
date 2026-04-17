@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 7
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0   # so we can diff against previous commits or base branch
 
@@ -97,7 +97,7 @@ jobs:
     needs:
       - clang-format
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Cache APT packages
         uses: awalsh128/cache-apt-pkgs-action@v1
@@ -178,10 +178,10 @@ jobs:
     needs:
       - clang-format
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Cache Homebrew Packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             /opt/homebrew/Cellar/gsl
@@ -290,11 +290,11 @@ jobs:
     needs:
       - clang-format
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Restore dependency cache
         id: cache-deps-restore
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: C:/deps
           key: ${{ runner.os }}-deps-windows-v1
@@ -419,7 +419,7 @@ jobs:
 
       - name: Save dependency cache
         if: steps.cache-deps-restore.outputs.cache-hit != 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: C:/deps
           key: ${{ runner.os }}-deps-windows-v1
@@ -502,7 +502,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
